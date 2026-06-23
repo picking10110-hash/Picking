@@ -526,6 +526,8 @@ function renderLeaderboard(isInitial = false) {
           </div>
         </div>
 
+        <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+
         <div class="pillar-dual-columns">
           ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
           <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
@@ -537,7 +539,6 @@ function renderLeaderboard(isInitial = false) {
         </div>
 
         <div class="pillar-info">
-          <span class="pillar-name" title="${picker.name}">${picker.name}</span>
           <div class="pillar-metrics-box">
             <div class="metric-chip chip-monto">
               <span class="chip-label">Monto Alcanzado</span>

@@ -2320,93 +2320,88 @@ body.tv-mode .avatar-3d-card-wrapper {
 
 .pillar-name {
   font-weight: 800;
-  font-size: 1.0rem;
+  font-size: 0.85rem;
   color: var(--text-main);
-  display: block;
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  width: 100%;
+  margin: 12px 0 4px;
+  line-height: 1.18;
+  letter-spacing: -0.2px;
+  min-height: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
 
-/* Tarjeta estructurada de métricas corporativas */
+/* Tarjeta estructurada de métricas */
 .pillar-metrics-box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 6px;
+  gap: 7px;
   width: 100%;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 4px 8px rgba(0, 0, 0, 0.02);
   text-align: left;
 }
 
-
-
 .metric-chip {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 0.72rem;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 11px;
   font-weight: 700;
+  background: #f8fafc;
   border: 1px solid var(--border-color);
-  background: rgba(248, 250, 252, 0.75);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.02);
-  transition: transform var(--alas-dur-normal) var(--alas-ease);
+  transition: transform var(--alas-dur-fast) var(--alas-ease), box-shadow var(--alas-dur-fast) var(--alas-ease);
   width: 100%;
   box-sizing: border-box;
   contain: layout style;
+  position: relative;
 }
 
 .metric-chip:hover {
-  transform: translateY(-1.5px);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
+
+/* Barra de acento a la izquierda */
+.metric-chip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 22%; bottom: 22%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+.metric-chip.chip-monto::before { background: #10b981; }
+.metric-chip.chip-items::before { background: #3b82f6; }
+.metric-chip.chip-meta::before  { background: #94a3b8; }
+.metric-chip.chip-meta.meta-success::before { background: #10b981; }
+.metric-chip.chip-meta.meta-warning::before { background: #f59e0b; }
+.metric-chip.chip-meta.meta-danger::before  { background: #ef4444; }
 
 .metric-chip .chip-label {
   color: var(--text-muted);
   font-size: 0.58rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  letter-spacing: 0.4px;
+  font-weight: 700;
 }
 
 .metric-chip .chip-value {
   font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
-}
-
-/* 1. Chip Monto Neto (Verde) */
-.metric-chip.chip-monto .chip-value {
-  color: #059669;
-  font-weight: 850;
-  font-size: 0.95rem;
-}
-
-/* 2. Chip Items Hechos (Azul) */
-.metric-chip.chip-items .chip-value {
-  color: #1e3a8a;
+  font-size: 0.88rem;
   font-weight: 800;
+  white-space: nowrap;
+  text-align: right;
 }
 
-/* 3. Chip Items Borrados (Rojo) */
-.metric-chip.chip-deleted .chip-value {
-  color: #ef4444;
-  font-weight: 800;
-}
-
-/* 4. Chip Meta Alcanzada (Gris Neutral por defecto) */
-.metric-chip.chip-meta .chip-value {
-  color: #475569;
-  font-weight: 800;
-}
+.metric-chip.chip-monto .chip-value { color: #059669; font-weight: 850; }
+.metric-chip.chip-items .chip-value { color: #2563eb; }
+.metric-chip.chip-deleted .chip-value { color: #ef4444; }
+.metric-chip.chip-meta .chip-value { color: #475569; }
 
 /* Colores Dinámicos Premium para la Meta Alcanzada */
 .metric-chip.chip-meta.meta-success {
@@ -3003,8 +2998,9 @@ body.tv-mode .pillar-segment::before {
 }
 
 body.tv-mode .pillar-name {
-  font-size: 1.55rem;
-  margin-bottom: 10px;
+  font-size: 1.15rem;
+  margin: 16px 0 8px;
+  min-height: 2.4em;
 }
 
 
@@ -3076,34 +3072,26 @@ body.tv-mode .rank-medal-badge {
 }
 
 body.tv-mode .pillar-metrics-box {
-  padding: 8px;
-  border-radius: 12px;
-  gap: 5px;
+  gap: 8px;
+  width: 100%;
 }
 
 body.tv-mode .metric-chip {
-  padding: 6px 10px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 13px;
 }
 
 body.tv-mode .metric-chip .chip-label {
-  font-size: 0.8rem;
-  margin-bottom: 4px;
+  font-size: 0.72rem;
 }
 
 body.tv-mode .metric-chip .chip-value {
-  font-size: 1.05rem;
-  white-space: nowrap;
+  font-size: 1.1rem;
 }
 
 body.tv-mode .metric-chip.chip-monto .chip-value {
   font-size: 1.1rem;
-  white-space: nowrap;
   letter-spacing: -0.3px;
-}
-
-body.tv-mode .pillar-metrics-box {
-  width: 100%;
 }
 
 /* Botón flotante de salida TV casi invisible (15% opaco) hasta hover */

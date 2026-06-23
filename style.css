@@ -2958,7 +2958,7 @@ body.tv-mode .pillars-stage {
 }
 
 body.tv-mode .pillar-card {
-  width: 200px;
+  width: 230px;
 }
 
 body.tv-mode .pillar-avatar-container .avatar-3d-card-wrapper {
@@ -3092,11 +3092,18 @@ body.tv-mode .metric-chip .chip-label {
 }
 
 body.tv-mode .metric-chip .chip-value {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  white-space: nowrap;
 }
 
 body.tv-mode .metric-chip.chip-monto .chip-value {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  letter-spacing: -0.3px;
+}
+
+body.tv-mode .pillar-metrics-box {
+  width: 100%;
 }
 
 /* Botón flotante de salida TV casi invisible (15% opaco) hasta hover */

@@ -194,7 +194,8 @@ function renderResumen() {
   function realItems(p) { return (window._pickingFromDB && p.items != null) ? p.items : p.score * 8; }
   function realMonto(p) { return (window._pickingFromDB && p.monto != null) ? p.monto : Math.round(p.score * 8 * ratePerItem * 7500); }
 
-  var sorted = [...pickers].sort(function (a, b) { return realMonto(b) - realMonto(a); });
+  // Ranking por ítems (preparaciones) — igual que el podio
+  var sorted = [...pickers].sort(function (a, b) { return realItems(b) - realItems(a); });
   var html = '';
 
   var totalItems = sorted.reduce(function (s, p) { return s + realItems(p); }, 0);

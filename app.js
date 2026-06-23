@@ -548,7 +548,7 @@ function renderLeaderboard(isInitial = false) {
               <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()} U</span>
             </div>
             <div class="metric-chip chip-meta ${metaClass}">
-              <span class="chip-label">Meta Alcanzada</span>
+              <span class="chip-label">Meta</span>
               <span class="chip-value meta-val">${isInitial ? 0 : percentOfGoal}%</span>
             </div>
           </div>

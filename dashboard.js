@@ -67,7 +67,8 @@ function processExcel(workbook, validCodes) {
   var iCantFact = colIndex(sapH, 'Cant.Fact.');
   var iDesc = colIndex(sapH, '%Desc');
 
-  var montoMap = {};
+  var montoMap = {};   // clave → monto total de la venta (Precio×Cant.Fact×desc)
+  var cantFactMap = {}; // clave → Cant. Facturada total (para precio unitario)
   for (var s = sapHeaderIdx + 1; s < rawSAP.length; s++) {
     var r = rawSAP[s];
     if (!r || !r[iEntrega]) continue;
@@ -77,6 +78,7 @@ function processExcel(workbook, validCodes) {
     var desc = parseFloat(r[iDesc]) || 0;
     var monto = precio * cantFact * (1 - desc / 100);
     montoMap[key] = (montoMap[key] || 0) + monto;
+    cantFactMap[key] = (cantFactMap[key] || 0) + cantFact;
   }
 
   // --- WMS: aggregate by picker ---
@@ -93,7 +95,6 @@ function processExcel(workbook, validCodes) {
 
   var pickerMap = {};
   var periodCount = {};
-  var usedClaves = {}; // cada venta (clave pedido+artículo) se cuenta una sola vez
 
   for (var w = wmsHeaderIdx + 1; w < rawWMS.length; w++) {
     var row = rawWMS[w];
@@ -119,9 +120,9 @@ function processExcel(workbook, validCodes) {
     if (!(key in montoMap)) continue;
 
     var cantPrep = parseFloat(row[iCantPrep]) || 0;
-    // Monto solo la primera vez que aparece la clave (evita doble conteo de la misma venta)
-    var montoLinea = 0;
-    if (!usedClaves[key]) { montoLinea = montoMap[key] || 0; usedClaves[key] = true; }
+    // Monto proporcional a lo preparado: Cant.Preparada × precio unitario (monto/cantFact)
+    var unitPrice = cantFactMap[key] > 0 ? (montoMap[key] / cantFactMap[key]) : 0;
+    var montoLinea = cantPrep * unitPrice;
     var pedNorm = String(parseInt(String(pedido).replace(/\s/g, ''), 10) || pedido);
 
     if (!pickerMap[usuario]) {

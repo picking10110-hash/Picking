@@ -314,18 +314,21 @@ async function mergeProductividadTodo() {
   const sums = {};
   rows.forEach(function (r) {
     const c = r.preparador_codigo;
-    if (!sums[c]) sums[c] = { items: 0, monto: 0 };
-    sums[c].items += Number(r.items) || 0;
+    if (!sums[c]) sums[c] = { items: 0, unidades: 0, monto: 0 };
+    // "Ítems Preparados" = cantidad de preparaciones (líneas)
+    sums[c].items += Number(r.lineas) || 0;
+    sums[c].unidades += Number(r.items) || 0;
     sums[c].monto += Number(r.monto) || 0;
   });
   pickers.forEach(function (p) {
     const s = sums[p.codigo];
     if (s) {
       p.items = s.items;
+      p.unidades = s.unidades;
       p.monto = s.monto;
-      p.score = Math.round(p.items / 8);
+      p.score = p.items;
     } else {
-      p.items = 0; p.monto = 0; p.score = 0;
+      p.items = 0; p.unidades = 0; p.monto = 0; p.score = 0;
     }
   });
 }
@@ -339,11 +342,13 @@ async function mergeProductividad(periodo) {
   pickers.forEach(function (p) {
     const r = byCode[p.codigo];
     if (r) {
-      p.items = Number(r.items) || 0;
+      // "Ítems Preparados" = cantidad de preparaciones (líneas)
+      p.items = Number(r.lineas) || 0;
+      p.unidades = Number(r.items) || 0;
       p.monto = Number(r.monto) || 0;
-      p.score = Math.round(p.items / 8);
+      p.score = p.items;
     } else {
-      p.items = 0; p.monto = 0; p.score = 0;
+      p.items = 0; p.unidades = 0; p.monto = 0; p.score = 0;
     }
   });
 }

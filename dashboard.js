@@ -93,6 +93,7 @@ function processExcel(workbook) {
 
   var pickerMap = {};
   var periodCount = {};
+  var usedClaves = {}; // cada venta (clave pedido+artículo) se cuenta una sola vez
 
   for (var w = wmsHeaderIdx + 1; w < rawWMS.length; w++) {
     var row = rawWMS[w];
@@ -111,8 +112,14 @@ function processExcel(workbook) {
     var pedido = row[iPedido];
     var articulo = row[iArticulo];
     var key = normalizeKey(pedido, articulo);
+
+    // Solo se registra si el pedido+artículo coincide en AMBAS hojas (WMS y SAP)
+    if (!(key in montoMap)) continue;
+
     var cantPrep = parseFloat(row[iCantPrep]) || 0;
-    var montoLinea = montoMap[key] || 0;
+    // Monto solo la primera vez que aparece la clave (evita doble conteo de la misma venta)
+    var montoLinea = 0;
+    if (!usedClaves[key]) { montoLinea = montoMap[key] || 0; usedClaves[key] = true; }
     var pedNorm = String(parseInt(String(pedido).replace(/\s/g, ''), 10) || pedido);
 
     if (!pickerMap[usuario]) {
@@ -211,7 +218,7 @@ function renderResumen() {
       <div class="dash-kpi-ico" style="background:rgba(5,150,105,0.08);color:#059669;">
         <span style="font-size:11px;font-weight:900;line-height:1;">Gs</span>
       </div>
-      <span class="dash-kpi-val" style="color:#059669">${fmtGs(totalMonto)}</span>
+      <span class="dash-kpi-val" style="color:#059669">${fmtNum(totalMonto)}</span>
       <span class="dash-kpi-lbl">Monto Alcanzado</span>
     </div>
   </div>`;

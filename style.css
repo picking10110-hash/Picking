@@ -3004,7 +3004,8 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 .floating-exit-tv {
   position: fixed;
   top: 16px;
-  right: 16px;
+  left: 16px;
+  right: auto;
   z-index: 300;
   opacity: 0.15;
   transition: opacity var(--alas-dur-normal) var(--alas-ease);

@@ -733,25 +733,50 @@ window.openNewPickerModal = function () {
   document.getElementById("edit-modal-overlay").classList.add("active");
 };
 
+// Redimensiona + comprime una imagen a un cuadrado de maxSize px (JPEG)
+function resizeImageToDataURL(file, maxSize, cb) {
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height;
+      // recorte cuadrado centrado
+      var side = Math.min(w, h);
+      var sx = (w - side) / 2, sy = (h - side) / 2;
+      var canvas = document.createElement('canvas');
+      canvas.width = maxSize;
+      canvas.height = maxSize;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+      try {
+        cb(canvas.toDataURL('image/jpeg', 0.82));
+      } catch (err) {
+        cb(e.target.result); // fallback al original si falla el canvas
+      }
+    };
+    img.onerror = function () { cb(e.target.result); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 window.updatePickerPhoto = function (id, event) {
   var file = event.target.files[0];
   if (!file || !window._alasCanEdit) return;
-  var reader = new FileReader();
-  reader.onload = function (e) {
+  resizeImageToDataURL(file, 256, function (dataUrl) {
     var picker = pickers.find(function (p) { return p.id === id; });
     if (!picker) return;
     picker.avatarType = 'uploaded';
-    picker.avatarValue = e.target.result;
+    picker.avatarValue = dataUrl;
     saveData();
     renderAdminGrid();
     renderLeaderboard(false);
 
     // Persistir en Supabase
     if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-      PickingAPI.updatePreparadorFoto(picker.codigo, 'uploaded', e.target.result);
+      PickingAPI.updatePreparadorFoto(picker.codigo, 'uploaded', dataUrl);
     }
-  };
-  reader.readAsDataURL(file);
+  });
 };
 
 // ── Modal de confirmación reutilizable (rojo + blanco, animado) ──
@@ -846,17 +871,15 @@ function handleFileUpload(event) {
 function handleFileUploadModal(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (e) {
+  resizeImageToDataURL(file, 256, function (dataUrl) {
     document.querySelectorAll("#modal-avatar-picker .avatar-option").forEach(opt => opt.classList.remove("selected"));
     const form = document.getElementById("modal-edit-form");
     form.dataset.avatarType = "uploaded";
-    form.dataset.avatarValue = e.target.result;
+    form.dataset.avatarValue = dataUrl;
     const fileLabel = document.querySelector("#modal-avatar-picker .file-upload-btn");
-    fileLabel.style.borderColor = "var(--accent-blue)";
-    fileLabel.style.color = "var(--accent-blue)";
-  };
-  reader.readAsDataURL(file);
+    fileLabel.style.borderColor = "#0B5F8D";
+    fileLabel.style.color = "#0B5F8D";
+  });
 }
 
 // ==========================================

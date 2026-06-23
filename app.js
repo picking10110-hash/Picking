@@ -144,6 +144,7 @@ async function initApp() {
 
   handleRouting();
   if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
+  if (typeof refreshUpdateChip === 'function') refreshUpdateChip();
 }
 
 function handleRouting() {
@@ -214,6 +215,26 @@ function fmtPeriodoLabel(periodo) {
 
 let _periodos = [];      // períodos disponibles (desc)
 let _periodoTodo = false; // modo "Todo" (todos los meses sumados)
+
+function fmtFechaHora(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + '  ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+
+async function refreshUpdateChip() {
+  var chip = document.getElementById('update-chip');
+  if (!chip) return;
+  if (!window.PickingAPI || !PickingAPI.isReady()) { chip.style.display = 'none'; return; }
+
+  var ultima = await PickingAPI.getUltimaImportacion();
+  if (!ultima || !ultima.fecha_carga) { chip.style.display = 'none'; return; }
+
+  var dateEl = document.getElementById('update-chip-date');
+  if (dateEl) dateEl.textContent = fmtFechaHora(ultima.fecha_carga);
+  chip.style.display = 'flex';
+}
 
 async function refreshPeriodoSelector() {
   var navs = document.querySelectorAll('.periodo-nav');
@@ -657,7 +678,6 @@ function renderAdminGrid() {
 
     var meta = getPickerMeta(picker);
     var readonlyAttr = canEdit ? '' : 'readonly';
-    var fmtMonto = meta.metaMontoMes.toLocaleString('es-PY');
     var fmtItems = meta.metaItemsMes.toLocaleString('es-PY');
 
     html += `
@@ -674,17 +694,11 @@ function renderAdminGrid() {
         </div>
         <span class="adm-card-name" title="${picker.name}">${picker.name}</span>
         <div class="adm-card-meta">
-          <span class="adm-meta-label">Meta mensual</span>
-          <div class="adm-meta-row">
-            <span class="adm-meta-key">Gs.</span>
-            <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtMonto}"
-              onfocus="metaFocus(this)" oninput="metaFormat(this)"
-              onchange="updatePickerMeta('${picker.id}','metaMontoMes',this.value)" ${readonlyAttr}>
-          </div>
+          <span class="adm-meta-label">Meta de ítems / mes</span>
           <div class="adm-meta-row">
             <span class="adm-meta-key">Ítems</span>
             <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtItems}"
-              oninput="metaFormat(this)"
+              onfocus="metaFocus(this)" oninput="metaFormat(this)"
               onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
           </div>
         </div>
@@ -1148,10 +1162,10 @@ window.metaFormat = function (el) {
   try { el.setSelectionRange(pos, pos); } catch (e) {}
 };
 
-window.updatePickerMeta = function (id, field, value) {
+window.updatePickerMeta = async function (id, field, value) {
   if (!window._alasCanEdit) return;
   var val = parseInt(String(value).replace(/\D/g, ''), 10);
-  if (isNaN(val) || val <= 0) return;
+  if (isNaN(val) || val <= 0) { showToast('Ingresá un número válido', 'error'); return; }
 
   var picker = pickers.find(p => p.id === id);
   if (!picker) return;
@@ -1159,11 +1173,39 @@ window.updatePickerMeta = function (id, field, value) {
   saveData();
   renderLeaderboard(false);
 
-  // Persistir en Supabase
+  // Persistir en Supabase y confirmar
   if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-    PickingAPI.updatePreparadorMeta(picker.codigo, field, val);
+    showToast('Guardando…', 'loading');
+    var ok = await PickingAPI.updatePreparadorMeta(picker.codigo, field, val);
+    if (ok) {
+      showToast('Meta guardada: ' + val.toLocaleString('es-PY') + ' ítems', 'success');
+    } else {
+      showToast('No se pudo guardar en la nube', 'error');
+    }
+  } else {
+    showToast('Meta guardada localmente', 'success');
   }
 };
+
+// ── Toast de confirmación ──────────────────────────────────
+var _toastTimer = null;
+function showToast(message, type) {
+  var el = document.getElementById('toast');
+  if (!el) return;
+  type = type || 'success';
+  var icons = {
+    success: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    loading: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" class="toast-spin"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>'
+  };
+  el.className = 'toast toast-' + type + ' show';
+  el.innerHTML = (icons[type] || '') + '<span>' + message + '</span>';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  if (type !== 'loading') {
+    _toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+}
+window.showToast = showToast;
 
 window.applyGlobalMeta = function () {
   if (!window._alasCanEdit) return;

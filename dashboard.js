@@ -251,14 +251,6 @@ function renderResumen() {
 
   html += '</tbody></table></div>';
 
-  // If imported data exists, show it too
-  if (dashboardData) {
-    html += '<div style="margin-top:24px;border-top:1px solid var(--border-color);padding-top:20px;">';
-    html += '<h3 style="font-size:1rem;font-weight:800;margin-bottom:14px;color:var(--text-main);">Datos Importados (WMS + SAP)</h3>';
-    html += renderImportedTable();
-    html += '</div>';
-  }
-
   container.innerHTML = html;
 }
 
@@ -373,141 +365,32 @@ function renderDashboard() {
   var container = document.getElementById('dashboard-body');
   if (!container) return;
 
-  if (!dashboardData) {
-    container.innerHTML = `
-      <div class="dash-empty">
-        <div class="dash-empty-icon">
-          <svg width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-          </svg>
-        </div>
-        <h3>Importar datos de productividad</h3>
-        <p>Subí el archivo <strong>Plantilla_Datos.xlsx</strong> con las hojas <em>datosWMS</em> y <em>datosSAP</em> para generar el dashboard.</p>
-        <label class="dash-upload-btn">
-          <input type="file" accept=".xlsx,.xls" onchange="handleExcelUpload(event)" style="display:none">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Seleccionar archivo Excel
-        </label>
-      </div>
-    `;
-    return;
+  var hasData = !!dashboardData;
+  var infoLine = '';
+  if (hasData) {
+    var mesLabel = (typeof fmtPeriodoLabel === 'function' && dashboardData.periodo) ? fmtPeriodoLabel(dashboardData.periodo) : (dashboardData.periodo || '');
+    infoLine = '<div class="dash-lastimport">Última importación: <strong>' + mesLabel + '</strong> · ' +
+      fmtNum(dashboardData.totals.pedidos) + ' entregas · ' + dashboardData.totals.preparadores + ' preparadores</div>';
   }
 
-  var d = dashboardData;
-  var html = '';
-
-  // KPIs
-  html += `
-    <div class="dash-kpis">
-      <div class="dash-kpi"><span class="dash-kpi-value">${fmtGs(d.totals.monto)}</span><span class="dash-kpi-label">Monto Total</span></div>
-      <div class="dash-kpi"><span class="dash-kpi-value">${fmtNum(d.totals.items)}</span><span class="dash-kpi-label">Ítems Preparados</span></div>
-      <div class="dash-kpi"><span class="dash-kpi-value">${fmtNum(d.totals.lineas)}</span><span class="dash-kpi-label">Líneas</span></div>
-      <div class="dash-kpi"><span class="dash-kpi-value">${fmtNum(d.totals.pedidos)}</span><span class="dash-kpi-label">Pedidos</span></div>
-      <div class="dash-kpi"><span class="dash-kpi-value">${d.totals.preparadores}</span><span class="dash-kpi-label">Preparadores</span></div>
+  container.innerHTML = `
+    <div class="dash-empty">
+      <div class="dash-empty-icon">
+        <svg width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <h3>${hasData ? 'Cargar nuevo mes' : 'Importar datos de productividad'}</h3>
+      <p>Subí el archivo Excel con las hojas <em>datosWMS</em> y <em>datosSAP</em>. Los datos se procesan y se ven en el Ranking y el Resumen.</p>
+      <label class="dash-upload-btn">
+        <input type="file" accept=".xlsx,.xls" onchange="handleExcelUpload(event)" style="display:none">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        ${hasData ? 'Cargar / Reimportar Excel' : 'Seleccionar archivo Excel'}
+      </label>
+      ${infoLine}
     </div>
   `;
-
-  // Toolbar
-  html += `
-    <div class="dash-toolbar">
-      <input type="text" class="dash-search" placeholder="Buscar preparador..." value="${dashFilter}" oninput="dashFilter=this.value;renderDashboard()">
-      <div style="display:flex;gap:8px;align-items:center;">
-        <label class="dash-reimport-btn">
-          <input type="file" accept=".xlsx,.xls" onchange="handleExcelUpload(event)" style="display:none">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Reimportar
-        </label>
-        <button class="dash-reimport-btn" onclick="exportDashCSV()">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar CSV
-        </button>
-      </div>
-    </div>
-  `;
-
-  // Sort + filter pickers
-  var filtered = d.pickers.filter(function (p) {
-    if (!dashFilter) return true;
-    var q = dashFilter.toLowerCase();
-    return p.name.toLowerCase().indexOf(q) !== -1 || p.code.toLowerCase().indexOf(q) !== -1;
-  });
-
-  filtered.sort(function (a, b) {
-    var va = a[dashSortCol], vb = b[dashSortCol];
-    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-    return dashSortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
-  });
-
-  // Chart
-  var maxMonto = Math.max.apply(null, filtered.map(function (p) { return p.monto; })) || 1;
-  html += '<div class="dash-chart">';
-  filtered.forEach(function (p, i) {
-    var pct = (p.monto / maxMonto) * 100;
-    var isSelected = dashSelectedPicker && dashSelectedPicker.code === p.code;
-    html += `<div class="dash-bar-row ${isSelected ? 'is-selected' : ''}" onclick="selectDashPicker('${p.code}')">
-      <span class="dash-bar-name">${p.name}</span>
-      <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%"></div></div>
-      <span class="dash-bar-val">${fmtGs(p.monto)}</span>
-    </div>`;
-  });
-  html += '</div>';
-
-  // Table + Detail split
-  html += '<div class="dash-split">';
-
-  // Table
-  html += '<div class="dash-table-wrap"><table class="dash-table"><thead><tr>';
-  var cols = [
-    { key: 'code', label: '#' }, { key: 'name', label: 'Preparador' },
-    { key: 'pedidos', label: 'Pedidos' }, { key: 'lineas', label: 'Líneas' },
-    { key: 'items', label: 'Ítems' }, { key: 'monto', label: 'Monto Gs.' }
-  ];
-  cols.forEach(function (c) {
-    var arrow = dashSortCol === c.key ? (dashSortAsc ? ' ▲' : ' ▼') : '';
-    html += `<th onclick="dashSortBy('${c.key}')" style="cursor:pointer">${c.label}${arrow}</th>`;
-  });
-  html += '</tr></thead><tbody>';
-
-  filtered.forEach(function (p, i) {
-    var isSelected = dashSelectedPicker && dashSelectedPicker.code === p.code;
-    html += `<tr class="${isSelected ? 'is-selected' : ''}" onclick="selectDashPicker('${p.code}')" style="cursor:pointer">
-      <td style="font-weight:800;color:var(--text-muted);">${i + 1}</td>
-      <td><strong>${p.name}</strong><br><span style="font-size:0.7rem;color:var(--text-muted)">${p.code}</span></td>
-      <td>${fmtNum(p.pedidos)}</td>
-      <td>${fmtNum(p.lineas)}</td>
-      <td>${fmtNum(p.items)}</td>
-      <td style="font-weight:800">${fmtGs(p.monto)}</td>
-    </tr>`;
-  });
-  html += '</tbody></table></div>';
-
-  // Detail panel
-  html += '<div class="dash-detail" id="dash-detail">';
-  if (dashSelectedPicker) {
-    var sp = dashSelectedPicker;
-    html += `
-      <div class="dash-detail-header">
-        <h3>${sp.name}</h3>
-        <span style="font-size:0.75rem;color:var(--text-muted)">${sp.code}</span>
-      </div>
-      <div class="dash-detail-grid">
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtGs(sp.monto)}</span><span class="dash-detail-lbl">Monto Total</span></div>
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtNum(sp.items)}</span><span class="dash-detail-lbl">Ítems</span></div>
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtNum(sp.lineas)}</span><span class="dash-detail-lbl">Líneas</span></div>
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtNum(sp.pedidos)}</span><span class="dash-detail-lbl">Pedidos</span></div>
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtGs(sp.ticketPromedio)}</span><span class="dash-detail-lbl">Ticket Promedio</span></div>
-        <div class="dash-detail-stat"><span class="dash-detail-val">${fmtNum(sp.itemsPorPedido)}</span><span class="dash-detail-lbl">Ítems / Pedido</span></div>
-      </div>
-    `;
-  } else {
-    html += '<div class="dash-detail-empty">Seleccioná un preparador de la tabla o gráfico para ver su detalle</div>';
-  }
-  html += '</div>';
-
-  html += '</div>'; // close dash-split
-
-  container.innerHTML = html;
 }
 
 window.dashSortBy = function (col) {
@@ -526,48 +409,130 @@ window.selectDashPicker = function (code) {
   renderDashboard();
 };
 
+function _tick() {
+  return new Promise(function (r) { requestAnimationFrame(function () { setTimeout(r, 30); }); });
+}
+
 window.handleExcelUpload = function (event) {
   var file = event.target.files[0];
   if (!file) return;
+
+  showImportLoader();
+  setImportProgress(10, 'Leyendo archivo…');
+
   var reader = new FileReader();
   reader.onload = async function (e) {
     try {
+      await _tick();
+      setImportProgress(35, 'Procesando WMS + SAP…');
+      await _tick();
+
       var wb = XLSX.read(e.target.result, { type: 'array' });
       var result = processExcel(wb);
-      if (result) {
-        dashboardData = result;
-        dashSelectedPicker = null;
-        dashFilter = '';
-        renderDashboard();
-        localStorage.setItem('picking_imported_data', JSON.stringify(result));
+      if (!result) { importError('No se pudo procesar el archivo.'); return; }
 
-        // Guardar en Supabase
-        if (window.PickingAPI && PickingAPI.isReady()) {
-          // Crear perfiles de preparadores nuevos (sin pisar los existentes)
-          await PickingAPI.ensurePreparadores(result.pickers);
-          var impId = await PickingAPI.saveImportacion(
-            result.periodo, file.name, result.totals, result.pickers
-          );
-          if (impId) {
-            console.info('[Picking] Importación guardada:', result.periodo);
-            // Recargar roster con los datos del período recién importado
-            if (typeof loadData === 'function') {
-              currentPeriodo = result.periodo;
-              await loadData();
-              if (typeof renderLeaderboard === 'function') renderLeaderboard(true);
-              if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
-            }
-            alert('Datos del período ' + result.periodo + ' guardados correctamente.');
-          } else {
-            alert('Datos procesados, pero no se pudieron guardar en la nube. Verificá el schema en Supabase.');
-          }
+      dashboardData = result;
+      dashSelectedPicker = null;
+      dashFilter = '';
+      localStorage.setItem('picking_imported_data', JSON.stringify(result));
+
+      setImportProgress(60, 'Guardando preparadores…');
+      await _tick();
+
+      var saveInfo = null;
+      if (window.PickingAPI && PickingAPI.isReady()) {
+        await PickingAPI.ensurePreparadores(result.pickers);
+        setImportProgress(80, 'Guardando productividad…');
+        saveInfo = await PickingAPI.saveImportacion(result.periodo, file.name, result.totals, result.pickers);
+
+        if (!saveInfo) {
+          importError('Datos procesados, pero no se pudieron guardar en la nube. Verificá el schema en Supabase.');
+          return;
+        }
+
+        setImportProgress(95, 'Actualizando ranking…');
+        if (typeof loadData === 'function') {
+          currentPeriodo = result.periodo;
+          await loadData();
+          if (typeof renderLeaderboard === 'function') renderLeaderboard(true);
+          if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
+          if (typeof refreshUpdateChip === 'function') refreshUpdateChip();
         }
       }
+
+      renderDashboard();
+      setImportProgress(100, 'Completado');
+      await _tick();
+
+      showImportSuccess(result, saveInfo);
     } catch (err) {
-      alert('Error al leer el archivo: ' + err.message);
+      importError('Error al leer el archivo: ' + err.message);
     }
   };
   reader.readAsArrayBuffer(file);
+};
+
+// ── Loader UI ──────────────────────────────────────────────
+function showImportLoader() {
+  var ov = document.getElementById('import-overlay');
+  if (!ov) return;
+  var ring = ov.querySelector('.import-ring');
+  if (ring) ring.classList.remove('done');
+  var summary = document.getElementById('import-summary');
+  if (summary) summary.innerHTML = '';
+  var doneBtn = document.getElementById('import-done-btn');
+  if (doneBtn) doneBtn.style.display = 'none';
+  setImportProgress(0, 'Procesando archivo…');
+  ov.classList.add('active');
+}
+
+function setImportProgress(pct, status) {
+  var fill = document.getElementById('import-ring-fill');
+  var pctEl = document.getElementById('import-pct');
+  var statusEl = document.getElementById('import-status');
+  var C = 264; // circunferencia
+  if (fill) fill.style.strokeDashoffset = (C - C * (pct / 100));
+  if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+  if (statusEl && status) statusEl.textContent = status;
+}
+
+function showImportSuccess(result, saveInfo) {
+  var ring = document.querySelector('#import-overlay .import-ring');
+  if (ring) ring.classList.add('done');
+
+  var statusEl = document.getElementById('import-status');
+  if (statusEl) statusEl.textContent = '¡Importación completada!';
+
+  var t = result.totals;
+  var replaced = saveInfo && saveInfo.replaced;
+  var mesLabel = (typeof fmtPeriodoLabel === 'function') ? fmtPeriodoLabel(result.periodo) : result.periodo;
+
+  var html = '';
+  html += '<div class="imp-row"><span>Período</span><strong>' + mesLabel + '</strong></div>';
+  html += '<div class="imp-row"><span>Entregas (pedidos)</span><strong>' + fmtNum(t.pedidos) + '</strong></div>';
+  html += '<div class="imp-row"><span>Líneas</span><strong>' + fmtNum(t.lineas) + '</strong></div>';
+  html += '<div class="imp-row"><span>Preparadores</span><strong>' + t.preparadores + '</strong></div>';
+  if (replaced) {
+    html += '<span class="imp-tag reemplazo">↻ Reemplazó datos previos de ' + mesLabel + ' (' + fmtNum(saveInfo.prevPedidos) + ' entregas)</span>';
+  } else {
+    html += '<span class="imp-tag nuevo">✓ Mes nuevo agregado</span>';
+  }
+
+  var summary = document.getElementById('import-summary');
+  if (summary) summary.innerHTML = html;
+
+  var doneBtn = document.getElementById('import-done-btn');
+  if (doneBtn) doneBtn.style.display = '';
+}
+
+function importError(msg) {
+  closeImportLoader();
+  alert(msg);
+}
+
+window.closeImportLoader = function () {
+  var ov = document.getElementById('import-overlay');
+  if (ov) ov.classList.remove('active');
 };
 
 window.exportDashCSV = function () {

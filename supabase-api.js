@@ -90,6 +90,16 @@
       return uniq;
     },
 
+    async getUltimaImportacion() {
+      if (!ready()) return null;
+      var res = await db().from('importaciones')
+        .select('periodo, fecha_carga, nombre_archivo')
+        .order('fecha_carga', { ascending: false })
+        .limit(1);
+      if (res.error || !res.data || !res.data.length) return null;
+      return res.data[0];
+    },
+
     async getProductividad(periodo) {
       if (!ready()) return null;
       var q = db().from('productividad').select('*');
@@ -109,9 +119,11 @@
     async saveImportacion(periodo, nombreArchivo, totals, pickers) {
       if (!ready()) return null;
 
-      // Borra importación previa del mismo período (reemplazo mensual)
-      var prev = await db().from('importaciones').select('id').eq('periodo', periodo);
-      if (prev.data && prev.data.length) {
+      // ¿Ya había datos de este período? (para informar reemplazo vs nuevo)
+      var prev = await db().from('importaciones').select('id, total_pedidos').eq('periodo', periodo);
+      var replaced = !!(prev.data && prev.data.length);
+      var prevPedidos = replaced ? (prev.data[0].total_pedidos || 0) : 0;
+      if (replaced) {
         var ids = prev.data.map(function (r) { return r.id; });
         await db().from('importaciones').delete().in('id', ids);
       }
@@ -146,7 +158,7 @@
       var prod = await db().from('productividad').insert(rows);
       if (prod.error) { console.warn('[PickingAPI] saveImportacion rows:', prod.error.message); return null; }
 
-      return imp.data.id;
+      return { id: imp.data.id, replaced: replaced, prevPedidos: prevPedidos };
     }
   };
 

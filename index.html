@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard visual de alta gama para el control y presentación en tiempo real del ranking de productividad de preparadores de pedidos (Picking).">
+  <title>Productividad Picking — ALAS</title>
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    (function(){
+      var hasToken=new URLSearchParams(window.location.search).has('alas_token');
+      var hasSession=!!localStorage.getItem('alas.sso.session');
+      window.__alasSSOExpected=hasToken||hasSession;
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="layout" id="alas-root">
+    <main class="system-shell">
+
+      <!-- SIDEBAR WAVE — Estilo MODELO PROYECTO -->
+      <nav class="sidebar-wave" aria-label="Navegación Picking">
+        <div class="sidebar-icons">
+          <button class="sidebar-icon active" type="button" data-view="ranking" onclick="switchView('ranking')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span class="sb-label">Ranking</span>
+          </button>
+          <button class="sidebar-icon" type="button" data-view="resumen" onclick="switchView('resumen')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="sb-label">Ver Resumen</span>
+          </button>
+          <button class="sidebar-icon" type="button" data-view="admin" onclick="switchView('admin')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="sb-label">Administrar</span>
+          </button>
+
+          <div class="sidebar-spacer"></div>
+
+          <button class="sidebar-icon" type="button" data-view="importar" onclick="switchView('importar')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span class="sb-label">Cargar Datos</span>
+          </button>
+
+          <!-- Chip usuario SSO en sidebar -->
+          <div id="ssoUserChip" class="sidebar-user-chip" style="display:none;">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="sb-label" id="ssoUserName">Usuario</span>
+          </div>
+
+          <button class="sidebar-icon" type="button" id="btnBack" title="Volver al Menú ALAS">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>
+            <span class="sb-label">Volver al Menú</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- STAGE — Contenido principal -->
+      <section class="stage">
+
+        <!-- VISTA 1: RANKING (podio) -->
+        <div class="stage-view is-active" id="view-ranking">
+          <header class="header-section">
+            <div class="brand">
+              <h1>Productividad Picking</h1>
+              <span class="subtitle">Ranking de Preparadores</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="periodo-nav" id="periodo-nav" style="display:none;">
+                <button class="periodo-nav-btn" id="periodoPrevBtn" type="button" onclick="changePeriodo(-1)" aria-label="Mes anterior">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <span class="periodo-nav-label" id="periodoLabel"></span>
+                <button class="periodo-nav-btn" id="periodoNextBtn" type="button" onclick="changePeriodo(1)" aria-label="Mes siguiente">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                </button>
+                <button class="periodo-todo-btn" id="periodoTodoBtn" type="button" onclick="togglePeriodoTodo()">Todo</button>
+              </div>
+              <button class="btn-tv" id="btn-tv-mode" onclick="enterTVMode()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Modo TV
+              </button>
+            </div>
+          </header>
+          <div class="pillars-wrap">
+            <div class="stage-logo">
+              <img src="logo-alas-s.a.png" alt="ALAS">
+            </div>
+            <section class="pillars-stage" id="pillars-container" aria-label="Ranking de Preparadores">
+              <div class="loading-state" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                Cargando ranking de productividad...
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- VISTA 2: RESUMEN — listado completo -->
+        <div class="stage-view" id="view-resumen">
+          <header class="header-section">
+            <div class="brand">
+              <h1>Resumen de Productividad</h1>
+              <span class="subtitle">Todos los Preparadores</span>
+            </div>
+          </header>
+          <div class="resumen-body" id="resumen-body">
+          </div>
+        </div>
+
+        <!-- VISTA: CARGAR DATOS (importar Excel) -->
+        <div class="stage-view" id="view-importar">
+          <header class="header-section">
+            <div class="brand">
+              <h1>Cargar Datos</h1>
+              <span class="subtitle">Importar desde Excel WMS + SAP</span>
+            </div>
+          </header>
+          <div class="dashboard-body" id="dashboard-body">
+          </div>
+        </div>
+
+        <!-- VISTA 3: ADMINISTRAR — perfil + metas -->
+        <div class="stage-view" id="view-admin">
+          <header class="header-section">
+            <div class="brand">
+              <h1>Configuración</h1>
+              <span class="subtitle">Perfil y Metas de Preparadores</span>
+            </div>
+          </header>
+
+          <div class="adm-grid" id="admin-grid-container">
+            <!-- Primera card: botón nuevo (se renderiza desde JS) -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Drawer removed — admin is now a stage view -->
+  <div style="display:none">
+
+      <!-- Tab Gestión -->
+      <div class="drawer-tab-content active" id="tab-content-manage">
+        <form id="picker-form" onsubmit="handleFormSubmit(event)">
+          <div class="form-group">
+            <label for="picker-name-input">Nombre del Preparador</label>
+            <input type="text" id="picker-name-input" class="form-input" placeholder="Ej. Carlos Pérez" required>
+          </div>
+
+          <div class="form-group">
+            <label for="picker-score-input">Productividad (Picks / Hora)</label>
+            <input type="number" id="picker-score-input" class="form-input" placeholder="Ej. 180" min="0" max="1000" required>
+          </div>
+
+          <div class="form-group">
+            <label for="picker-deleted-score-input">Picks Borrados / Hora (Mermas)</label>
+            <input type="number" id="picker-deleted-score-input" class="form-input" placeholder="Ej. 15" min="0" max="1000" required>
+          </div>
+
+          <div class="form-group">
+            <label>Fotografía / Avatar</label>
+            <div class="avatar-picker-wrapper">
+              <div class="avatar-option selected" data-avatar="avatar1" onclick="selectPresetAvatar(this, 'avatar1')">
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%230e7cc2'/><stop offset='100%25' stop-color='%230B5F8D'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a1)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 1">
+              </div>
+              <div class="avatar-option" data-avatar="avatar2" onclick="selectPresetAvatar(this, 'avatar2')">
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a2' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23536680'/><stop offset='100%25' stop-color='%23334155'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a2)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 2">
+              </div>
+              <div class="avatar-option" data-avatar="avatar3" onclick="selectPresetAvatar(this, 'avatar3')">
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a3' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23283548'/><stop offset='100%25' stop-color='%230f172a'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a3)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 3">
+              </div>
+              <div class="avatar-option" data-avatar="avatar4" onclick="selectPresetAvatar(this, 'avatar4')">
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a4' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%234d94f8'/><stop offset='100%25' stop-color='%232563EB'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a4)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 4">
+              </div>
+
+              <label class="file-upload-btn" title="Subir foto personalizada">
+                <input type="file" id="picker-file-input" style="display: none;" accept="image/*" onchange="handleFileUpload(event)">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-form" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+            Agregar Preparador
+          </button>
+        </form>
+
+        <div class="drawer-section-title">Parámetros de Planta</div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="plant-goal-input">Meta de Planta (Picks / Hora)</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="plant-goal-input" class="form-input" min="1" max="1000" style="flex-grow: 1;" required>
+            <button class="btn btn-primary" onclick="updatePlantGoal(event)" style="padding: 0 16px;">Aplicar</button>
+          </div>
+        </div>
+
+        <div class="drawer-section-title">Gestionar Activos</div>
+        <div class="pickers-list-manage" id="manage-list-container">
+        </div>
+
+        <div class="drawer-footer">
+          <button class="btn btn-danger" onclick="resetToMockData()" style="width: 100%; justify-content: center;">
+            Restaurar Valores Mocks
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Metas -->
+      <div class="drawer-tab-content" id="tab-content-metas">
+        <div class="metas-instructions">
+          Configura la meta mensual de cada preparador. La "Meta Alcanzada" en el ranking se calcula en base a estos objetivos individuales.
+        </div>
+
+        <div class="metas-global-row">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="meta-global-items">Meta global por defecto (Items / Mes)</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" id="meta-global-items" class="form-input" min="1" style="flex-grow: 1;" placeholder="Ej. 12000">
+              <button class="btn btn-primary" onclick="applyGlobalMeta()" style="padding: 0 14px;">Aplicar a todos</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="drawer-section-title">Metas Individuales</div>
+        <div class="metas-list" id="metas-list-container">
+        </div>
+      </div>
+
+      <!-- Tab Papelera -->
+      <div class="drawer-tab-content" id="tab-content-trash">
+        <div class="trash-instructions">
+          Los preparadores eliminados se guardan temporalmente aquí. Puedes restaurarlos al ranking principal o eliminarlos permanentemente.
+        </div>
+
+        <div class="pickers-list-manage" id="trash-list-container">
+        </div>
+
+        <div class="drawer-footer" id="trash-footer" style="display: none;">
+          <button class="btn btn-danger" onclick="emptyTrash()" style="width: 100%; justify-content: center;">
+            Vaciar Papelera
+          </button>
+        </div>
+      </div>
+
+  </div>
+
+  <!-- MODAL EDICIÓN -->
+  <div class="modal-overlay" id="edit-modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Editar Preparador</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+
+      <form id="modal-edit-form" onsubmit="handleModalSubmit(event)">
+        <input type="hidden" id="modal-edit-id" value="">
+
+        <div class="form-group">
+          <label for="modal-name-input">Nombre Completo</label>
+          <input type="text" id="modal-name-input" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-score-input">Productividad (Picks / Hora)</label>
+          <input type="number" id="modal-score-input" class="form-input" min="0" max="1000" required>
+        </div>
+
+        <input type="hidden" id="modal-deleted-score-input" value="0">
+
+        <div class="form-group">
+          <label>Fotografía / Avatar</label>
+          <div class="avatar-picker-wrapper" id="modal-avatar-picker">
+            <div class="avatar-option" data-avatar="avatar1" onclick="selectPresetAvatarModal(this, 'avatar1')">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%230e7cc2'/><stop offset='100%25' stop-color='%230B5F8D'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a1)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 1">
+            </div>
+            <div class="avatar-option" data-avatar="avatar2" onclick="selectPresetAvatarModal(this, 'avatar2')">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a2' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23536680'/><stop offset='100%25' stop-color='%23334155'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a2)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 2">
+            </div>
+            <div class="avatar-option" data-avatar="avatar3" onclick="selectPresetAvatarModal(this, 'avatar3')">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a3' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23283548'/><stop offset='100%25' stop-color='%230f172a'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a3)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 3">
+            </div>
+            <div class="avatar-option" data-avatar="avatar4" onclick="selectPresetAvatarModal(this, 'avatar4')">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a4' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%234d94f8'/><stop offset='100%25' stop-color='%232563EB'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a4)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/></svg>" alt="Avatar 4">
+            </div>
+
+            <label class="file-upload-btn" title="Subir foto personalizada">
+              <input type="file" id="modal-file-input" style="display: none;" accept="image/*" onchange="handleFileUploadModal(event)">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeEditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- CDN GSAP + SheetJS + Supabase -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Supabase config + API (antes de app.js para que estén disponibles) -->
+  <script src="supabase-config.js"></script>
+  <script src="supabase-api.js"></script>
+  <!-- APP -->
+  <script src="app.js"></script>
+  <script src="dashboard.js"></script>
+
+  <!-- ALAS Ecosystem -->
+  <script src="alas-transition.js"></script>
+  <script>
+    ALASTransition.init({ root: '#alas-root' });
+    // DEV BYPASS: failsafe desactivado para pruebas locales
+    // setTimeout(function(){
+    //   if(!window._alasEntered){
+    //     var url=(window.ALAS_SSO_CONFIG||{}).launcherUrl||'https://launcher-tawny.vercel.app';
+    //     window.location.replace(url);
+    //   }
+    // },10000);
+  </script>
+  <script src="alas-sso-config.js"></script>
+  <script src="alas-auth-client.js"></script>
+  <script src="ui-protection.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Datos reales del negocio — NO subir a repo público
+Plantilla_Datos.xlsx
+*.xlsx
+*.xls
+
+# Dependencias / sistema
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor
+.vscode/
+.idea/

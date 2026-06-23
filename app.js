@@ -426,13 +426,16 @@ function renderLeaderboard(isInitial = false) {
     return;
   }
 
-  // Roster real pero sin datos del mes → invitar a importar
+  // Roster real pero sin datos del mes
   if (window._pickingFromDB && pickers.every(function (p) { return !p.items; })) {
     container.innerHTML = `
-      <div class="empty-state" style="margin:auto; text-align: center; padding: 60px; color: var(--text-muted); background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); max-width: 460px;">
-        <div style="font-size: 2.5rem; margin-bottom: 12px;">📊</div>
-        <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-main);">Sin datos de productividad${currentPeriodo ? ' para ' + currentPeriodo : ''}</p>
-        <p style="font-size: 0.85rem; margin-top: 6px;">Andá a <strong>Cargar Datos</strong> e importá el Excel (WMS + SAP) del mes para ver el ranking.</p>
+      <div class="empty-state" style="margin:auto; text-align: center; padding: 48px 60px; color: var(--text-muted); background: #ffffff; border-radius: 16px; border: 1px solid var(--border-color); max-width: 420px;">
+        <svg width="40" height="40" fill="none" stroke="#cbd5e1" stroke-width="1.5" viewBox="0 0 24 24" style="margin: 0 auto 16px; display: block;">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <p style="font-weight: 600; font-size: 1rem; color: var(--text-main);">Sin datos de productividad</p>
       </div>
     `;
     return;

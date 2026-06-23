@@ -2509,6 +2509,105 @@ body.tv-mode .avatar-3d-card-wrapper {
 }
 .dash-lastimport strong { color: #0B5F8D; font-weight: 700; }
 
+/* Gestor de importaciones (Cargar Datos) */
+.import-manager {
+  max-width: 560px;
+  margin: 28px auto 0;
+}
+
+.imp-mgr-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.imp-mgr-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 14px;
+}
+.imp-mgr-head svg { color: var(--text-muted); }
+
+.imp-mgr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.imp-mgr-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0B5F8D;
+  background: #f0f9ff;
+  border: 1px solid rgba(11, 95, 141, 0.14);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.imp-mgr-range {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.imp-mgr-sel {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  outline: none;
+}
+.imp-mgr-sel:focus { border-color: #0B5F8D; }
+
+.imp-mgr-btn-del {
+  height: 34px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--alas-dur-fast) var(--alas-ease);
+}
+.imp-mgr-btn-del:hover { background: #dc2626; }
+
+.imp-mgr-btn-all {
+  width: 100%;
+  height: 38px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9px;
+  background: #fff;
+  color: #ef4444;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--alas-dur-fast) var(--alas-ease), border-color var(--alas-dur-fast) var(--alas-ease);
+}
+.imp-mgr-btn-all:hover { background: #fef2f2; border-color: #ef4444; }
+
 /* KPIs */
 .dash-kpis {
   display: grid;

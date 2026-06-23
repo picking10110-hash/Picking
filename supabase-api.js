@@ -90,6 +90,16 @@
       return uniq;
     },
 
+    // Borra importaciones por rango de período (YYYY-MM). Sin args = todo.
+    async deleteImportaciones(desde, hasta) {
+      if (!ready()) return null;
+      var d = desde || '0000-01';
+      var h = hasta || '9999-12';
+      var res = await db().from('importaciones').delete().gte('periodo', d).lte('periodo', h);
+      if (res.error) { console.warn('[PickingAPI] deleteImportaciones:', res.error.message); return null; }
+      return true;
+    },
+
     async getUltimaImportacion() {
       if (!ready()) return null;
       var res = await db().from('importaciones')

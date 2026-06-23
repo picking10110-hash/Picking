@@ -397,8 +397,101 @@ function renderDashboard() {
       </label>
       ${infoLine}
     </div>
+    <div class="import-manager" id="import-manager"></div>
   `;
+
+  renderImportManager();
 }
+
+// Panel para gestionar / borrar importaciones por rango de meses
+async function renderImportManager() {
+  var box = document.getElementById('import-manager');
+  if (!box) return;
+  if (!window.PickingAPI || !PickingAPI.isReady() || !window._alasCanEdit) { box.innerHTML = ''; return; }
+
+  var periodos = (await PickingAPI.getPeriodos()) || [];
+  if (!periodos.length) { box.innerHTML = ''; return; }
+
+  // periodos viene descendente; para los selects ordenamos ascendente
+  var asc = periodos.slice().sort();
+  var opts = asc.map(function (p) {
+    return '<option value="' + p + '">' + (typeof fmtPeriodoLabel === 'function' ? fmtPeriodoLabel(p) : p) + '</option>';
+  }).join('');
+
+  var chips = asc.map(function (p) {
+    return '<span class="imp-mgr-chip">' + (typeof fmtPeriodoLabel === 'function' ? fmtPeriodoLabel(p) : p) + '</span>';
+  }).join('');
+
+  box.innerHTML = `
+    <div class="imp-mgr-card">
+      <div class="imp-mgr-head">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2m-9 0v12a2 2 0 002 2h6a2 2 0 002-2V7"/></svg>
+        <span>Gestionar importaciones (${asc.length} ${asc.length === 1 ? 'mes' : 'meses'})</span>
+      </div>
+      <div class="imp-mgr-chips">${chips}</div>
+      <div class="imp-mgr-range">
+        <span>Borrar desde</span>
+        <select class="imp-mgr-sel" id="del-desde">${opts}</select>
+        <span>hasta</span>
+        <select class="imp-mgr-sel" id="del-hasta">${opts}</select>
+        <button class="imp-mgr-btn-del" onclick="deleteImportRange()">Borrar rango</button>
+      </div>
+      <button class="imp-mgr-btn-all" onclick="deleteImportAll()">Borrar todas las importaciones</button>
+    </div>
+  `;
+
+  // Por defecto: desde el más viejo, hasta el más nuevo
+  var dDesde = document.getElementById('del-desde');
+  var dHasta = document.getElementById('del-hasta');
+  if (dDesde) dDesde.value = asc[0];
+  if (dHasta) dHasta.value = asc[asc.length - 1];
+}
+
+async function _doDeleteImport(desde, hasta, mensaje) {
+  if (typeof showImportLoader === 'function') {} // no usamos el loader acá
+  var ok = await PickingAPI.deleteImportaciones(desde, hasta);
+  if (!ok) { if (typeof showToast === 'function') showToast('No se pudo borrar', 'error'); return; }
+
+  if (typeof showToast === 'function') showToast(mensaje, 'success');
+
+  // Limpiar estado local y refrescar
+  dashboardData = null;
+  try { localStorage.removeItem('picking_imported_data'); } catch (e) {}
+  if (typeof loadData === 'function') {
+    currentPeriodo = null;
+    await loadData();
+    if (typeof renderLeaderboard === 'function') renderLeaderboard(true);
+    if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
+    if (typeof refreshUpdateChip === 'function') refreshUpdateChip();
+  }
+  renderDashboard();
+}
+
+window.deleteImportRange = function () {
+  if (!window._alasCanEdit) return;
+  var desde = document.getElementById('del-desde').value;
+  var hasta = document.getElementById('del-hasta').value;
+  if (desde > hasta) { var t = desde; desde = hasta; hasta = t; }
+  var lblD = (typeof fmtPeriodoLabel === 'function') ? fmtPeriodoLabel(desde) : desde;
+  var lblH = (typeof fmtPeriodoLabel === 'function') ? fmtPeriodoLabel(hasta) : hasta;
+  var rango = (desde === hasta) ? ('<strong>' + lblD + '</strong>') : ('<strong>' + lblD + '</strong> a <strong>' + lblH + '</strong>');
+  showConfirm({
+    title: 'Borrar importaciones',
+    message: '¿Borrar los datos de ' + rango + '? Esta acción no se puede deshacer.',
+    okLabel: 'Borrar',
+    onConfirm: function () { _doDeleteImport(desde, hasta, 'Datos borrados: ' + lblD + (desde !== hasta ? ' a ' + lblH : '')); }
+  });
+};
+
+window.deleteImportAll = function () {
+  if (!window._alasCanEdit) return;
+  showConfirm({
+    title: 'Borrar TODO',
+    message: '¿Borrar <strong>todas</strong> las importaciones de productividad? Los perfiles y metas de los preparadores se conservan. Esta acción no se puede deshacer.',
+    okLabel: 'Borrar todo',
+    onConfirm: function () { _doDeleteImport(null, null, 'Todas las importaciones borradas'); }
+  });
+};
 
 window.dashSortBy = function (col) {
   if (dashSortCol === col) dashSortAsc = !dashSortAsc;

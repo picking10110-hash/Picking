@@ -486,9 +486,9 @@ function renderLeaderboard(isInitial = false) {
     const totalItems = pickerItems(picker);
     const moneyValuePYG = pickerMonto(picker);
 
-    // Alturas proporcionales al máximo del podio (líder ≈ lleno)
-    const itemsHeightPercent = (totalItems / maxItemsPodium) * 92;
-    const moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 92;
+    // Alturas proporcionales al máximo (0–70% de la altura física)
+    const itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
+    const moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
 
     let metaClass = "meta-danger";
     if (percentOfGoal >= 100) metaClass = "meta-success";
@@ -498,56 +498,60 @@ function renderLeaderboard(isInitial = false) {
     const prevRank = picker.prevRank !== undefined ? picker.prevRank : currentRank;
 
     let trendClass = "stable";
-    let trendArrow = "→";
-    let trendTitle = "Sin cambios";
+    let trendSymbol = "▬";
+    let trendTitle = "Posición estable";
 
     if (prevRank > currentRank) {
-      trendClass = "up"; trendArrow = "↗"; trendTitle = `Subió ${prevRank - currentRank}`;
+      trendClass = "up";
+      trendSymbol = "▲";
+      trendTitle = `Subió ${prevRank - currentRank} posiciones`;
     } else if (prevRank < currentRank) {
-      trendClass = "down"; trendArrow = "↘"; trendTitle = `Bajó ${currentRank - prevRank}`;
+      trendClass = "down";
+      trendSymbol = "▼";
+      trendTitle = `Bajó ${currentRank - prevRank} posiciones`;
     }
 
     const pickerMetaItems = getPickerMeta(picker).metaItemsMes;
-    const initials = getInitials(picker.name);
-    const presetColors = { avatar1: '#0B5F8D', avatar2: '#334155', avatar3: '#0f172a', avatar4: '#2563EB' };
-    const avColor = presetColors[picker.avatarValue] || '#0B5F8D';
-    const isLeader = rank === 1;
-    const avatarInner = picker.avatarType === 'uploaded'
-      ? `<img src="${imgSrc}" alt="${picker.name}">`
-      : `<span class="pcard-initials" style="background:${avColor}">${initials}</span>`;
 
     html += `
-      <div class="pcard ${isLeader ? 'is-leader' : ''}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
-        <div class="pcard-head">
-          <div class="pcard-avatar">
-            ${avatarInner}
-            <span class="pcard-rank rank-${rank}">${rank}</span>
-          </div>
-          <div class="pcard-id">
-            <div class="pcard-name" title="${picker.name}">${picker.name}${isLeader ? ' <span class="pcard-crown">👑</span>' : ''}</div>
-            <div class="pcard-trend trend-${trendClass}" title="${trendTitle}">${trendArrow} <span>vs. mes ant.</span></div>
-          </div>
-        </div>
-
-        <div class="pcard-bars">
-          <div class="pcard-bar"><div class="pcard-bar-track"><div class="pcard-bar-fill segment-monto" style="height:${isInitial ? 0 : moneyHeightPercent}%"></div></div></div>
-          <div class="pcard-bar"><div class="pcard-bar-track"><div class="pcard-bar-fill items segment-base" style="height:${isInitial ? 0 : itemsHeightPercent}%"></div></div></div>
-        </div>
-
-        <div class="pcard-vals">
-          <div class="pcard-val">
-            <span class="pcard-val-lbl">Monto</span>
-            <span class="pcard-val-v monto monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
-          </div>
-          <div class="pcard-val">
-            <span class="pcard-val-lbl">Ítems</span>
-            <span class="pcard-val-v items items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()} U</span>
+      <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
+        <div class="pillar-avatar-container">
+          <div class="avatar-3d-card-wrapper">
+            <div class="avatar-3d-card">
+              <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
+              <div class="avatar-3d-shine"></div>
+            </div>
+            <div class="rank-medal-badge">${rank}</div>
+            <div class="rank-trend-indicator trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
           </div>
         </div>
 
-        <div class="pcard-meta chip-meta ${metaClass}">
-          <span>Meta alcanzada</span>
-          <strong class="meta-val">${isInitial ? 0 : percentOfGoal}%</strong>
+        <div class="pillar-dual-columns">
+          ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
+          <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
+            <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
+          </div>
+          <div class="pillar-3d-square pillar-items" title="Items preparados">
+            <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
+          </div>
+        </div>
+
+        <div class="pillar-info">
+          <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+          <div class="pillar-metrics-box">
+            <div class="metric-chip chip-monto">
+              <span class="chip-label">Monto Alcanzado</span>
+              <span class="chip-value monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
+            </div>
+            <div class="metric-chip chip-items">
+              <span class="chip-label">Items Preparados</span>
+              <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()} U</span>
+            </div>
+            <div class="metric-chip chip-meta ${metaClass}">
+              <span class="chip-label">Meta</span>
+              <span class="chip-value meta-val">${isInitial ? 0 : percentOfGoal}%</span>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -555,12 +559,12 @@ function renderLeaderboard(isInitial = false) {
 
   container.innerHTML = html;
 
-  const cards = container.querySelectorAll(".pcard");
+  const cards = container.querySelectorAll(".pillar-card");
   if (isInitial) {
-    gsap.set(cards, { opacity: 0, y: 30, scale: 0.96 });
+    gsap.set(cards, { opacity: 0, y: 50, scale: 0.9 });
     gsap.to(cards, {
       opacity: 1, y: 0, scale: 1,
-      duration: 0.5, stagger: 0.07, ease: "back.out(1.2)",
+      duration: 0.7, stagger: 0.08, ease: "back.out(1.2)",
       onComplete: () => { animateBarsAndNumbers(container); }
     });
   } else {
@@ -568,20 +572,12 @@ function renderLeaderboard(isInitial = false) {
   }
 }
 
-function getInitials(name) {
-  var parts = String(name || '').trim().split(/\s+/);
-  if (!parts[0]) return '?';
-  var a = parts[0].charAt(0);
-  var b = parts.length > 1 ? parts[1].charAt(0) : '';
-  return (a + b).toUpperCase();
-}
-
 function animateBarsAndNumbers(container) {
-  const cards = container.querySelectorAll(".pcard");
+  const cards = container.querySelectorAll(".pillar-card");
 
   cards.forEach(card => {
-    const montoSeg = card.querySelector(".segment-monto");
-    const baseSeg = card.querySelector(".segment-base");
+    const montoSeg = card.querySelector(".pillar-segment.segment-monto");
+    const baseSeg = card.querySelector(".pillar-segment.segment-base");
     const metaVal = card.querySelector(".meta-val");
     const montoVal = card.querySelector(".monto-val");
     const itemsVal = card.querySelector(".items-val");
@@ -600,17 +596,18 @@ function animateBarsAndNumbers(container) {
 
       gsap.to(animObj, {
         monto: targetMonto, items: targetItems,
-        duration: 1.3, ease: "power3.out",
+        duration: 1.4, ease: "power3.out",
         onUpdate: () => {
           montoVal.dataset.current = Math.round(animObj.monto).toString();
           itemsVal.dataset.current = Math.round(animObj.items).toString();
 
-          const montoHeight = (animObj.monto / maxMonto) * 92;
-          const itemsHeight = (animObj.items / maxItems) * 92;
+          // Alturas proporcionales al líder del podio
+          const montoHeight = (animObj.monto / maxMonto) * 70;
+          const itemsHeight = (animObj.items / maxItems) * 70;
           const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
 
-          if (montoSeg) montoSeg.style.height = montoHeight + "%";
-          if (baseSeg) baseSeg.style.height = itemsHeight + "%";
+          if (montoSeg) montoSeg.style.setProperty("--monto-height", montoHeight + "%");
+          if (baseSeg) baseSeg.style.setProperty("--segment-height", itemsHeight + "%");
 
           montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
           itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()} U`;
@@ -941,7 +938,7 @@ function deletePicker(id) {
   if (pickerIndex === -1) return;
 
   const deletedPicker = pickers[pickerIndex];
-  const element = document.querySelector(`.pcard[data-id="${id}"]`);
+  const element = document.querySelector(`.pillar-card[data-id="${id}"]`);
   const manageElement = document.querySelector(`.manage-picker-item[data-manage-id="${id}"]`);
 
   const onDone = () => {
@@ -1374,7 +1371,7 @@ window.resetToMockData = function () {
   if (!confirm("¿Deseas restaurar el ranking a la lista de demostración? Se perderán los cambios activos y la papelera.")) return;
 
   const container = document.getElementById("pillars-container");
-  const items = container ? container.querySelectorAll(".pcard") : [];
+  const items = container ? container.querySelectorAll(".pillar-card") : [];
 
   gsap.to(items, {
     opacity: 0, y: 20, duration: 0.4, stagger: 0.05,

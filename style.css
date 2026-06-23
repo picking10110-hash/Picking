@@ -2010,184 +2010,23 @@ body.tv-mode .avatar-3d-card-wrapper {
 .pillars-stage {
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 22px;
+  align-items: flex-end;
+  gap: 40px;
   flex: 1;
   min-height: 0;
-  padding: 60px 30px 30px;
+  padding: 20px 30px 10px 30px;
   background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 60%, #e2e8f0 100%);
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   overflow-x: auto;
+  transform-style: preserve-3d;
+  perspective: 1200px;
   position: relative;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.02),
     0 4px 12px rgba(0, 0, 0, 0.03),
     0 12px 28px rgba(0, 0, 0, 0.04);
 }
-
-/* ==========================================
-   PODIO — CARDS (estilo limpio v2)
-   ========================================== */
-.pcard {
-  width: 215px;
-  flex-shrink: 0;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  transition: transform var(--alas-dur-normal) var(--alas-ease), box-shadow var(--alas-dur-normal) var(--alas-ease);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 6px 16px rgba(0,0,0,0.04);
-}
-
-.pcard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04), 0 12px 28px rgba(0,0,0,0.08);
-}
-
-.pcard.is-leader {
-  border: 2px solid #0B5F8D;
-  box-shadow: 0 2px 6px rgba(11,95,141,0.1), 0 12px 30px rgba(11,95,141,0.16);
-}
-
-/* Header */
-.pcard-head { display: flex; align-items: center; gap: 11px; }
-
-.pcard-avatar {
-  position: relative;
-  width: 46px; height: 46px;
-  flex-shrink: 0;
-}
-.pcard-avatar img,
-.pcard-initials {
-  width: 100%; height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-}
-.pcard-initials {
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.92rem;
-  letter-spacing: 0.5px;
-}
-.pcard-rank {
-  position: absolute;
-  bottom: -3px; left: -3px;
-  width: 21px; height: 21px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.66rem; font-weight: 800; color: #fff;
-  border: 2px solid #fff;
-  background: linear-gradient(135deg, #64748b, #475569);
-}
-.pcard-rank.rank-1 { background: linear-gradient(135deg, #fbbf24, #d97706); }
-.pcard-rank.rank-2 { background: linear-gradient(135deg, #cbd5e1, #64748b); }
-.pcard-rank.rank-3 { background: linear-gradient(135deg, #fb923c, #c2410c); }
-
-.pcard-id { min-width: 0; flex: 1; }
-.pcard-name {
-  font-size: 0.86rem; font-weight: 800; color: var(--text-main);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  display: flex; align-items: center; gap: 4px;
-}
-.pcard-crown { font-size: 0.82rem; }
-.pcard-trend {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 0.68rem; font-weight: 800; margin-top: 2px;
-}
-.pcard-trend span { color: var(--text-muted); font-weight: 600; }
-.pcard-trend.trend-up { color: #10b981; }
-.pcard-trend.trend-down { color: #ef4444; }
-.pcard-trend.trend-stable { color: #94a3b8; }
-
-/* Bars */
-.pcard-bars {
-  display: flex; gap: 16px;
-  height: 132px;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 14px;
-}
-.pcard-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
-.pcard-bar-track {
-  width: 100%; height: 100%;
-  background: #f1f5f9;
-  border-radius: 9px;
-  display: flex; align-items: flex-end;
-  overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
-}
-.pcard-bar-fill {
-  width: 100%;
-  min-height: 4px;
-  border-radius: 9px;
-  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-}
-.pcard-bar-fill.items {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-}
-
-/* Valores */
-.pcard-vals { display: flex; gap: 12px; }
-.pcard-val {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 1px;
-  text-align: center;
-}
-.pcard-val-lbl {
-  font-size: 0.62rem; font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.3px;
-}
-.pcard-val-v {
-  font-size: 0.82rem; font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  letter-spacing: -0.2px;
-}
-.pcard-val-v.monto { color: #059669; }
-.pcard-val-v.items { color: #2563eb; }
-
-/* Meta pill */
-.pcard-meta {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 14px;
-  border-radius: 11px;
-  background: #f7f3ea;
-  font-size: 0.72rem; font-weight: 700;
-  color: var(--text-muted);
-}
-.pcard-meta strong { font-size: 0.98rem; font-weight: 800; color: #92400e; }
-.pcard-meta.meta-success { background: #ecfdf5; }
-.pcard-meta.meta-success strong { color: #059669; }
-.pcard-meta.meta-warning { background: #fffbeb; }
-.pcard-meta.meta-warning strong { color: #d97706; }
-
-/* Modo TV — cards más grandes */
-body.tv-mode .pillars-stage { gap: 28px; padding: 70px 40px 40px; }
-body.tv-mode .pcard {
-  width: 280px;
-  padding: 22px;
-  gap: 18px;
-  border-radius: 22px;
-}
-body.tv-mode .pcard-avatar { width: 60px; height: 60px; }
-body.tv-mode .pcard-initials { font-size: 1.2rem; }
-body.tv-mode .pcard-rank { width: 26px; height: 26px; font-size: 0.8rem; }
-body.tv-mode .pcard-name { font-size: 1.1rem; }
-body.tv-mode .pcard-crown { font-size: 1rem; }
-body.tv-mode .pcard-trend { font-size: 0.82rem; }
-body.tv-mode .pcard-bars { height: 210px; gap: 22px; }
-body.tv-mode .pcard-val-lbl { font-size: 0.74rem; }
-body.tv-mode .pcard-val-v { font-size: 1.02rem; }
-body.tv-mode .pcard-meta { padding: 12px 18px; border-radius: 14px; font-size: 0.85rem; }
-body.tv-mode .pcard-meta strong { font-size: 1.3rem; }
 
 .pillars-wrap {
   position: relative;

@@ -273,14 +273,16 @@
 
         <div class="form-group">
           <label for="modal-name-input">Nombre Completo</label>
-          <input type="text" id="modal-name-input" class="form-input" required>
+          <input type="text" id="modal-name-input" class="form-input" placeholder="Ej. José Santacruz" required>
         </div>
 
         <div class="form-group">
-          <label for="modal-score-input">Productividad (Picks / Hora)</label>
-          <input type="number" id="modal-score-input" class="form-input" min="0" max="1000" required>
+          <label for="modal-codigo-input">Código del sistema (WMS)</label>
+          <input type="text" id="modal-codigo-input" class="form-input" placeholder="Ej. JSANTACRUZ" autocomplete="off" spellcheck="false" style="text-transform:uppercase;">
+          <span class="form-hint">Debe coincidir con el usuario del WMS para que matchee con los datos importados.</span>
         </div>
 
+        <input type="hidden" id="modal-score-input" value="0">
         <input type="hidden" id="modal-deleted-score-input" value="0">
 
         <div class="form-group">
@@ -310,7 +312,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn" onclick="closeEditModal()">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+          <button type="submit" class="btn btn-primary" id="modal-submit-btn">Guardar Cambios</button>
         </div>
       </form>
     </div>

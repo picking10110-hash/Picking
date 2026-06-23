@@ -840,6 +840,44 @@ img {
 }
 
 /* ==========================================
+   MODAL EDICIÓN — acentos ALAS azul (override del rosa template)
+   ========================================== */
+.modal-content .form-input:focus {
+  border-color: #0B5F8D;
+  box-shadow: 0 0 0 3px rgba(11, 95, 141, 0.1);
+}
+
+.modal-content .btn-primary {
+  background: #0B5F8D;
+  box-shadow: 0 2px 8px rgba(11, 95, 141, 0.2);
+}
+
+.modal-content .btn-primary:hover {
+  background: #08486A;
+  box-shadow: 0 4px 14px rgba(11, 95, 141, 0.3);
+}
+
+.modal-content .avatar-option.selected {
+  border-color: #0B5F8D;
+  box-shadow: 0 0 0 3px rgba(11, 95, 141, 0.15);
+}
+
+.modal-content .avatar-option:hover { border-color: #94a3b8; }
+
+.modal-content .file-upload-btn:hover {
+  border-color: #0B5F8D;
+  color: #0B5F8D;
+}
+
+.form-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+  line-height: 1.35;
+}
+
+/* ==========================================
    MODAL CONFIRMAR ELIMINAR (rojo + blanco)
    ========================================== */
 .confirm-overlay {

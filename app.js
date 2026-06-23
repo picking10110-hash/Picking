@@ -709,8 +709,14 @@ window.openNewPickerModal = function () {
   document.getElementById("modal-edit-id").value = "__new__";
   document.getElementById("modal-title").textContent = "Nuevo Preparador";
   document.getElementById("modal-name-input").value = "";
-  document.getElementById("modal-score-input").value = "";
-  document.getElementById("modal-deleted-score-input").value = "";
+  document.getElementById("modal-score-input").value = "0";
+  document.getElementById("modal-deleted-score-input").value = "0";
+
+  var codInput = document.getElementById("modal-codigo-input");
+  if (codInput) { codInput.value = ""; codInput.readOnly = false; codInput.style.opacity = ""; }
+
+  var submitBtn = document.getElementById("modal-submit-btn");
+  if (submitBtn) submitBtn.textContent = "Crear Preparador";
 
   var form = document.getElementById("modal-edit-form");
   form.dataset.avatarType = "preset";
@@ -1171,9 +1177,21 @@ function openEditModal(id) {
   if (!picker) return;
 
   document.getElementById("modal-edit-id").value = picker.id;
+  document.getElementById("modal-title").textContent = "Editar Preparador";
   document.getElementById("modal-name-input").value = picker.name;
-  document.getElementById("modal-score-input").value = picker.score;
-  document.getElementById("modal-deleted-score-input").value = picker.deletedScore !== undefined ? picker.deletedScore : 0;
+  document.getElementById("modal-score-input").value = picker.score || 0;
+  document.getElementById("modal-deleted-score-input").value = 0;
+
+  var codInput = document.getElementById("modal-codigo-input");
+  if (codInput) {
+    codInput.value = picker.codigo || "";
+    // El código es la clave de matcheo — no se cambia al editar
+    codInput.readOnly = true;
+    codInput.style.opacity = "0.6";
+  }
+
+  var submitBtn = document.getElementById("modal-submit-btn");
+  if (submitBtn) submitBtn.textContent = "Guardar Cambios";
 
   const form = document.getElementById("modal-edit-form");
   form.dataset.avatarType = picker.avatarType;
@@ -1208,23 +1226,26 @@ function handleModalSubmit(event) {
 
   const id = document.getElementById("modal-edit-id").value;
   const name = document.getElementById("modal-name-input").value.trim();
-  const score = parseInt(document.getElementById("modal-score-input").value, 10);
-  const deletedScore = parseInt(document.getElementById("modal-deleted-score-input").value, 10) || 0;
+  const score = parseInt(document.getElementById("modal-score-input").value, 10) || 0;
+  const deletedScore = 0;
   const form = document.getElementById("modal-edit-form");
   const avatarType = form.dataset.avatarType;
   const avatarValue = form.dataset.avatarValue;
+  var codInputEl = document.getElementById("modal-codigo-input");
+  var codigoIngresado = codInputEl ? codInputEl.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
 
-  if (!name || isNaN(score)) return;
+  if (!name) return;
 
   if (id === "__new__") {
-    var newCodigo = name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || ('M' + Date.now().toString(36).toUpperCase());
+    var newCodigo = codigoIngresado || name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || ('M' + Date.now().toString(36).toUpperCase());
     // Evitar colisión de código
     if (pickers.some(function (p) { return p.codigo === newCodigo; })) {
-      newCodigo = newCodigo.slice(0, 8) + Date.now().toString(36).slice(-4).toUpperCase();
+      alert('Ya existe un preparador con el código "' + newCodigo + '".');
+      return;
     }
     var newPicker = {
       id: newCodigo, codigo: newCodigo, name: name, score: score, deletedScore: 0,
-      items: score * 8, monto: Math.round(score * 8 * ratePerItem * 7500),
+      items: 0, monto: 0,
       avatarType: avatarType, avatarValue: avatarValue,
       metaItemsMes: targetGoal * 8, metaMontoMes: Math.round(targetGoal * 8 * ratePerItem * 7500)
     };

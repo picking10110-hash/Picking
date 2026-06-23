@@ -180,14 +180,15 @@ function renderResumen() {
   var container = document.getElementById('resumen-body');
   if (!container) return;
 
-  var sorted = [...pickers].sort(function (a, b) { return b.score - a.score; });
+  // Items/monto reales si vienen de la importación; si no, derivados (demo)
+  function realItems(p) { return (window._pickingFromDB && p.items != null) ? p.items : p.score * 8; }
+  function realMonto(p) { return (window._pickingFromDB && p.monto != null) ? p.monto : Math.round(p.score * 8 * ratePerItem * 7500); }
+
+  var sorted = [...pickers].sort(function (a, b) { return realMonto(b) - realMonto(a); });
   var html = '';
 
-  // KPIs from current pickers data
-  var totalItems = sorted.reduce(function (s, p) { return s + p.score * 8; }, 0);
-  var totalMonto = sorted.reduce(function (s, p) {
-    return s + Math.round(p.score * 8 * ratePerItem * 7500);
-  }, 0);
+  var totalItems = sorted.reduce(function (s, p) { return s + realItems(p); }, 0);
+  var totalMonto = sorted.reduce(function (s, p) { return s + realMonto(p); }, 0);
 
   html += `<div class="dash-kpis-row">
     <div class="dash-kpi-inline">
@@ -226,9 +227,9 @@ function renderResumen() {
       ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
       : p.avatarValue;
 
-    var totalIt = p.score * 8;
-    var monto = Math.round(totalIt * ratePerItem * 7500);
-    var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : Math.round((p.score / targetGoal) * 100);
+    var totalIt = realItems(p);
+    var monto = realMonto(p);
+    var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
 
     var metaClass = metaPct >= 100 ? 'color:#059669' : metaPct >= 80 ? 'color:#d97706' : 'color:#ef4444';
 

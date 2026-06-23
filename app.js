@@ -444,6 +444,10 @@ function renderLeaderboard(isInitial = false) {
   let html = "";
   const podiumPickers = pickers.slice(0, 6);
 
+  // Escala relativa al líder del podio (barras proporcionales, no desbordan)
+  const maxItemsPodium = Math.max.apply(null, podiumPickers.map(pickerItems).concat([1]));
+  const maxMontoPodium = Math.max.apply(null, podiumPickers.map(pickerMonto).concat([1]));
+
   podiumPickers.forEach((picker, index) => {
     const rank = index + 1;
 
@@ -453,16 +457,12 @@ function renderLeaderboard(isInitial = false) {
 
     const percentOfGoal = getMetaPercent(picker);
 
-    const baseHeightPercent = (Math.min(picker.score, targetGoal) / targetGoal) * 70;
-    const extraHeightPercent = (Math.max(0, picker.score - targetGoal) / targetGoal) * 70;
+    const totalItems = pickerItems(picker);
+    const moneyValuePYG = pickerMonto(picker);
 
-    const totalItems = (window._pickingFromDB && picker.items != null) ? picker.items : picker.score * 8;
-    const moneyValuePYG = (window._pickingFromDB && picker.monto != null) ? picker.monto : Math.round(totalItems * ratePerItem * 7500);
-
-    const moneyHeightPercent = (picker.score / targetGoal) * 70;
-
-    const baseItems = Math.min(picker.score, targetGoal) * 8;
-    const extraItems = Math.max(0, picker.score - targetGoal) * 8;
+    // Alturas proporcionales al máximo (0–70% de la altura física)
+    const itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
+    const moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
 
     let metaClass = "meta-danger";
     if (percentOfGoal >= 100) metaClass = "meta-success";
@@ -488,7 +488,7 @@ function renderLeaderboard(isInitial = false) {
     const pickerMetaItems = getPickerMeta(picker).metaItemsMes;
 
     html += `
-      <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}">
+      <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
         <div class="pillar-avatar-container">
           <div class="avatar-3d-card-wrapper">
             <div class="avatar-3d-card">
@@ -502,12 +502,11 @@ function renderLeaderboard(isInitial = false) {
 
         <div class="pillar-dual-columns">
           ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
-          <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado Ganado en Guaraníes">
+          <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
             <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
           </div>
           <div class="pillar-3d-square pillar-items" title="Items preparados">
-            <div class="pillar-segment segment-base ${baseItems === 0 ? 'is-empty' : ''}" style="--segment-height: ${isInitial ? 0 : baseHeightPercent}%"></div>
-            <div class="pillar-segment segment-extra ${extraItems === 0 ? 'is-empty' : ''}" style="--segment-height: ${isInitial ? 0 : extraHeightPercent}%"></div>
+            <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
           </div>
         </div>
 
@@ -553,7 +552,6 @@ function animateBarsAndNumbers(container) {
   cards.forEach(card => {
     const montoSeg = card.querySelector(".pillar-segment.segment-monto");
     const baseSeg = card.querySelector(".pillar-segment.segment-base");
-    const extraSeg = card.querySelector(".pillar-segment.segment-extra");
     const metaVal = card.querySelector(".meta-val");
     const montoVal = card.querySelector(".monto-val");
     const itemsVal = card.querySelector(".items-val");
@@ -564,6 +562,10 @@ function animateBarsAndNumbers(container) {
       const currentMonto = parseInt(montoVal.dataset.current || "0", 10);
       const currentItems = parseInt(itemsVal.dataset.current || "0", 10);
 
+      const maxItems = parseFloat(card.dataset.maxItems) || 1;
+      const maxMonto = parseFloat(card.dataset.maxMonto) || 1;
+      const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
+
       const animObj = { monto: currentMonto, items: currentItems };
 
       gsap.to(animObj, {
@@ -573,25 +575,13 @@ function animateBarsAndNumbers(container) {
           montoVal.dataset.current = Math.round(animObj.monto).toString();
           itemsVal.dataset.current = Math.round(animObj.items).toString();
 
-          const currentScoreVal = animObj.items / 8;
-          const baseScoreVal = Math.min(currentScoreVal, targetGoal);
-          const extraScoreVal = Math.max(0, currentScoreVal - targetGoal);
-
-          const montoHeight = (currentScoreVal / targetGoal) * 70;
-          const baseHeight = (baseScoreVal / targetGoal) * 70;
-          const extraHeight = (extraScoreVal / targetGoal) * 70;
-          const cardMetaItems = parseInt(card.dataset.metaItems, 10) || (targetGoal * 8);
+          // Alturas proporcionales al líder del podio
+          const montoHeight = (animObj.monto / maxMonto) * 70;
+          const itemsHeight = (animObj.items / maxItems) * 70;
           const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
 
           if (montoSeg) montoSeg.style.setProperty("--monto-height", montoHeight + "%");
-          if (baseSeg) {
-            baseSeg.style.setProperty("--segment-height", baseHeight + "%");
-            baseSeg.classList.toggle("is-empty", baseHeight <= 0);
-          }
-          if (extraSeg) {
-            extraSeg.style.setProperty("--segment-height", extraHeight + "%");
-            extraSeg.classList.toggle("is-empty", extraHeight <= 0);
-          }
+          if (baseSeg) baseSeg.style.setProperty("--segment-height", itemsHeight + "%");
 
           montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
           itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()} U`;
@@ -1050,6 +1040,14 @@ window.emptyTrash = function () {
 // ==========================================
 // METAS INDIVIDUALES
 // ==========================================
+// Items/monto reales (de la importación) o derivados (demo/fallback)
+function pickerItems(p) {
+  return (window._pickingFromDB && p.items != null) ? p.items : (p.score || 0) * 8;
+}
+function pickerMonto(p) {
+  return (window._pickingFromDB && p.monto != null) ? p.monto : Math.round((p.score || 0) * 8 * ratePerItem * 7500);
+}
+
 function getPickerMeta(picker) {
   var defaultItems = targetGoal * 8;
   var defaultMonto = Math.round(defaultItems * ratePerItem * 7500);
@@ -1059,14 +1057,9 @@ function getPickerMeta(picker) {
   };
 }
 
-function getPickerNetMonto(picker) {
-  var netItems = (picker.score - (picker.deletedScore || 0)) * 8;
-  return Math.round(netItems * ratePerItem * 7500);
-}
-
 function getMetaPercent(picker) {
   var meta = getPickerMeta(picker);
-  var totalItems = picker.score * 8;
+  var totalItems = pickerItems(picker);
   if (meta.metaItemsMes <= 0) return 0;
   return Math.round((totalItems / meta.metaItemsMes) * 100);
 }

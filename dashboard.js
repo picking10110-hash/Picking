@@ -47,7 +47,7 @@ function colIndex(headers, name) {
   return -1;
 }
 
-function processExcel(workbook) {
+function processExcel(workbook, validCodes) {
   var wsWMS = workbook.Sheets['datosWMS'];
   var wsSAP = workbook.Sheets['datosSAP'];
   if (!wsWMS || !wsSAP) {
@@ -108,6 +108,8 @@ function processExcel(workbook) {
 
     var usuario = String(row[iUsuario] || '').trim().toUpperCase();
     if (!usuario) continue;
+    // Opción B: solo preparadores configurados (si se pasó la lista)
+    if (validCodes && !validCodes.has(usuario)) continue;
 
     var pedido = row[iPedido];
     var articulo = row[iArticulo];
@@ -527,8 +529,15 @@ window.handleExcelUpload = function (event) {
       setImportProgress(35, 'Procesando WMS + SAP…');
       await _tick();
 
+      // Opción B: solo se registran los preparadores que están en Configuración
+      var validCodes = null;
+      if (window.PickingAPI && PickingAPI.isReady()) {
+        var reps = await PickingAPI.getPreparadores();
+        if (reps) validCodes = new Set(reps.map(function (r) { return r.codigo; }));
+      }
+
       var wb = XLSX.read(e.target.result, { type: 'array' });
-      var result = processExcel(wb);
+      var result = processExcel(wb, validCodes);
       if (!result) { importError('No se pudo procesar el archivo.'); return; }
 
       dashboardData = result;
@@ -536,13 +545,11 @@ window.handleExcelUpload = function (event) {
       dashFilter = '';
       localStorage.setItem('picking_imported_data', JSON.stringify(result));
 
-      setImportProgress(60, 'Guardando preparadores…');
+      setImportProgress(70, 'Guardando productividad…');
       await _tick();
 
       var saveInfo = null;
       if (window.PickingAPI && PickingAPI.isReady()) {
-        await PickingAPI.ensurePreparadores(result.pickers);
-        setImportProgress(80, 'Guardando productividad…');
         saveInfo = await PickingAPI.saveImportacion(result.periodo, file.name, result.totals, result.pickers);
 
         if (!saveInfo) {

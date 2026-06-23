@@ -69,15 +69,15 @@
               <span class="subtitle">Ranking de Preparadores</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
-              <div class="periodo-nav" id="periodo-nav" style="display:none;">
-                <button class="periodo-nav-btn" id="periodoPrevBtn" type="button" onclick="changePeriodo(-1)" aria-label="Mes anterior">
+              <div class="periodo-nav" style="display:none;">
+                <button class="periodo-nav-btn periodo-prev" type="button" onclick="changePeriodo(-1)" aria-label="Mes anterior">
                   <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
                 </button>
-                <span class="periodo-nav-label" id="periodoLabel"></span>
-                <button class="periodo-nav-btn" id="periodoNextBtn" type="button" onclick="changePeriodo(1)" aria-label="Mes siguiente">
+                <span class="periodo-nav-label periodo-label"></span>
+                <button class="periodo-nav-btn periodo-next" type="button" onclick="changePeriodo(1)" aria-label="Mes siguiente">
                   <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
                 </button>
-                <button class="periodo-todo-btn" id="periodoTodoBtn" type="button" onclick="togglePeriodoTodo()">Todo</button>
+                <button class="periodo-todo-btn periodo-todo" type="button" onclick="togglePeriodoTodo()">Todo</button>
               </div>
               <button class="btn-tv" id="btn-tv-mode" onclick="enterTVMode()">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -103,6 +103,16 @@
             <div class="brand">
               <h1>Resumen de Productividad</h1>
               <span class="subtitle">Todos los Preparadores</span>
+            </div>
+            <div class="periodo-nav" style="display:none;">
+              <button class="periodo-nav-btn periodo-prev" type="button" onclick="changePeriodo(-1)" aria-label="Mes anterior">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <span class="periodo-nav-label periodo-label"></span>
+              <button class="periodo-nav-btn periodo-next" type="button" onclick="changePeriodo(1)" aria-label="Mes siguiente">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+              </button>
+              <button class="periodo-todo-btn periodo-todo" type="button" onclick="togglePeriodoTodo()">Todo</button>
             </div>
           </header>
           <div class="resumen-body" id="resumen-body">
@@ -330,13 +340,13 @@
         ALASTransition.enterProject();
       }
     });
-    // DEV BYPASS: failsafe desactivado para pruebas locales
-    // setTimeout(function(){
-    //   if(!window._alasEntered){
-    //     var url=(window.ALAS_SSO_CONFIG||{}).launcherUrl||'https://launcher-tawny.vercel.app';
-    //     window.location.replace(url);
-    //   }
-    // },10000);
+    // Failsafe: si el SSO nunca resuelve, volver al Launcher
+    setTimeout(function(){
+      if(!window._alasSSOReady){
+        var url=(window.ALAS_SSO_CONFIG||{}).launcherUrl||'https://launcher-tawny.vercel.app';
+        window.location.replace(url);
+      }
+    },10000);
   </script>
   <script src="alas-sso-config.js"></script>
   <script src="alas-auth-client.js"></script>

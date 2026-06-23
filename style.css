@@ -781,32 +781,33 @@ img {
 /* Grid de cards */
 .adm-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 16px;
   overflow-y: auto;
+  align-content: start;
   flex: 1;
-  padding: 2px;
+  padding: 2px 4px 20px;
 }
 
 .adm-card {
   background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 14px 10px 10px;
-  aspect-ratio: 1;
+  border-radius: 16px;
+  padding: 18px 14px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   transition: transform var(--alas-dur-normal) var(--alas-ease), box-shadow var(--alas-dur-normal) var(--alas-ease);
 }
 
 /* Card nuevo preparador */
 .adm-card-new {
-  border: 2px dashed rgba(11, 95, 141, 0.25);
+  border: 2px dashed rgba(11, 95, 141, 0.28);
   background: rgba(11, 95, 141, 0.02);
   cursor: pointer;
   justify-content: center;
+  min-height: 220px;
 }
 
 .adm-card-new:hover {
@@ -838,13 +839,13 @@ img {
 
 /* Avatar */
 .adm-card-photo {
-  width: 68px; height: 68px;
-  border-radius: 14px;
+  width: 76px; height: 76px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 2.5px solid #fff;
+  border: 3px solid #fff;
   box-shadow:
     0 2px 4px rgba(0,0,0,0.05),
-    0 6px 14px rgba(0,0,0,0.08);
+    0 8px 18px rgba(0,0,0,0.10);
   position: relative;
   flex-shrink: 0;
 }
@@ -853,9 +854,9 @@ img {
 
 .adm-card-photo-edit {
   position: absolute; inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(11,95,141,0.55);
   display: flex; align-items: center; justify-content: center;
-  opacity: 0; color: #fff; border-radius: 16px;
+  opacity: 0; color: #fff; border-radius: 13px;
   cursor: pointer;
   transition: opacity var(--alas-dur-fast) var(--alas-ease);
 }
@@ -863,70 +864,84 @@ img {
 .adm-card-photo:hover .adm-card-photo-edit { opacity: 1; }
 
 .adm-card-name {
-  font-size: 0.8rem; font-weight: 800;
+  font-size: 0.84rem; font-weight: 800;
   color: var(--text-main); text-align: center;
   line-height: 1.2;
+  letter-spacing: -0.1px;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* Meta editable */
 .adm-card-meta {
   width: 100%;
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 
 .adm-meta-label {
-  display: block;
-  font-size: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.56rem;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 6px;
+  letter-spacing: 0.5px;
 }
 
-.adm-meta-input-wrap {
+.adm-meta-label::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.adm-meta-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #fff;
-  border: 1.5px solid #e2e6ed;
-  border-radius: 8px;
-  padding: 0 8px;
-  transition: border-color var(--alas-dur-fast) var(--alas-ease), box-shadow var(--alas-dur-fast) var(--alas-ease);
+  justify-content: space-between;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  padding: 6px 10px;
+  transition: border-color var(--alas-dur-fast) var(--alas-ease), box-shadow var(--alas-dur-fast) var(--alas-ease), background var(--alas-dur-fast) var(--alas-ease);
 }
 
-.adm-meta-input-wrap:focus-within {
+.adm-meta-row:focus-within {
   border-color: #0B5F8D;
+  background: #fff;
   box-shadow: 0 0 0 3px rgba(11,95,141,0.08);
 }
 
-.adm-meta-prefix {
+.adm-meta-key {
   font-size: 0.62rem;
   font-weight: 700;
   color: var(--text-muted);
   flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .adm-meta-input {
-  width: 100%;
-  height: 26px;
+  flex: 1;
+  min-width: 0;
+  height: 22px;
   border: none;
   background: transparent;
   font-family: var(--font-main);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 800;
   color: #0B5F8D;
   outline: none;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .adm-meta-input[readonly] {
   color: var(--text-muted);
-  opacity: 0.6;
   cursor: not-allowed;
 }
 

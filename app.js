@@ -119,20 +119,16 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 async function initApp() {
-  // ── DEV BYPASS: simula sesión SSO para pruebas locales ──
-  var DEV_BYPASS = true;
-  var ssoUser;
-  if (DEV_BYPASS) {
-    ssoUser = { name: 'Dev Admin', email: 'dev@alas.local', role: 'admin', permissions: [] };
-  } else {
-    ssoUser = await waitForAlasAuth();
-    if (!ssoUser) {
-      var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
-      window.location.replace(url);
-      return;
-    }
+  // Patrón estándar del ecosistema (igual que Flete / CajaVenta / ItemsBorrados):
+  // espera el SSO real; si no hay sesión, redirige al Launcher.
+  var ssoUser = await waitForAlasAuth();
+  if (!ssoUser) {
+    var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
+    window.location.replace(url);
+    return;
   }
 
+  window._alasSSOReady = true;
   window._alasRole = ssoUser.role || 'operador';
   window._alasIsAdmin = (ssoUser.role === 'admin');
 
@@ -220,41 +216,49 @@ let _periodos = [];      // períodos disponibles (desc)
 let _periodoTodo = false; // modo "Todo" (todos los meses sumados)
 
 async function refreshPeriodoSelector() {
-  var nav = document.getElementById('periodo-nav');
-  if (!nav) return;
-  if (!window.PickingAPI || !PickingAPI.isReady()) { nav.style.display = 'none'; return; }
+  var navs = document.querySelectorAll('.periodo-nav');
+  if (!navs.length) return;
+  if (!window.PickingAPI || !PickingAPI.isReady()) {
+    navs.forEach(function (n) { n.style.display = 'none'; });
+    return;
+  }
 
   _periodos = (await PickingAPI.getPeriodos()) || [];
-  if (!_periodos.length) { nav.style.display = 'none'; return; }
+  if (!_periodos.length) {
+    navs.forEach(function (n) { n.style.display = 'none'; });
+    return;
+  }
 
   if (!currentPeriodo || _periodos.indexOf(currentPeriodo) === -1) {
     currentPeriodo = _periodos[0];
   }
-  nav.style.display = 'flex';
+  navs.forEach(function (n) { n.style.display = 'flex'; });
   updatePeriodoUI();
 }
 
 function updatePeriodoUI() {
-  var label = document.getElementById('periodoLabel');
-  var prev = document.getElementById('periodoPrevBtn');
-  var next = document.getElementById('periodoNextBtn');
-  var todo = document.getElementById('periodoTodoBtn');
-
-  if (_periodoTodo) {
-    if (label) label.textContent = 'Todos los meses';
-    if (prev) prev.disabled = true;
-    if (next) next.disabled = true;
-    if (todo) todo.classList.add('is-active');
-    return;
-  }
-
-  if (todo) todo.classList.remove('is-active');
-  if (label) label.textContent = fmtPeriodoLabel(currentPeriodo);
-
-  // _periodos está en orden descendente (más nuevo primero)
   var idx = _periodos.indexOf(currentPeriodo);
-  if (next) next.disabled = (idx <= 0);                       // no hay mes más nuevo
-  if (prev) prev.disabled = (idx >= _periodos.length - 1);    // no hay mes más viejo
+
+  document.querySelectorAll('.periodo-nav').forEach(function (nav) {
+    var label = nav.querySelector('.periodo-label');
+    var prev = nav.querySelector('.periodo-prev');
+    var next = nav.querySelector('.periodo-next');
+    var todo = nav.querySelector('.periodo-todo');
+
+    if (_periodoTodo) {
+      if (label) label.textContent = 'Todos los meses';
+      if (prev) prev.disabled = true;
+      if (next) next.disabled = true;
+      if (todo) todo.classList.add('is-active');
+      return;
+    }
+
+    if (todo) todo.classList.remove('is-active');
+    if (label) label.textContent = fmtPeriodoLabel(currentPeriodo);
+    // _periodos en orden descendente (más nuevo primero)
+    if (next) next.disabled = (idx <= 0);
+    if (prev) prev.disabled = (idx >= _periodos.length - 1);
+  });
 }
 
 window.changePeriodo = async function (delta) {
@@ -659,29 +663,32 @@ function renderAdminGrid() {
       : picker.avatarValue;
 
     var meta = getPickerMeta(picker);
-    var montoFmt = 'Gs. ' + meta.metaMontoMes.toLocaleString('es-PY');
     var readonlyAttr = canEdit ? '' : 'readonly';
+    var fmtMonto = meta.metaMontoMes.toLocaleString('es-PY');
+    var fmtItems = meta.metaItemsMes.toLocaleString('es-PY');
 
     html += `
       <div class="adm-card" data-id="${picker.id}">
         <div class="adm-card-photo">
           <img src="${imgSrc}" alt="${picker.name}">
-          ${canEdit ? `<label class="adm-card-photo-edit">
+          ${canEdit ? `<label class="adm-card-photo-edit" title="Cambiar foto">
             <input type="file" style="display:none" accept="image/*" onchange="updatePickerPhoto('${picker.id}', event)">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
           </label>` : ''}
         </div>
-        <span class="adm-card-name">${picker.name}</span>
+        <span class="adm-card-name" title="${picker.name}">${picker.name}</span>
         <div class="adm-card-meta">
           <span class="adm-meta-label">Meta mensual</span>
-          <div class="adm-meta-input-wrap">
-            <span class="adm-meta-prefix">Gs.</span>
-            <input type="number" class="adm-meta-input" value="${meta.metaMontoMes}"
+          <div class="adm-meta-row">
+            <span class="adm-meta-key">Gs.</span>
+            <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtMonto}"
+              onfocus="metaFocus(this)" oninput="metaFormat(this)"
               onchange="updatePickerMeta('${picker.id}','metaMontoMes',this.value)" ${readonlyAttr}>
           </div>
-          <div class="adm-meta-input-wrap" style="margin-top:4px;">
-            <span class="adm-meta-prefix" style="font-size:0.6rem;">Ítems</span>
-            <input type="number" class="adm-meta-input" value="${meta.metaItemsMes}"
+          <div class="adm-meta-row">
+            <span class="adm-meta-key">Ítems</span>
+            <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtItems}"
+              oninput="metaFormat(this)"
               onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
           </div>
         </div>
@@ -1037,9 +1044,28 @@ function renderMetasList() {
   container.innerHTML = html;
 }
 
+// ── Formateo de inputs de meta (separador de miles) ──
+window.metaFocus = function (el) { try { el.select(); } catch (e) {} };
+
+window.metaFormat = function (el) {
+  var digits = el.value.replace(/\D/g, '');
+  if (!digits) { el.value = ''; return; }
+  var selEnd = el.selectionStart;
+  var digitsBefore = el.value.slice(0, selEnd).replace(/\D/g, '').length;
+  var formatted = parseInt(digits, 10).toLocaleString('es-PY');
+  el.value = formatted;
+  // reposicionar cursor según dígitos antes del cursor
+  var pos = formatted.length, count = 0;
+  for (var i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted.charAt(i))) count++;
+    if (count >= digitsBefore) { pos = i + 1; break; }
+  }
+  try { el.setSelectionRange(pos, pos); } catch (e) {}
+};
+
 window.updatePickerMeta = function (id, field, value) {
   if (!window._alasCanEdit) return;
-  var val = parseInt(value, 10);
+  var val = parseInt(String(value).replace(/\D/g, ''), 10);
   if (isNaN(val) || val <= 0) return;
 
   var picker = pickers.find(p => p.id === id);

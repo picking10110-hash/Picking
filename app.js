@@ -546,7 +546,7 @@ function renderLeaderboard(isInitial = false) {
             </div>
             <div class="metric-chip chip-items">
               <span class="chip-label">Items Preparados</span>
-              <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()} U</span>
+              <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()}</span>
             </div>
             <div class="metric-chip chip-meta ${metaClass}">
               <span class="chip-label">Meta</span>
@@ -611,7 +611,7 @@ function animateBarsAndNumbers(container) {
           if (baseSeg) baseSeg.style.setProperty("--segment-height", itemsHeight + "%");
 
           montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
-          itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()} U`;
+          itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()}`;
 
           const chipMeta = card.querySelector(".chip-meta");
           if (chipMeta && metaVal) {

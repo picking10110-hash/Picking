@@ -321,7 +321,15 @@
   <!-- ALAS Ecosystem -->
   <script src="alas-transition.js"></script>
   <script>
+    // Patrón CajaVenta: init oculta #alas-root antes del primer paint,
+    // y enterProject lo anima en cuanto el DOM está listo (sin esperar datos ni SSO).
     ALASTransition.init({ root: '#alas-root' });
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!window._alasEntered && window.ALASTransition) {
+        window._alasEntered = true;
+        ALASTransition.enterProject();
+      }
+    });
     // DEV BYPASS: failsafe desactivado para pruebas locales
     // setTimeout(function(){
     //   if(!window._alasEntered){

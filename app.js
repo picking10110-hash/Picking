@@ -99,9 +99,26 @@ function lockAdminForm() {
 // ==========================================
 // INICIALIZACIÓN
 // ==========================================
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadData();
+document.addEventListener("DOMContentLoaded", function () {
+  // La ENTRADA la dispara el script inline de index.html (init + enterProject juntos,
+  // igual que CajaVenta) para garantizar el orden: ocultar → animar.
 
+  // Botón "Volver al Menú" — salida con la misma transición que el resto
+  var btnBack = document.getElementById('btnBack');
+  if (btnBack) btnBack.addEventListener('click', function (e) {
+    e.preventDefault();
+    var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
+    if (window.ALASTransition) window.ALASTransition.exitToLauncher(url);
+    else window.location.replace(url);
+  });
+
+  window.addEventListener("hashchange", handleRouting);
+
+  // El resto (SSO + datos + render) corre en paralelo a la animación de entrada
+  initApp();
+});
+
+async function initApp() {
   // ── DEV BYPASS: simula sesión SSO para pruebas locales ──
   var DEV_BYPASS = true;
   var ssoUser;
@@ -127,24 +144,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyRoleRestrictions();
   lockAdminForm();
 
-  var btnBack = document.getElementById('btnBack');
-  if (btnBack) btnBack.addEventListener('click', function (e) {
-    e.preventDefault();
-    var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
-    if (window.ALASTransition) window.ALASTransition.exitToLauncher(url);
-    else window.location.replace(url);
-  });
+  await loadData();
 
-  setTimeout(function () {
-    if (!window._alasEntered && window.ALASTransition) {
-      window._alasEntered = true;
-      window.ALASTransition.enterProject();
-    }
-    window.addEventListener("hashchange", handleRouting);
-    handleRouting();
-    if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
-  }, 60);
-});
+  handleRouting();
+  if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
+}
 
 function handleRouting() {
   const hash = window.location.hash;

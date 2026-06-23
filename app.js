@@ -672,6 +672,9 @@ function renderAdminGrid() {
 
     html += `
       <div class="adm-card" data-id="${picker.id}">
+        ${canEdit ? `<button class="adm-card-del" title="Eliminar preparador" onclick="deletePreparadorAdmin('${picker.id}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>` : ''}
         <div class="adm-card-photo">
           <img src="${imgSrc}" alt="${picker.name}">
           ${canEdit ? `<label class="adm-card-photo-edit" title="Cambiar foto">
@@ -743,6 +746,63 @@ window.updatePickerPhoto = function (id, event) {
     }
   };
   reader.readAsDataURL(file);
+};
+
+// ── Modal de confirmación reutilizable (rojo + blanco, animado) ──
+function showConfirm(opts) {
+  var overlay = document.getElementById('confirm-overlay');
+  if (!overlay) { if (confirm(opts.message)) opts.onConfirm(); return; }
+
+  var titleEl = document.getElementById('confirm-title');
+  var msgEl = document.getElementById('confirm-msg');
+  var okBtn = document.getElementById('confirm-ok');
+  var cancelBtn = document.getElementById('confirm-cancel');
+
+  if (titleEl) titleEl.textContent = opts.title || 'Confirmar';
+  if (msgEl) msgEl.innerHTML = opts.message || '';
+  if (okBtn) okBtn.textContent = opts.okLabel || 'Eliminar';
+
+  function close() {
+    overlay.classList.remove('active');
+    okBtn.onclick = null;
+    cancelBtn.onclick = null;
+    overlay.onclick = null;
+  }
+
+  okBtn.onclick = function () { close(); if (opts.onConfirm) opts.onConfirm(); };
+  cancelBtn.onclick = close;
+  overlay.onclick = function (e) { if (e.target === overlay) close(); };
+
+  overlay.classList.add('active');
+}
+
+window.deletePreparadorAdmin = function (id) {
+  if (!window._alasCanEdit) return;
+  var picker = pickers.find(function (p) { return p.id === id; });
+  if (!picker) return;
+
+  showConfirm({
+    title: 'Eliminar preparador',
+    message: '¿Seguro que querés eliminar a <strong>' + picker.name + '</strong>? No aparecerá más en el ranking ni en la configuración.',
+    okLabel: 'Eliminar',
+    onConfirm: function () {
+      var card = document.querySelector('.adm-card[data-id="' + id + '"]');
+      var onDone = function () {
+        pickers = pickers.filter(function (p) { return p.id !== id; });
+        saveData();
+        renderAdminGrid();
+        renderLeaderboard(false);
+        if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
+          PickingAPI.deletePreparador(picker.codigo);
+        }
+      };
+      if (card) {
+        gsap.to(card, { opacity: 0, scale: 0.9, y: 8, duration: 0.25, ease: 'power2.in', onComplete: onDone });
+      } else {
+        onDone();
+      }
+    }
+  });
 };
 
 // ==========================================

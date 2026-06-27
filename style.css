@@ -3231,13 +3231,24 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 }
 .cat-header--podium { background: var(--cat-soft); }
 .cat-podium-row {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 16px; padding: 8px 6px 2px; min-height: 0;
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 12px; padding: 8px 4px 2px; min-height: 0;
 }
 .cat-podium-empty {
   text-align: center; color: var(--text-muted); font-weight: 600;
   font-size: 0.85rem; padding: 18px;
 }
+/* Retrato + gráfico (barras) lado a lado dentro de cada card */
+.cat-podium-row .pillar-card { width: 100%; }
+.pillar-row {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 14px; width: 100%;
+}
+.pillar-row .pillar-dual-columns {
+  height: 150px; width: auto; margin-bottom: 0; flex-shrink: 0;
+}
+.pillar-row .pillar-avatar-container { margin-bottom: 0; }
+body.tv-mode .pillar-row .pillar-dual-columns { height: 210px; }
 
 /* ── Vista Premios ── */
 .premios-body {

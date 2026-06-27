@@ -676,26 +676,28 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
 
   return `
       <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
-        <div class="pillar-avatar-container">
-          <div class="avatar-3d-card-wrapper">
-            <div class="avatar-3d-card">
-              <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
-              <div class="avatar-3d-shine"></div>
-            </div>
-            <div class="rank-medal-badge">${rank}</div>
-            <div class="rank-trend-indicator trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
-          </div>
-        </div>
-
         <span class="pillar-name" title="${picker.name}">${picker.name}</span>
 
-        <div class="pillar-dual-columns">
-          ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
-          <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
-            <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
+        <div class="pillar-row">
+          <div class="pillar-avatar-container">
+            <div class="avatar-3d-card-wrapper">
+              <div class="avatar-3d-card">
+                <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
+                <div class="avatar-3d-shine"></div>
+              </div>
+              <div class="rank-medal-badge">${rank}</div>
+              <div class="rank-trend-indicator trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
+            </div>
           </div>
-          <div class="pillar-3d-square pillar-items" title="Items preparados">
-            <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
+
+          <div class="pillar-dual-columns">
+            ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
+            <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
+              <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
+            </div>
+            <div class="pillar-3d-square pillar-items" title="Items preparados">
+              <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
+            </div>
           </div>
         </div>
 

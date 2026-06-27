@@ -366,7 +366,20 @@ async function renderPremios() {
       .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
 
     var primero = primeroByCat[cat];
+    // Si el "primero" bloqueado ya no está en esta categoría (reasignado), ignorarlo
+    if (primero && !grupo.some(function (x) { return x.p.codigo === primero.preparador_codigo; })) {
+      primero = null;
+    }
     var primeroCode = primero ? primero.preparador_codigo : null;
+    // Lazy: si no hay primero válido pero el líder ya está ≥100%, ese es el 1º (y se persiste)
+    if (!primero && !_periodoTodo && currentPeriodo && grupo.length && grupo[0].pct >= 100) {
+      var top = grupo[0];
+      primeroCode = top.p.codigo;
+      primero = { preparador_codigo: primeroCode, preparador_nombre: top.p.name, meta_pct: top.pct };
+      if (window.PickingAPI && PickingAPI.isReady()) {
+        PickingAPI.setPrimero(currentPeriodo, { categoria: cat, code: primeroCode, name: top.p.name, metaPct: top.pct });
+      }
+    }
     var club110 = grupo.filter(function (x) { return x.pct >= 110; });
     var totalCajas = (primero ? 1 : 0) + club110.length;
 

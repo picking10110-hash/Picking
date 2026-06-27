@@ -211,6 +211,20 @@
         .upsert(rows, { onConflict: 'periodo,categoria', ignoreDuplicates: true });
       if (res.error) { console.warn('[PickingAPI] lockPrimeroMeta:', res.error.message); return null; }
       return true;
+    },
+
+    // Fija/actualiza al primero de una categoría (sobrescribe — para casos de
+    // reasignación de categoría o categorías nuevas que aún no tenían ganador).
+    async setPrimero(periodo, c) {
+      if (!ready() || !c) return null;
+      var row = {
+        periodo: periodo, categoria: c.categoria,
+        preparador_codigo: c.code, preparador_nombre: c.name || c.code,
+        meta_pct: c.metaPct || 0
+      };
+      var res = await db().from('premios_primero').upsert(row, { onConflict: 'periodo,categoria' });
+      if (res.error) { console.warn('[PickingAPI] setPrimero:', res.error.message); return null; }
+      return true;
     }
   };
 

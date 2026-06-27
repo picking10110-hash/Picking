@@ -3152,13 +3152,14 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 @media (max-width: 760px) { .adm-cols { flex-wrap: wrap; } .adm-cat-col { flex: 1 1 240px; } }
 
 .adm-cat-select {
-  display: inline-flex; width: 100%; gap: 4px;
+  display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 4px;
 }
 .adm-cat-opt {
-  flex: 1; padding: 5px 4px; border-radius: 8px; cursor: pointer;
+  padding: 5px 4px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--border-color); background: #fff;
-  font: 700 0.66rem 'Inter', sans-serif; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.3px;
+  font: 700 0.6rem 'Inter', sans-serif; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: all 0.16s ease;
 }
 .adm-cat-opt:hover { border-color: var(--cat); color: var(--cat); }

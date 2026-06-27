@@ -18,7 +18,7 @@ const MOCK_DATA = [
 ];
 
 // ── CATEGORÍAS DE PREPARADORES ──────────────────────────────
-const CATEGORIAS = ['PLENO', 'JUNIOR', 'APRENDIZ'];
+const CATEGORIAS = ['PLENO', 'JUNIOR', 'APRENDIZ', 'EMPAQUE'];
 const CATEGORIA_INFO = {
   PLENO: {
     label: 'Pleno', color: '#7c3aed', soft: 'rgba(124,58,237,0.1)',
@@ -31,6 +31,10 @@ const CATEGORIA_INFO = {
   APRENDIZ: {
     label: 'Aprendiz', color: '#0891b2', soft: 'rgba(8,145,178,0.1)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>'
+  },
+  EMPAQUE: {
+    label: 'Empaque', color: '#ea580c', soft: 'rgba(234,88,12,0.1)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'
   }
 };
 // Caja de leche (premio)

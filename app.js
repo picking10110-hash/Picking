@@ -39,6 +39,8 @@ const CATEGORIA_INFO = {
 };
 // Caja de leche (premio)
 const MILK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l1.5-4h7L17 8v12H7z"/><path d="M7 8h10M10 4v4M14 4v4"/><line x1="10" y1="13" x2="14" y2="13"/></svg>';
+// Medalla 1º lugar — cinta azul + disco dorado
+const MEDAL_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M15.5 12.6L17.6 22 12 18.7 6.4 22l2.1-9.4" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="12" cy="8.3" r="6.3" fill="#fbbf24" stroke="#d97706" stroke-width="1.4"/><path d="M12 5.4l.93 1.88 2.07.3-1.5 1.46.35 2.06L12 10.18l-1.85.97.35-2.06-1.5-1.46 2.07-.3z" fill="#fffbeb"/></svg>';
 function pickerCategoria(p) {
   var c = p && p.categoria;
   return CATEGORIA_INFO[c] ? c : 'JUNIOR';
@@ -394,7 +396,7 @@ async function renderPremios() {
       var pObj = pickers.find(function (p) { return p.codigo === primeroCode; });
       var nombre = primero.preparador_nombre || (pObj && pObj.name) || primeroCode;
       html += `<div class="premio-winner">
-        <span class="premio-medal">🥇</span>
+        <span class="premio-medal">${MEDAL_ICON}</span>
         <div class="premio-winner-info">
           <span class="premio-winner-label">1º en llegar a 100%</span>
           <span class="premio-winner-name">${nombre}</span>
@@ -428,7 +430,7 @@ async function renderPremios() {
             <div class="premio-row-bar"><div class="premio-row-fill" style="width:${barW}%"></div></div>
           </div>
           <div class="premio-row-badges">
-            ${isPrimero ? '<span class="premio-badge premio-badge--gold" title="1º a 100%">🥇</span>' : ''}
+            ${isPrimero ? `<span class="premio-badge premio-badge--gold" title="1º a 100%">${MEDAL_ICON}</span>` : ''}
             ${is110 ? `<span class="premio-badge premio-badge--milk" title="Llegó a 110%">${MILK_ICON}</span>` : ''}
             ${cajas > 0 ? `<span class="premio-row-cajas" title="Cajas de leche">${cajas}</span>` : ''}
           </div>

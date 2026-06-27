@@ -3281,7 +3281,8 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   background: var(--bg-primary); border: 1px dashed var(--border-color);
   color: var(--text-muted); font-weight: 600; font-size: 0.82rem; justify-content: center;
 }
-.premio-medal { font-size: 1.6rem; line-height: 1; }
+.premio-medal { display: inline-flex; width: 34px; height: 34px; flex-shrink: 0; }
+.premio-medal svg { width: 100%; height: 100%; }
 .premio-winner-info { display: flex; flex-direction: column; }
 .premio-winner-label { font-size: 0.72rem; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.4px; }
 .premio-winner-name { font-size: 1rem; font-weight: 800; color: var(--text-main); }
@@ -3333,7 +3334,8 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; border-radius: 8px; font-size: 0.9rem;
 }
-.premio-badge--gold { background: rgba(245,158,11,0.15); }
+.premio-badge--gold { background: rgba(37,99,235,0.1); }
+.premio-badge--gold svg { width: 18px; height: 18px; }
 .premio-badge--milk { background: rgba(16,185,129,0.13); color: #059669; }
 .premio-badge--milk svg { width: 16px; height: 16px; }
 .premio-row-cajas {

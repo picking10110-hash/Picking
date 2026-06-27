@@ -3199,28 +3199,36 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 .resumen-cat-sub { font-weight: 700; font-size: 0.8rem; color: var(--text-muted); padding: 0 2px 4px; }
 .rsm-list { display: flex; flex-direction: column; gap: 8px; }
 .rsm-row {
-  display: flex; align-items: center; gap: 12px; padding: 10px 13px;
-  border-radius: 13px; background: var(--bg-primary); border: 1px solid var(--border-color);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  display: flex; align-items: center; gap: 13px; padding: 12px 14px;
+  border-radius: 14px; background: var(--bg-primary); border: 1px solid var(--border-color);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
-.rsm-row:hover { border-color: color-mix(in srgb, var(--cat, #64748b) 35%, transparent); box-shadow: 0 3px 12px rgba(15,23,42,0.06); }
-.rsm-pos { width: 20px; text-align: center; font-weight: 800; font-size: 0.9rem; color: var(--cat, var(--text-muted)); flex-shrink: 0; }
-.rsm-img { width: 44px; height: 44px; border-radius: 11px; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0; }
+.rsm-row:hover { border-color: color-mix(in srgb, var(--cat, #64748b) 35%, transparent); box-shadow: 0 4px 14px rgba(15,23,42,0.07); }
+.rsm-row--lead {
+  background: color-mix(in srgb, var(--cat, #64748b) 5%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--cat, #64748b) 32%, transparent);
+}
+.rsm-rank { width: 16px; text-align: center; font: 800 1rem 'Outfit', sans-serif; color: var(--cat, var(--text-muted)); flex-shrink: 0; }
+.rsm-img { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0; }
 .rsm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.rsm-name { font-weight: 800; font-size: 0.92rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rsm-chips { display: flex; gap: 7px; flex-wrap: wrap; }
-.rsm-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px; border-radius: 9px; white-space: nowrap;
-  font: 800 0.78rem 'Outfit', sans-serif;
+.rsm-top { display: flex; align-items: baseline; gap: 8px; }
+.rsm-name { font: 800 0.94rem 'Outfit', sans-serif; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
+.rsm-pct { margin-left: auto; font: 800 1.1rem 'Outfit', sans-serif; flex-shrink: 0; color: var(--text-muted); }
+.rsm-pct.is-100 { color: #059669; }
+.rsm-pct.is-mid  { color: #d97706; }
+.rsm-pct.is-low  { color: #ef4444; }
+.rsm-bar { height: 6px; border-radius: 4px; background: rgba(148,163,184,0.2); overflow: hidden; }
+.rsm-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.22,1,0.36,1); }
+.rsm-bar-fill.is-100 { background: linear-gradient(90deg, #34d399, #059669); }
+.rsm-bar-fill.is-mid  { background: linear-gradient(90deg, #fbbf24, #d97706); }
+.rsm-bar-fill.is-low  { background: linear-gradient(90deg, #f87171, #ef4444); }
+.rsm-stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rsm-stat {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font: 700 0.78rem 'Outfit', sans-serif; color: var(--text-muted);
 }
-.rsm-chip svg { width: 14px; height: 14px; flex-shrink: 0; }
-.rsm-chip--items { background: rgba(37,99,235,0.1); color: #2563eb; }
-.rsm-chip--monto { background: rgba(5,150,105,0.1); color: #059669; }
-.rsm-meta { font-weight: 800; font-size: 1.15rem; flex-shrink: 0; color: var(--text-muted); font-family: 'Outfit', sans-serif; }
-.rsm-meta.is-100 { color: #059669; }
-.rsm-meta.is-mid { color: #d97706; }
-.rsm-meta.is-low { color: #ef4444; }
+.rsm-stat svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.65; }
+.rsm-stat--monto { color: #475569; }
 
 /* ── Ranking: 3 podios EN COLUMNAS (uno por categoría) ── */
 .pillars-stage {

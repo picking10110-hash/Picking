@@ -297,18 +297,22 @@ function renderResumen() {
 
       var icoItems = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
       var icoMonto = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>';
+      var barW = Math.max(0, Math.min(metaPct, 100));
 
-      html += `<div class="rsm-row">
-        <span class="rsm-pos">${i + 1}</span>
+      html += `<div class="rsm-row${i === 0 ? ' rsm-row--lead' : ''}">
+        <span class="rsm-rank">${i + 1}</span>
         <img class="rsm-img" src="${imgSrc}" alt="">
         <div class="rsm-main">
-          <span class="rsm-name" title="${p.name}">${p.name}</span>
-          <div class="rsm-chips">
-            <span class="rsm-chip rsm-chip--items">${icoItems}${fmtNum(totalIt)}</span>
-            <span class="rsm-chip rsm-chip--monto">${icoMonto}${fmtGs(monto)}</span>
+          <div class="rsm-top">
+            <span class="rsm-name" title="${p.name}">${p.name}</span>
+            <span class="rsm-pct ${metaCls}">${metaPct}%</span>
+          </div>
+          <div class="rsm-bar"><div class="rsm-bar-fill ${metaCls}" style="width:${barW}%"></div></div>
+          <div class="rsm-stats">
+            <span class="rsm-stat">${icoItems}${fmtNum(totalIt)}</span>
+            <span class="rsm-stat rsm-stat--monto">${icoMonto}${fmtGs(monto)}</span>
           </div>
         </div>
-        <span class="rsm-meta ${metaCls}">${metaPct}%</span>
       </div>`;
     });
     html += `</div></div>`;

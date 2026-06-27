@@ -121,9 +121,10 @@ function processExcel(workbook, validCodes) {
   var pickerMap = {};
   var periodCount = {};
   var entUserCount = {}; // entrega → { usuario: nº de líneas }
+  var allEntregas = new Set(); // todas las entregas (para total de entregas)
 
   function ensurePicker(u) {
-    if (!pickerMap[u]) pickerMap[u] = { code: u, lineas: 0, items: 0, monto: 0, pedidosSet: new Set(), lines: [] };
+    if (!pickerMap[u]) pickerMap[u] = { code: u, lineas: 0, items: 0, monto: 0, pedidosSet: new Set() };
     return pickerMap[u];
   }
 
@@ -159,15 +160,7 @@ function processExcel(workbook, validCodes) {
     p.lineas++;
     p.monto += montoLinea;
     p.pedidosSet.add(entrega);
-    p.lines.push({
-      pedido: String(row[iPedido]),
-      articulo: String(row[iArticulo]),
-      descArt: String(row[iDescArt] || ''),
-      cantPrep: cantPrep,
-      monto: montoLinea,
-      fecha: String(row[iFechaCierre] || ''),
-      hora: String(row[iHoraCierre] || '')
-    });
+    allEntregas.add(entrega);
   }
 
   // Resolver preparador único por entrega (mayoría de líneas)
@@ -196,8 +189,7 @@ function processExcel(workbook, validCodes) {
       monto: Math.round(p.monto),
       pedidos: p.pedidosSet.size,
       ticketPromedio: p.pedidosSet.size > 0 ? Math.round(p.monto / p.pedidosSet.size) : 0,
-      itemsPorPedido: p.pedidosSet.size > 0 ? Math.round(p.items / p.pedidosSet.size) : 0,
-      lines: p.lines
+      itemsPorPedido: p.pedidosSet.size > 0 ? Math.round(p.items / p.pedidosSet.size) : 0
     };
   });
 
@@ -207,7 +199,7 @@ function processExcel(workbook, validCodes) {
     monto: pickersArr.reduce(function (s, p) { return s + p.monto; }, 0),
     items: pickersArr.reduce(function (s, p) { return s + p.items; }, 0),
     lineas: pickersArr.reduce(function (s, p) { return s + p.lineas; }, 0),
-    pedidos: new Set(pickersArr.flatMap(function (p) { return p.lines.map(function (l) { return String(parseInt(l.pedido, 10) || l.pedido); }); })).size,
+    pedidos: allEntregas.size,
     preparadores: pickersArr.length
   };
 
@@ -588,7 +580,10 @@ window.handleExcelUpload = function (event) {
       dashboardData = result;
       dashSelectedPicker = null;
       dashFilter = '';
-      localStorage.setItem('picking_imported_data', JSON.stringify(result));
+      // localStorage es solo un cache de conveniencia; el dato real va a Supabase.
+      // Si excede la cuota no debe abortar la importación.
+      try { localStorage.setItem('picking_imported_data', JSON.stringify(result)); }
+      catch (e) { console.warn('[import] no se pudo cachear en localStorage:', e.message); }
 
       setImportProgress(70, 'Guardando productividad…');
       await _tick();

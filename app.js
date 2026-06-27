@@ -21,19 +21,19 @@ const MOCK_DATA = [
 const CATEGORIAS = ['PLENO', 'JUNIOR', 'APRENDIZ', 'EMPAQUE'];
 const CATEGORIA_INFO = {
   PLENO: {
-    label: 'Pleno', color: '#7c3aed', soft: 'rgba(124,58,237,0.1)',
+    label: 'Pleno', color: '#dc2626', soft: 'rgba(220,38,38,0.1)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
   },
   JUNIOR: {
-    label: 'Junior', color: '#2563eb', soft: 'rgba(37,99,235,0.1)',
+    label: 'Junior', color: '#ca8a04', soft: 'rgba(202,138,4,0.12)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
   },
   APRENDIZ: {
-    label: 'Aprendiz', color: '#0891b2', soft: 'rgba(8,145,178,0.1)',
+    label: 'Aprendiz', color: '#16a34a', soft: 'rgba(22,163,74,0.1)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>'
   },
   EMPAQUE: {
-    label: 'Empaque', color: '#ea580c', soft: 'rgba(234,88,12,0.1)',
+    label: 'Empaque', color: '#64748b', soft: 'rgba(100,116,139,0.12)',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'
   }
 };

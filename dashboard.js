@@ -47,44 +47,69 @@ function colIndex(headers, name) {
   return -1;
 }
 
+// Entrega normalizada (sin ceros adelante): "0015889149" → "15889149"
+function normEntrega(v) {
+  var n = parseInt(String(v).replace(/\D/g, ''), 10);
+  return isNaN(n) ? '' : String(n);
+}
+
+// Modelo por ENTREGA (3 hojas):
+//   datosWMS   → preparador (Usuario) por entrega + período (Fecha Cierre) + Cant.Preparada
+//   datosSAP   → ítems: suma de Cont.Art por entrega
+//   datosMonto → monto facturado por línea (entrega|material) para el monto proporcional
 function processExcel(workbook, validCodes) {
   var wsWMS = workbook.Sheets['datosWMS'];
-  var wsSAP = workbook.Sheets['datosSAP'];
-  if (!wsWMS || !wsSAP) {
-    alert('El archivo debe tener las hojas "datosWMS" y "datosSAP".');
+  var wsSAP = workbook.Sheets['datosSAP'];     // Cont.Art → ítems
+  var wsMonto = workbook.Sheets['datosMonto']; // facturado → monto
+  if (!wsWMS || !wsSAP || !wsMonto) {
+    alert('El archivo debe tener las hojas "datosWMS", "datosSAP" y "datosMonto".');
     return null;
   }
 
   var rawWMS = XLSX.utils.sheet_to_json(wsWMS, { header: 1, defval: '' });
   var rawSAP = XLSX.utils.sheet_to_json(wsSAP, { header: 1, defval: '' });
+  var rawMonto = XLSX.utils.sheet_to_json(wsMonto, { header: 1, defval: '' });
 
-  // --- SAP: build monto map ---
-  var sapHeaderIdx = findHeaderRow(rawSAP, ['Entrega', 'Material']);
-  var sapH = rawSAP[sapHeaderIdx].map(function (c) { return String(c).trim(); });
-  var iEntrega = colIndex(sapH, 'Entrega');
-  var iMaterial = colIndex(sapH, 'Material');
-  var iPrecio = colIndex(sapH, 'Precio');
-  var iCantFact = colIndex(sapH, 'Cant.Fact.');
-  var iDesc = colIndex(sapH, '%Desc');
+  // --- datosMonto: facturado por clave entrega|material ---
+  var mHeaderIdx = findHeaderRow(rawMonto, ['Entrega', 'Material']);
+  var mH = rawMonto[mHeaderIdx].map(function (c) { return String(c).trim(); });
+  var imEntrega = colIndex(mH, 'Entrega');
+  var imMaterial = colIndex(mH, 'Material');
+  var imPrecio = colIndex(mH, 'Precio');
+  var imCantFact = colIndex(mH, 'Cant.Fact.');
+  var imDesc = colIndex(mH, '%Desc');
 
-  var montoMap = {};   // clave → monto total de la venta (Precio×Cant.Fact×desc)
+  var montoMap = {};    // clave → monto facturado total (Precio×Cant.Fact×desc)
   var cantFactMap = {}; // clave → Cant. Facturada total (para precio unitario)
-  for (var s = sapHeaderIdx + 1; s < rawSAP.length; s++) {
-    var r = rawSAP[s];
-    if (!r || !r[iEntrega]) continue;
-    var key = normalizeKey(r[iEntrega], r[iMaterial]);
-    var precio = parseFloat(r[iPrecio]) || 0;
-    var cantFact = parseFloat(r[iCantFact]) || 0;
-    var desc = parseFloat(r[iDesc]) || 0;
-    var monto = precio * cantFact * (1 - desc / 100);
-    montoMap[key] = (montoMap[key] || 0) + monto;
-    cantFactMap[key] = (cantFactMap[key] || 0) + cantFact;
+  for (var s = mHeaderIdx + 1; s < rawMonto.length; s++) {
+    var rm = rawMonto[s];
+    if (!rm || !rm[imEntrega]) continue;
+    var mkey = normalizeKey(rm[imEntrega], rm[imMaterial]);
+    var precio = parseFloat(rm[imPrecio]) || 0;
+    var cantFact = parseFloat(rm[imCantFact]) || 0;
+    var desc = parseFloat(rm[imDesc]) || 0;
+    montoMap[mkey] = (montoMap[mkey] || 0) + precio * cantFact * (1 - desc / 100);
+    cantFactMap[mkey] = (cantFactMap[mkey] || 0) + cantFact;
   }
 
-  // --- WMS: aggregate by picker ---
+  // --- datosSAP: ÍTEMS = suma de Cont.Art por entrega ---
+  var sapHeaderIdx = findHeaderRow(rawSAP, ['Entrega', 'Cont.Art']);
+  var sapH = rawSAP[sapHeaderIdx].map(function (c) { return String(c).trim(); });
+  var isEntrega = colIndex(sapH, 'Entrega');
+  var isContArt = colIndex(sapH, 'Cont.Art');
+  var itemsByEnt = {};   // entrega → suma Cont.Art
+  for (var a = sapHeaderIdx + 1; a < rawSAP.length; a++) {
+    var ra = rawSAP[a];
+    if (!ra || !ra[isEntrega]) continue;
+    var eItems = normEntrega(ra[isEntrega]);
+    if (!eItems) continue;
+    itemsByEnt[eItems] = (itemsByEnt[eItems] || 0) + (parseFloat(ra[isContArt]) || 0);
+  }
+
+  // --- WMS: preparador por entrega + monto proporcional por línea ---
   var wmsHeaderIdx = findHeaderRow(rawWMS, ['Pedido', 'Articulo']);
   var wmsH = rawWMS[wmsHeaderIdx].map(function (c) { return String(c).trim(); });
-  var iPedido = colIndex(wmsH, 'Pedido');
+  var iPedido = colIndex(wmsH, 'Pedido');       // = Entrega (con ceros adelante)
   var iArticulo = colIndex(wmsH, 'Articulo');
   var iDescArt = colIndex(wmsH, 'Desc. Articulo');
   var iCantPrep = colIndex(wmsH, 'Cant. Preparada');
@@ -95,47 +120,48 @@ function processExcel(workbook, validCodes) {
 
   var pickerMap = {};
   var periodCount = {};
+  var entUserCount = {}; // entrega → { usuario: nº de líneas }
+
+  function ensurePicker(u) {
+    if (!pickerMap[u]) pickerMap[u] = { code: u, lineas: 0, items: 0, monto: 0, pedidosSet: new Set(), lines: [] };
+    return pickerMap[u];
+  }
 
   for (var w = wmsHeaderIdx + 1; w < rawWMS.length; w++) {
     var row = rawWMS[w];
     if (!row || !row[iPedido]) continue;
-    var accion = String(row[iAccion] || '').trim();
-    if (accion !== 'Salida de Stock Por Ventas') continue;
-
-    // Detectar período (YYYY-MM) de la Fecha Cierre
-    var fc = String(row[iFechaCierre] || '');
-    var m = fc.match(/(\d{4})[-/](\d{2})/);
-    if (m) { var per = m[1] + '-' + m[2]; periodCount[per] = (periodCount[per] || 0) + 1; }
+    if (String(row[iAccion] || '').trim() !== 'Salida de Stock Por Ventas') continue;
 
     var usuario = String(row[iUsuario] || '').trim().toUpperCase();
     if (!usuario) continue;
     // Opción B: solo preparadores configurados (si se pasó la lista)
     if (validCodes && !validCodes.has(usuario)) continue;
 
-    var pedido = row[iPedido];
-    var articulo = row[iArticulo];
-    var key = normalizeKey(pedido, articulo);
+    var entrega = normEntrega(row[iPedido]);
+    if (!entrega) continue;
 
-    // Solo se registra si el pedido+artículo coincide en AMBAS hojas (WMS y SAP)
-    if (!(key in montoMap)) continue;
+    // Período (YYYY-MM) de la Fecha Cierre del WMS
+    var fc = String(row[iFechaCierre] || '');
+    var m = fc.match(/(\d{4})[-/](\d{2})/);
+    if (m) { var per = m[1] + '-' + m[2]; periodCount[per] = (periodCount[per] || 0) + 1; }
 
-    var cantPrep = parseFloat(row[iCantPrep]) || 0;
+    // entrega → preparador (se resuelve por mayoría de líneas más abajo)
+    if (!entUserCount[entrega]) entUserCount[entrega] = {};
+    entUserCount[entrega][usuario] = (entUserCount[entrega][usuario] || 0) + 1;
+
     // Monto proporcional a lo preparado: Cant.Preparada × precio unitario (monto/cantFact)
+    var key = normalizeKey(row[iPedido], row[iArticulo]);
+    var cantPrep = parseFloat(row[iCantPrep]) || 0;
     var unitPrice = cantFactMap[key] > 0 ? (montoMap[key] / cantFactMap[key]) : 0;
     var montoLinea = cantPrep * unitPrice;
-    var pedNorm = String(parseInt(String(pedido).replace(/\s/g, ''), 10) || pedido);
 
-    if (!pickerMap[usuario]) {
-      pickerMap[usuario] = { code: usuario, lineas: 0, items: 0, monto: 0, pedidosSet: new Set(), lines: [] };
-    }
-    var p = pickerMap[usuario];
+    var p = ensurePicker(usuario);
     p.lineas++;
-    p.items += cantPrep;
     p.monto += montoLinea;
-    p.pedidosSet.add(pedNorm);
+    p.pedidosSet.add(entrega);
     p.lines.push({
-      pedido: String(pedido),
-      articulo: String(articulo),
+      pedido: String(row[iPedido]),
+      articulo: String(row[iArticulo]),
       descArt: String(row[iDescArt] || ''),
       cantPrep: cantPrep,
       monto: montoLinea,
@@ -144,21 +170,38 @@ function processExcel(workbook, validCodes) {
     });
   }
 
+  // Resolver preparador único por entrega (mayoría de líneas)
+  var ent2user = {};
+  Object.keys(entUserCount).forEach(function (e) {
+    var best = '', bestN = -1;
+    Object.keys(entUserCount[e]).forEach(function (u) {
+      if (entUserCount[e][u] > bestN) { bestN = entUserCount[e][u]; best = u; }
+    });
+    ent2user[e] = best;
+  });
+
+  // Ítems (Cont.Art) de cada entrega → al preparador que la preparó
+  Object.keys(itemsByEnt).forEach(function (e) {
+    var u = ent2user[e];
+    if (!u) return; // entrega sin preparador en WMS → se ignora
+    ensurePicker(u).items += itemsByEnt[e];
+  });
+
   var pickersArr = Object.values(pickerMap).map(function (p) {
     return {
       code: p.code,
       name: PICKER_NAMES[p.code] || p.code,
       lineas: p.lineas,
-      items: p.items,
+      items: Math.round(p.items),
       monto: Math.round(p.monto),
       pedidos: p.pedidosSet.size,
-      ticketPromedio: p.lineas > 0 ? Math.round(p.monto / p.lineas) : 0,
+      ticketPromedio: p.pedidosSet.size > 0 ? Math.round(p.monto / p.pedidosSet.size) : 0,
       itemsPorPedido: p.pedidosSet.size > 0 ? Math.round(p.items / p.pedidosSet.size) : 0,
       lines: p.lines
     };
   });
 
-  pickersArr.sort(function (a, b) { return b.monto - a.monto; });
+  pickersArr.sort(function (a, b) { return b.items - a.items; });
 
   var totals = {
     monto: pickersArr.reduce(function (s, p) { return s + p.monto; }, 0),

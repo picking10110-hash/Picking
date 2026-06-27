@@ -315,9 +315,9 @@ async function mergeProductividadTodo() {
   rows.forEach(function (r) {
     const c = r.preparador_codigo;
     if (!sums[c]) sums[c] = { items: 0, unidades: 0, monto: 0 };
-    // "Ítems Preparados" = cantidad de preparaciones (líneas)
-    sums[c].items += Number(r.lineas) || 0;
-    sums[c].unidades += Number(r.items) || 0;
+    // "Ítems Preparados" = suma de Cont.Art (columna items); líneas WMS = referencia
+    sums[c].items += Number(r.items) || 0;
+    sums[c].unidades += Number(r.lineas) || 0;
     sums[c].monto += Number(r.monto) || 0;
   });
   pickers.forEach(function (p) {
@@ -342,9 +342,9 @@ async function mergeProductividad(periodo) {
   pickers.forEach(function (p) {
     const r = byCode[p.codigo];
     if (r) {
-      // "Ítems Preparados" = cantidad de preparaciones (líneas)
-      p.items = Number(r.lineas) || 0;
-      p.unidades = Number(r.items) || 0;
+      // "Ítems Preparados" = suma de Cont.Art (columna items); líneas WMS = referencia
+      p.items = Number(r.items) || 0;
+      p.unidades = Number(r.lineas) || 0;
       p.monto = Number(r.monto) || 0;
       p.score = p.items;
     } else {

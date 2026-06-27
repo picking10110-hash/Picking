@@ -604,14 +604,14 @@ function renderLeaderboard(isInitial = false) {
     return;
   }
 
-  // 3 podios, uno por categoría — TOP 5 de cada una (mantiene pilares 3D)
+  // 1 columna por categoría — TOP 3 de cada una (pilares 3D)
   let html = "";
   CATEGORIAS.forEach(function (cat) {
     var info = CATEGORIA_INFO[cat];
     var grupo = pickers
       .filter(function (p) { return pickerCategoria(p) === cat; })
       .sort(function (a, b) { return b.score - a.score; })
-      .slice(0, 5);
+      .slice(0, 3);
 
     html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
       <div class="cat-header cat-header--podium">

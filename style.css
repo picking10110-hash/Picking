@@ -3135,9 +3135,16 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   padding: 10px 4px;
 }
 
-/* ── Configuración: header full-width + selector de categoría ── */
-.adm-grid > .cat-header,
-.adm-grid > .cat-empty { grid-column: 1 / -1; margin-top: 6px; }
+/* ── Configuración: columnas por categoría ── */
+.adm-grid { display: flex; flex-direction: column; gap: 14px; }
+.adm-newbar { display: flex; }
+.adm-newbar .adm-card-new {
+  flex-direction: row; min-height: auto; gap: 10px;
+  padding: 12px 18px; max-width: 280px; align-items: center;
+}
+.adm-cols { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.adm-cat-col { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.adm-cat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 
 .adm-cat-select {
   display: inline-flex; width: 100%; gap: 4px;
@@ -3162,17 +3169,18 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 }
 .adm-cat-badge svg { width: 14px; height: 14px; }
 
-/* ── Resumen: filas de categoría ── */
-.resumen-cat-row > td { padding: 0 !important; background: transparent !important; }
-.resumen-cat-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 14px; margin-top: 6px;
-  border-radius: 10px;
-  background: var(--cat-soft); border-left: 3px solid var(--cat);
+/* ── Resumen: columnas por categoría ── */
+.resumen-cols { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.resumen-cat-col {
+  flex: 1 1 260px; min-width: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-top: 3px solid var(--cat); border-radius: 14px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
 }
-.resumen-cat-head .cat-header__icon { width: 18px; height: 18px; }
+.resumen-cat-head { display: flex; align-items: center; gap: 9px; padding: 2px; }
+.resumen-cat-head .cat-header__icon { width: 18px; height: 18px; color: var(--cat); }
 .resumen-cat-title {
-  font-weight: 800; font-size: 0.84rem; text-transform: uppercase;
+  font-weight: 800; font-size: 0.86rem; text-transform: uppercase;
   letter-spacing: 0.3px; color: var(--cat);
 }
 .resumen-cat-count {
@@ -3181,28 +3189,44 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   border-radius: 7px; font-weight: 800; font-size: 0.72rem;
   color: #fff; background: var(--cat);
 }
-.resumen-cat-sub {
-  margin-left: auto; font-weight: 700; font-size: 0.76rem; color: var(--text-muted);
+.resumen-cat-sub { font-weight: 700; font-size: 0.74rem; color: var(--text-muted); padding: 0 2px 2px; }
+.rsm-list { display: flex; flex-direction: column; gap: 6px; }
+.rsm-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: 9px; background: var(--bg-primary); border: 1px solid var(--border-color);
 }
+.rsm-pos { width: 18px; text-align: center; font-weight: 800; font-size: 0.76rem; color: var(--text-muted); flex-shrink: 0; }
+.rsm-img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; border: 1.5px solid var(--border-color); flex-shrink: 0; }
+.rsm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rsm-name { font-weight: 700; font-size: 0.8rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rsm-sub { font-size: 0.67rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rsm-meta { font-weight: 800; font-size: 0.82rem; flex-shrink: 0; color: var(--text-muted); }
+.rsm-meta.is-100 { color: #059669; }
+.rsm-meta.is-mid { color: #d97706; }
+.rsm-meta.is-low { color: #ef4444; }
 
-/* ── Ranking: 3 podios apilados (uno por categoría) ── */
+/* ── Ranking: 3 podios EN COLUMNAS (uno por categoría) ── */
 .pillars-stage {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 6px;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
   overflow-y: auto;
   overflow-x: hidden;
 }
 .cat-podium {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 6px 8px 10px;
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 8px 12px;
   border-radius: 14px;
+  align-self: stretch;
 }
 .cat-header--podium { background: var(--cat-soft); }
 .cat-podium-row {
-  display: flex; justify-content: center; align-items: flex-end;
-  gap: 30px; overflow-x: auto; padding: 8px 10px 2px; min-height: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 8px 6px 2px; min-height: 0;
 }
 .cat-podium-empty {
   text-align: center; color: var(--text-muted); font-weight: 600;
@@ -3212,9 +3236,10 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 /* ── Vista Premios ── */
 .premios-body {
   flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 16px;
   padding: 4px 6px 24px;
 }
+.premio-cat { flex: 1 1 300px; min-width: 0; }
 .premios-note {
   background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
   color: #b45309; font-weight: 600; font-size: 0.84rem;

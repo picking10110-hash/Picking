@@ -262,60 +262,52 @@ function renderResumen() {
     </div>
   </div>`;
 
-  // Table — agrupada por categoría
-  html += '<div class="resumen-table-wrap"><table class="dash-table"><thead><tr>';
-  html += '<th style="width:40px">#</th><th>Preparador</th>';
-  html += '<th>Ítems Preparados</th><th>Monto Alcanzado</th><th>Meta</th>';
-  html += '</tr></thead><tbody>';
-
+  // Columnas por categoría
   var cats = (typeof CATEGORIAS !== 'undefined') ? CATEGORIAS : ['JUNIOR'];
+  html += '<div class="resumen-cols">';
   cats.forEach(function (cat) {
     var info = (typeof CATEGORIA_INFO !== 'undefined') ? CATEGORIA_INFO[cat] : { label: cat, color: '#64748b', soft: 'rgba(100,116,139,0.1)', icon: '' };
     var grupo = sorted.filter(function (p) { return (typeof pickerCategoria === 'function' ? pickerCategoria(p) : 'JUNIOR') === cat; });
-    if (!grupo.length) return;
 
     var subItems = grupo.reduce(function (s, p) { return s + realItems(p); }, 0);
     var subMonto = grupo.reduce(function (s, p) { return s + realMonto(p); }, 0);
 
-    html += `<tr class="resumen-cat-row" style="--cat:${info.color};--cat-soft:${info.soft}">
-      <td colspan="5">
-        <div class="resumen-cat-head">
-          <span class="cat-header__icon">${info.icon}</span>
-          <span class="resumen-cat-title">${info.label}</span>
-          <span class="resumen-cat-count">${grupo.length}</span>
-          <span class="resumen-cat-sub">${fmtNum(subItems)} ítems · ${fmtGs(subMonto)}</span>
-        </div>
-      </td>
-    </tr>`;
+    html += `<div class="resumen-cat-col" style="--cat:${info.color};--cat-soft:${info.soft}">
+      <div class="resumen-cat-head">
+        <span class="cat-header__icon">${info.icon}</span>
+        <span class="resumen-cat-title">${info.label}</span>
+        <span class="resumen-cat-count">${grupo.length}</span>
+      </div>
+      <div class="resumen-cat-sub">${fmtNum(subItems)} ítems · ${fmtGs(subMonto)}</div>`;
 
+    if (!grupo.length) {
+      html += `<div class="cat-empty">Sin preparadores</div></div>`;
+      return;
+    }
+
+    html += `<div class="rsm-list">`;
     grupo.forEach(function (p, i) {
       var imgSrc = p.avatarType === 'preset'
         ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
         : p.avatarValue;
-
       var totalIt = realItems(p);
       var monto = realMonto(p);
       var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
-      var metaClass = metaPct >= 100 ? 'color:#059669' : metaPct >= 80 ? 'color:#d97706' : 'color:#ef4444';
+      var metaCls = metaPct >= 100 ? 'is-100' : metaPct >= 80 ? 'is-mid' : 'is-low';
 
-      html += `<tr>
-        <td style="font-weight:800;color:var(--text-muted);text-align:center;">${i + 1}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <img src="${imgSrc}" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:1.5px solid var(--border-color);" alt="">
-            <div>
-              <div style="font-weight:700;font-size:0.82rem;">${p.name}</div>
-            </div>
-          </div>
-        </td>
-        <td style="font-weight:800">${fmtNum(totalIt)}</td>
-        <td style="font-weight:800">${fmtGs(monto)}</td>
-        <td style="font-weight:800;${metaClass}">${metaPct}%</td>
-      </tr>`;
+      html += `<div class="rsm-row">
+        <span class="rsm-pos">${i + 1}</span>
+        <img class="rsm-img" src="${imgSrc}" alt="">
+        <div class="rsm-main">
+          <span class="rsm-name" title="${p.name}">${p.name}</span>
+          <span class="rsm-sub">${fmtNum(totalIt)} ítems · ${fmtGs(monto)}</span>
+        </div>
+        <span class="rsm-meta ${metaCls}">${metaPct}%</span>
+      </div>`;
     });
+    html += `</div></div>`;
   });
-
-  html += '</tbody></table></div>';
+  html += '</div>';
 
   container.innerHTML = html;
 }

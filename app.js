@@ -817,19 +817,24 @@ function renderAdminGrid() {
 
   if (canEdit) {
     html += `
-      <div class="adm-card adm-card-new" onclick="openNewPickerModal()">
-        <div class="adm-new-icon">
-          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      <div class="adm-newbar">
+        <div class="adm-card adm-card-new" onclick="openNewPickerModal()">
+          <div class="adm-new-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <span class="adm-card-name" style="color:var(--text-muted);">Nuevo Preparador</span>
         </div>
-        <span class="adm-card-name" style="color:var(--text-muted);">Nuevo Preparador</span>
       </div>
     `;
   }
 
+  html += '<div class="adm-cols">';
   CATEGORIAS.forEach(function (cat) {
     var grupo = pickers.filter(function (p) { return pickerCategoria(p) === cat; });
+    html += `<div class="adm-cat-col">`;
     html += catHeaderHTML(cat, grupo.length);
-    if (!grupo.length) { html += `<div class="cat-empty">Sin preparadores en esta categoría</div>`; return; }
+    if (!grupo.length) { html += `<div class="cat-empty">Sin preparadores en esta categoría</div></div>`; return; }
+    html += `<div class="adm-cat-cards">`;
 
     grupo.forEach(function (picker) {
       var imgSrc = picker.avatarType === 'preset'
@@ -866,7 +871,9 @@ function renderAdminGrid() {
         </div>
       `;
     });
+    html += `</div></div>`;
   });
+  html += '</div>';
 
   container.innerHTML = html;
 }

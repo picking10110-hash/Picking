@@ -76,7 +76,8 @@ function waitForAlasAuth(maxMs) {
 
 function applyRoleRestrictions() {
   var role = window._alasRole || 'operador';
-  window._alasCanEdit = (role === 'admin' || role === 'supervisor');
+  // Admin, supervisor y operador pueden configurar (editar perfiles, metas, categorías).
+  window._alasCanEdit = (role === 'admin' || role === 'supervisor' || role === 'operador');
 
   var btnAdmin = document.getElementById('btn-admin-panel');
   var roleBadge = document.getElementById('admin-role-badge');
@@ -88,8 +89,9 @@ function applyRoleRestrictions() {
     }
   }
 
-  if (roleBadge && role !== 'admin') {
-    roleBadge.textContent = role === 'supervisor' ? 'Solo lectura' : 'Sin permisos';
+  // El badge "Solo lectura" sólo aparece para roles que NO pueden editar.
+  if (roleBadge && !window._alasCanEdit) {
+    roleBadge.textContent = 'Solo lectura';
     roleBadge.style.display = 'inline-block';
   }
 }

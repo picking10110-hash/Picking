@@ -604,14 +604,14 @@ function renderLeaderboard(isInitial = false) {
     return;
   }
 
-  // Columnas por categoría — TOP 3 de cada una (cards horizontales pro)
+  // 3 podios, uno por categoría — TOP 5 de cada una (mantiene pilares 3D)
   let html = "";
   CATEGORIAS.forEach(function (cat) {
     var info = CATEGORIA_INFO[cat];
     var grupo = pickers
       .filter(function (p) { return pickerCategoria(p) === cat; })
       .sort(function (a, b) { return b.score - a.score; })
-      .slice(0, 3);
+      .slice(0, 5);
 
     html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
       <div class="cat-header cat-header--podium">
@@ -631,14 +631,14 @@ function renderLeaderboard(isInitial = false) {
 
     html += `<div class="cat-podium-row">`;
     grupo.forEach(function (picker, index) {
-      html += rankCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
+      html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
     });
     html += `</div></div>`;
   });
 
   container.innerHTML = html;
 
-  const cards = container.querySelectorAll(".rank-card");
+  const cards = container.querySelectorAll(".pillar-card");
   if (isInitial) {
     gsap.set(cards, { opacity: 0, y: 50, scale: 0.9 });
     gsap.to(cards, {
@@ -651,85 +651,125 @@ function renderLeaderboard(isInitial = false) {
   }
 }
 
-function rankCardHTML(picker, rank, maxItems, maxMonto, isInitial) {
+function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
   var imgSrc = picker.avatarType === "preset"
     ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
     : picker.avatarValue;
 
-  var pct = getMetaPercent(picker);
-  var items = pickerItems(picker);
-  var monto = pickerMonto(picker);
-  var montoW = Math.min(100, (monto / maxMonto) * 100);
-  var itemsW = Math.min(100, (items / maxItems) * 100);
-  var metaCls = pct >= 100 ? 'is-100' : pct >= 90 ? 'is-mid' : 'is-low';
-  var metaItems = getPickerMeta(picker).metaItemsMes;
-  var rankCls = rank <= 3 ? ' rank-top-' + rank : '';
+  var percentOfGoal = getMetaPercent(picker);
+  var totalItems = pickerItems(picker);
+  var moneyValuePYG = pickerMonto(picker);
+
+  var itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
+  var moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
+
+  var metaClass = "meta-danger";
+  if (percentOfGoal >= 100) metaClass = "meta-success";
+  else if (percentOfGoal >= 90) metaClass = "meta-warning";
+
+  var prevRank = picker.prevRank !== undefined ? picker.prevRank : rank;
+  var trendClass = "stable", trendSymbol = "▬", trendTitle = "Posición estable";
+  if (prevRank > rank) { trendClass = "up"; trendSymbol = "▲"; trendTitle = `Subió ${prevRank - rank} posiciones`; }
+  else if (prevRank < rank) { trendClass = "down"; trendSymbol = "▼"; trendTitle = `Bajó ${rank - prevRank} posiciones`; }
+
+  var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
 
   return `
-      <div class="rank-card${rankCls}" data-id="${picker.id}" data-meta-items="${metaItems}" data-max-items="${maxItems}" data-max-monto="${maxMonto}">
-        <div class="rank-pos">${rank}</div>
-        <div class="rank-avatar"><img src="${imgSrc}" alt="${picker.name}"></div>
-        <div class="rank-body">
-          <div class="rank-name" title="${picker.name}">${picker.name}</div>
-          <div class="rank-bar-row">
-            <span class="rank-bar-lbl">Monto</span>
-            <div class="rank-bar" title="Monto alcanzado">
-              <div class="rank-fill rank-fill--monto" style="width:${isInitial ? 0 : montoW}%"></div>
-              <span class="rank-val rank-val--monto" data-target="${monto}" data-current="${isInitial ? 0 : monto}">Gs. ${isInitial ? 0 : monto.toLocaleString('es-PY')}</span>
+      <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
+        <div class="pillar-avatar-container">
+          <div class="avatar-3d-card-wrapper">
+            <div class="avatar-3d-card">
+              <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
+              <div class="avatar-3d-shine"></div>
+            </div>
+            <div class="rank-medal-badge">${rank}</div>
+            <div class="rank-trend-indicator trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
+          </div>
+        </div>
+
+        <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+
+        <div class="pillar-dual-columns">
+          ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
+          <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
+            <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
+          </div>
+          <div class="pillar-3d-square pillar-items" title="Items preparados">
+            <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
+          </div>
+        </div>
+
+        <div class="pillar-info">
+          <div class="pillar-metrics-box">
+            <div class="metric-chip chip-monto">
+              <span class="chip-label">Monto Alcanzado</span>
+              <span class="chip-value monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
+            </div>
+            <div class="metric-chip chip-items">
+              <span class="chip-label">Items Preparados</span>
+              <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()}</span>
+            </div>
+            <div class="metric-chip chip-meta ${metaClass}">
+              <span class="chip-label">Meta</span>
+              <span class="chip-value meta-val">${isInitial ? 0 : percentOfGoal}%</span>
             </div>
           </div>
-          <div class="rank-bar-row">
-            <span class="rank-bar-lbl">Ítems</span>
-            <div class="rank-bar" title="Ítems preparados">
-              <div class="rank-fill rank-fill--items" style="width:${isInitial ? 0 : itemsW}%"></div>
-              <span class="rank-val rank-val--items" data-target="${items}" data-current="${isInitial ? 0 : items}">${isInitial ? 0 : items.toLocaleString('es-PY')}</span>
-            </div>
-          </div>
-          <div class="rank-meta ${metaCls}"><span class="rank-meta-lbl">Meta</span><span class="rank-meta-val">${isInitial ? 0 : pct}%</span></div>
         </div>
       </div>
     `;
 }
 
 function animateBarsAndNumbers(container) {
-  var cards = container.querySelectorAll(".rank-card");
+  const cards = container.querySelectorAll(".pillar-card");
 
-  cards.forEach(function (card) {
-    var montoFill = card.querySelector(".rank-fill--monto");
-    var itemsFill = card.querySelector(".rank-fill--items");
-    var montoVal = card.querySelector(".rank-val--monto");
-    var itemsVal = card.querySelector(".rank-val--items");
-    var metaVal = card.querySelector(".rank-meta-val");
-    if (!montoVal || !itemsVal) return;
+  cards.forEach(card => {
+    const montoSeg = card.querySelector(".pillar-segment.segment-monto");
+    const baseSeg = card.querySelector(".pillar-segment.segment-base");
+    const metaVal = card.querySelector(".meta-val");
+    const montoVal = card.querySelector(".monto-val");
+    const itemsVal = card.querySelector(".items-val");
 
-    var targetMonto = parseInt(montoVal.dataset.target, 10) || 0;
-    var targetItems = parseInt(itemsVal.dataset.target, 10) || 0;
-    var currentMonto = parseInt(montoVal.dataset.current || "0", 10);
-    var currentItems = parseInt(itemsVal.dataset.current || "0", 10);
-    var maxItems = parseFloat(card.dataset.maxItems) || 1;
-    var maxMonto = parseFloat(card.dataset.maxMonto) || 1;
-    var metaItems = parseInt(card.dataset.metaItems, 10) || 1;
+    if (montoVal && itemsVal) {
+      const targetMonto = parseInt(montoVal.dataset.target, 10);
+      const targetItems = parseInt(itemsVal.dataset.target, 10);
+      const currentMonto = parseInt(montoVal.dataset.current || "0", 10);
+      const currentItems = parseInt(itemsVal.dataset.current || "0", 10);
 
-    // Barras horizontales — CSS transita el width
-    if (montoFill) montoFill.style.width = Math.min(100, (targetMonto / maxMonto) * 100) + "%";
-    if (itemsFill) itemsFill.style.width = Math.min(100, (targetItems / maxItems) * 100) + "%";
+      const maxItems = parseFloat(card.dataset.maxItems) || 1;
+      const maxMonto = parseFloat(card.dataset.maxMonto) || 1;
+      const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
 
-    if (window.gsap) {
-      var obj = { monto: currentMonto, items: currentItems };
-      gsap.to(obj, {
-        monto: targetMonto, items: targetItems, duration: 1.2, ease: "power3.out",
-        onUpdate: function () {
-          montoVal.dataset.current = Math.round(obj.monto).toString();
-          itemsVal.dataset.current = Math.round(obj.items).toString();
-          montoVal.innerText = "Gs. " + Math.round(obj.monto).toLocaleString('es-PY');
-          itemsVal.innerText = Math.round(obj.items).toLocaleString('es-PY');
-          if (metaVal) metaVal.innerText = (metaItems > 0 ? Math.round(Math.round(obj.items) / metaItems * 100) : 0) + "%";
+      const animObj = { monto: currentMonto, items: currentItems };
+
+      gsap.to(animObj, {
+        monto: targetMonto, items: targetItems,
+        duration: 1.4, ease: "power3.out",
+        onUpdate: () => {
+          montoVal.dataset.current = Math.round(animObj.monto).toString();
+          itemsVal.dataset.current = Math.round(animObj.items).toString();
+
+          // Alturas proporcionales al líder del podio
+          const montoHeight = (animObj.monto / maxMonto) * 70;
+          const itemsHeight = (animObj.items / maxItems) * 70;
+          const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
+
+          if (montoSeg) montoSeg.style.setProperty("--monto-height", montoHeight + "%");
+          if (baseSeg) baseSeg.style.setProperty("--segment-height", itemsHeight + "%");
+
+          montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
+          itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()}`;
+
+          const chipMeta = card.querySelector(".chip-meta");
+          if (chipMeta && metaVal) {
+            metaVal.innerText = `${percentOfGoal}%`;
+            chipMeta.classList.remove("meta-success", "meta-warning", "meta-danger");
+            metaVal.style.color = "";
+            if (percentOfGoal >= 100) chipMeta.classList.add("meta-success");
+            else if (percentOfGoal >= 90) chipMeta.classList.add("meta-warning");
+            else chipMeta.classList.add("meta-danger");
+          }
         }
       });
-    } else {
-      montoVal.innerText = "Gs. " + targetMonto.toLocaleString('es-PY');
-      itemsVal.innerText = targetItems.toLocaleString('es-PY');
-      if (metaVal) metaVal.innerText = (metaItems > 0 ? Math.round(targetItems / metaItems * 100) : 0) + "%";
     }
   });
 }

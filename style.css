@@ -3222,92 +3222,22 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   overflow-x: hidden;
 }
 .cat-podium {
-  flex: 1 1 220px;
+  flex: 1 1 280px;
   min-width: 0;
   display: flex; flex-direction: column; gap: 8px;
-  padding: 10px;
-  border-radius: 16px;
+  padding: 8px 8px 12px;
+  border-radius: 14px;
   align-self: stretch;
-  background: color-mix(in srgb, var(--cat, #64748b) 6%, var(--bg-secondary));
-  border: 1px solid color-mix(in srgb, var(--cat, #64748b) 16%, transparent);
 }
 .cat-header--podium { background: var(--cat-soft); }
 .cat-podium-row {
-  display: flex; flex-direction: column; align-items: stretch;
-  gap: 12px; padding: 8px 4px 2px; min-height: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 8px 6px 2px; min-height: 0;
 }
 .cat-podium-empty {
   text-align: center; color: var(--text-muted); font-weight: 600;
   font-size: 0.85rem; padding: 18px;
 }
-
-/* Card horizontal del ranking (retrato + barras + %) */
-.rank-card {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--bg-secondary); border: 1px solid var(--border-color);
-  border-radius: 14px; padding: 11px 13px;
-  box-shadow: 0 2px 8px rgba(15,23,42,0.05);
-}
-.rank-card.rank-top-1 {
-  border-color: color-mix(in srgb, var(--cat, #64748b) 45%, transparent);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--cat, #64748b) 16%, transparent);
-}
-.rank-pos {
-  width: 20px; flex-shrink: 0; text-align: center;
-  font: 800 1.05rem 'Outfit', sans-serif; color: var(--cat, #64748b);
-}
-.rank-avatar {
-  width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
-  border: 2px solid color-mix(in srgb, var(--cat, #64748b) 32%, transparent);
-}
-.rank-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.rank-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.rank-name {
-  font: 800 0.9rem 'Outfit', sans-serif; color: var(--text-main);
-  text-transform: uppercase; letter-spacing: 0.2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.rank-bar-row { display: flex; align-items: center; gap: 7px; }
-.rank-bar-lbl {
-  width: 36px; flex-shrink: 0;
-  font: 800 0.56rem 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.4px;
-  color: var(--text-muted);
-}
-.rank-bar {
-  position: relative; flex: 1; min-width: 0; height: 24px; border-radius: 7px; overflow: hidden;
-  background: rgba(148,163,184,0.18);
-  display: flex; align-items: center;
-}
-.rank-fill {
-  position: absolute; left: 0; top: 0; height: 100%; width: 0; border-radius: 7px;
-  transition: width 1s cubic-bezier(0.22,1,0.36,1);
-}
-.rank-fill--monto { background: linear-gradient(90deg, #34d399, #059669); }
-.rank-fill--items { background: linear-gradient(90deg, #60a5fa, #2563eb); }
-.rank-val {
-  position: relative; z-index: 1; margin-left: auto; margin-right: 4px;
-  padding: 2px 8px; border-radius: 6px;
-  background: rgba(15,23,42,0.6); color: #fff;
-  font: 800 0.76rem 'Outfit', sans-serif; white-space: nowrap;
-}
-.rank-meta { display: flex; align-items: baseline; gap: 6px; margin-top: 1px; }
-.rank-meta-lbl { font: 800 0.6rem 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-.rank-meta-val { font: 800 0.98rem 'Outfit', sans-serif; color: var(--text-muted); }
-.rank-meta.is-100 .rank-meta-val { color: #059669; }
-.rank-meta.is-mid  .rank-meta-val { color: #d97706; }
-.rank-meta.is-low  .rank-meta-val { color: #ef4444; }
-
-/* TV mode — cards más grandes y legibles */
-body.tv-mode .cat-podium-row { gap: 16px; }
-body.tv-mode .rank-card { padding: 15px 18px; gap: 16px; border-radius: 18px; }
-body.tv-mode .rank-pos { width: 28px; font-size: 1.4rem; }
-body.tv-mode .rank-avatar { width: 78px; height: 78px; border-radius: 16px; }
-body.tv-mode .rank-name { font-size: 1.2rem; }
-body.tv-mode .rank-bar { height: 30px; border-radius: 9px; }
-body.tv-mode .rank-bar-tag { font-size: 0.74rem; }
-body.tv-mode .rank-val { font-size: 1.05rem; }
-body.tv-mode .rank-meta-lbl { font-size: 0.74rem; }
-body.tv-mode .rank-meta-val { font-size: 1.35rem; }
 
 /* ── Vista Premios ── */
 .premios-body {
@@ -3416,8 +3346,8 @@ body.tv-mode .rank-meta-val { font-size: 1.35rem; }
 }
 
 /* TV mode: ocultar body de premios (no aplica) */
+body.tv-mode .cat-podium-row { gap: 40px; }
 body.tv-mode .premios-body { display: none; }
-body.tv-mode .pillars-stage { gap: 16px; align-items: flex-start; }
 
 
 

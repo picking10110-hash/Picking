@@ -33,6 +33,10 @@
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span class="sb-label">Ver Resumen</span>
           </button>
+          <button class="sidebar-icon" type="button" data-view="premios" onclick="switchView('premios')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 8l1.5-4h7L17 8v12H7z"/><path d="M7 8h10M10 4v4M14 4v4"/><line x1="10" y1="13" x2="14" y2="13"/></svg>
+            <span class="sb-label">Premios</span>
+          </button>
           <button class="sidebar-icon" type="button" data-view="admin" onclick="switchView('admin')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             <span class="sb-label">Administrar</span>
@@ -123,6 +127,28 @@
             </div>
           </header>
           <div class="resumen-body" id="resumen-body">
+          </div>
+        </div>
+
+        <!-- VISTA: PREMIOS — Carrera de Metas -->
+        <div class="stage-view" id="view-premios">
+          <header class="header-section">
+            <div class="brand">
+              <h1>Premios — Carrera de Metas</h1>
+              <span class="subtitle">Caja de leche por categoría · 1º a 100% y club 110%</span>
+            </div>
+            <div class="periodo-nav" style="display:none;">
+              <button class="periodo-nav-btn periodo-prev" type="button" onclick="changePeriodo(-1)" aria-label="Mes anterior">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <span class="periodo-nav-label periodo-label"></span>
+              <button class="periodo-nav-btn periodo-next" type="button" onclick="changePeriodo(1)" aria-label="Mes siguiente">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+              </button>
+              <button class="periodo-todo-btn periodo-todo" type="button" onclick="togglePeriodoTodo()">Todo</button>
+            </div>
+          </header>
+          <div class="premios-body" id="premios-body">
           </div>
         </div>
 

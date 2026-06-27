@@ -36,6 +36,7 @@
         avatar_value:   p.avatarValue || 'avatar1',
         meta_monto_mes: p.metaMontoMes || 18000000,
         meta_items_mes: p.metaItemsMes || 1600,
+        categoria:      p.categoria || 'JUNIOR',
         activo:         p.activo !== false
       };
       var res = await db().from('preparadores').upsert(row, { onConflict: 'codigo' }).select().single();
@@ -49,6 +50,13 @@
       var patch = {}; patch[col] = value;
       var res = await db().from('preparadores').update(patch).eq('codigo', codigo);
       if (res.error) { console.warn('[PickingAPI] updateMeta:', res.error.message); return null; }
+      return true;
+    },
+
+    async updatePreparadorCategoria(codigo, categoria) {
+      if (!ready()) return null;
+      var res = await db().from('preparadores').update({ categoria: categoria }).eq('codigo', codigo);
+      if (res.error) { console.warn('[PickingAPI] updateCategoria:', res.error.message); return null; }
       return true;
     },
 
@@ -169,6 +177,40 @@
       if (prod.error) { console.warn('[PickingAPI] saveImportacion rows:', prod.error.message); return null; }
 
       return { id: imp.data.id, replaced: replaced, prevPedidos: prevPedidos };
+    },
+
+    // ── PREMIOS — 1º en llegar a 100% por categoría ───────────
+    async getPremiosPrimero(periodo) {
+      if (!ready()) return null;
+      var q = db().from('premios_primero').select('*');
+      if (periodo) q = q.eq('periodo', periodo);
+      var res = await q;
+      if (res.error) { console.warn('[PickingAPI] getPremiosPrimero:', res.error.message); return null; }
+      return res.data;
+    },
+
+    /**
+     * Bloquea al primero en llegar a 100% por categoría (cronológico).
+     * Sólo inserta si aún no hay ganador para (periodo, categoria).
+     * @param {string} periodo
+     * @param {array}  candidatos [{ categoria, code, name, metaPct }] — el TOP ≥100% de cada categoría
+     */
+    async lockPrimeroMeta(periodo, candidatos) {
+      if (!ready() || !candidatos || !candidatos.length) return null;
+      var rows = candidatos.map(function (c) {
+        return {
+          periodo: periodo,
+          categoria: c.categoria,
+          preparador_codigo: c.code,
+          preparador_nombre: c.name || c.code,
+          meta_pct: c.metaPct || 0
+        };
+      });
+      // on conflict (periodo, categoria) do nothing → sólo la 1ª vez fija al ganador
+      var res = await db().from('premios_primero')
+        .upsert(rows, { onConflict: 'periodo,categoria', ignoreDuplicates: true });
+      if (res.error) { console.warn('[PickingAPI] lockPrimeroMeta:', res.error.message); return null; }
+      return true;
     }
   };
 

@@ -17,6 +17,29 @@ const MOCK_DATA = [
   { id: "p6", name: "Miguel Ángel", score: 142, deletedScore: 22, avatarType: "preset", avatarValue: "avatar1" }
 ];
 
+// ── CATEGORÍAS DE PREPARADORES ──────────────────────────────
+const CATEGORIAS = ['PLENO', 'JUNIOR', 'APRENDIZ'];
+const CATEGORIA_INFO = {
+  PLENO: {
+    label: 'Pleno', color: '#7c3aed', soft: 'rgba(124,58,237,0.1)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+  },
+  JUNIOR: {
+    label: 'Junior', color: '#2563eb', soft: 'rgba(37,99,235,0.1)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
+  },
+  APRENDIZ: {
+    label: 'Aprendiz', color: '#0891b2', soft: 'rgba(8,145,178,0.1)',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>'
+  }
+};
+// Caja de leche (premio)
+const MILK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l1.5-4h7L17 8v12H7z"/><path d="M7 8h10M10 4v4M14 4v4"/><line x1="10" y1="13" x2="14" y2="13"/></svg>';
+function pickerCategoria(p) {
+  var c = p && p.categoria;
+  return CATEGORIA_INFO[c] ? c : 'JUNIOR';
+}
+
 let pickers = [];
 let deletedPickers = [];
 let selectedAvatarType = "preset";
@@ -179,7 +202,8 @@ async function loadData() {
             avatarType:   r.avatar_type,
             avatarValue:  r.avatar_value,
             metaItemsMes: r.meta_items_mes,
-            metaMontoMes: r.meta_monto_mes
+            metaMontoMes: r.meta_monto_mes,
+            categoria:    r.categoria || 'JUNIOR'
           };
         });
         deletedPickers = [];
@@ -293,6 +317,7 @@ window.changePeriodo = async function (delta) {
   updatePeriodoUI();
   renderLeaderboard(true);
   if (typeof renderResumen === 'function') renderResumen();
+  if (typeof renderPremios === 'function') renderPremios();
 };
 
 window.togglePeriodoTodo = async function () {
@@ -305,7 +330,98 @@ window.togglePeriodoTodo = async function () {
   updatePeriodoUI();
   renderLeaderboard(true);
   if (typeof renderResumen === 'function') renderResumen();
+  if (typeof renderPremios === 'function') renderPremios();
 };
+
+// ==========================================
+// PREMIOS — Carrera de metas (caja de leche)
+// ==========================================
+async function renderPremios() {
+  var container = document.getElementById('premios-body');
+  if (!container) return;
+
+  // Ganadores bloqueados (1º a 100%) del período seleccionado
+  var primeroByCat = {};
+  if (!_periodoTodo && currentPeriodo && window.PickingAPI && PickingAPI.isReady()) {
+    var rows = await PickingAPI.getPremiosPrimero(currentPeriodo);
+    (rows || []).forEach(function (r) { primeroByCat[r.categoria] = r; });
+  }
+
+  var html = '';
+  if (_periodoTodo) {
+    html += `<div class="premios-note">Los premios se calculan por mes. Elegí un mes en el navegador de arriba.</div>`;
+  }
+
+  CATEGORIAS.forEach(function (cat) {
+    var info = CATEGORIA_INFO[cat];
+    var grupo = pickers
+      .filter(function (p) { return pickerCategoria(p) === cat; })
+      .map(function (p) { return { p: p, pct: getMetaPercent(p), items: pickerItems(p) }; })
+      .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
+
+    var primero = primeroByCat[cat];
+    var primeroCode = primero ? primero.preparador_codigo : null;
+    var club110 = grupo.filter(function (x) { return x.pct >= 110; });
+    var totalCajas = (primero ? 1 : 0) + club110.length;
+
+    html += `<section class="premio-cat" style="--cat:${info.color};--cat-soft:${info.soft}">
+      <div class="premio-cat-head">
+        <span class="cat-header__icon">${info.icon}</span>
+        <span class="premio-cat-title">${info.label}</span>
+        <span class="premio-cat-cajas">${MILK_ICON}<b>${totalCajas}</b> caja${totalCajas !== 1 ? 's' : ''}</span>
+      </div>`;
+
+    if (primero) {
+      var pObj = pickers.find(function (p) { return p.codigo === primeroCode; });
+      var nombre = primero.preparador_nombre || (pObj && pObj.name) || primeroCode;
+      html += `<div class="premio-winner">
+        <span class="premio-medal">🥇</span>
+        <div class="premio-winner-info">
+          <span class="premio-winner-label">1º en llegar a 100%</span>
+          <span class="premio-winner-name">${nombre}</span>
+        </div>
+        <span class="premio-winner-caja">${MILK_ICON} 1 caja</span>
+      </div>`;
+    } else if (!_periodoTodo) {
+      html += `<div class="premio-winner premio-winner--empty">Nadie llegó al 100% todavía</div>`;
+    }
+
+    html += `<div class="premio-race">`;
+    if (!grupo.length) {
+      html += `<div class="cat-empty">Sin preparadores</div>`;
+    } else {
+      grupo.forEach(function (x, i) {
+        var p = x.p, pct = x.pct;
+        var barW = Math.max(0, Math.min(pct, 110)) / 110 * 100;
+        var cls = pct >= 110 ? 'is-110' : pct >= 100 ? 'is-100' : pct >= 80 ? 'is-mid' : 'is-low';
+        var isPrimero = p.codigo && p.codigo === primeroCode;
+        var is110 = pct >= 110;
+        var cajas = (isPrimero ? 1 : 0) + (is110 ? 1 : 0);
+        var imgSrc = p.avatarType === 'preset' ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
+        html += `<div class="premio-row ${cls}">
+          <span class="premio-row-pos">${i + 1}</span>
+          <img class="premio-row-img" src="${imgSrc}" alt="">
+          <div class="premio-row-main">
+            <div class="premio-row-top">
+              <span class="premio-row-name" title="${p.name}">${p.name}</span>
+              <span class="premio-row-pct">${pct}%</span>
+            </div>
+            <div class="premio-row-bar"><div class="premio-row-fill" style="width:${barW}%"></div></div>
+          </div>
+          <div class="premio-row-badges">
+            ${isPrimero ? '<span class="premio-badge premio-badge--gold" title="1º a 100%">🥇</span>' : ''}
+            ${is110 ? `<span class="premio-badge premio-badge--milk" title="Llegó a 110%">${MILK_ICON}</span>` : ''}
+            ${cajas > 0 ? `<span class="premio-row-cajas" title="Cajas de leche">${cajas}</span>` : ''}
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div></section>`;
+  });
+
+  container.innerHTML = html;
+}
+window.renderPremios = renderPremios;
 
 async function mergeProductividadTodo() {
   if (!window.PickingAPI || !PickingAPI.isReady()) return;
@@ -467,53 +583,77 @@ function renderLeaderboard(isInitial = false) {
     return;
   }
 
+  // 3 podios, uno por categoría — TOP 5 de cada una (mantiene pilares 3D)
   let html = "";
-  const podiumPickers = pickers.slice(0, 6);
+  CATEGORIAS.forEach(function (cat) {
+    var info = CATEGORIA_INFO[cat];
+    var grupo = pickers
+      .filter(function (p) { return pickerCategoria(p) === cat; })
+      .sort(function (a, b) { return b.score - a.score; })
+      .slice(0, 5);
 
-  // Escala relativa al líder del podio (barras proporcionales, no desbordan)
-  const maxItemsPodium = Math.max.apply(null, podiumPickers.map(pickerItems).concat([1]));
-  const maxMontoPodium = Math.max.apply(null, podiumPickers.map(pickerMonto).concat([1]));
+    html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
+      <div class="cat-header cat-header--podium">
+        <span class="cat-header__icon">${info.icon}</span>
+        <span class="cat-header__title">${info.label}</span>
+        <span class="cat-header__count">${grupo.length}</span>
+      </div>`;
 
-  podiumPickers.forEach((picker, index) => {
-    const rank = index + 1;
-
-    let imgSrc = picker.avatarType === "preset"
-      ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-      : picker.avatarValue;
-
-    const percentOfGoal = getMetaPercent(picker);
-
-    const totalItems = pickerItems(picker);
-    const moneyValuePYG = pickerMonto(picker);
-
-    // Alturas proporcionales al máximo (0–70% de la altura física)
-    const itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
-    const moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
-
-    let metaClass = "meta-danger";
-    if (percentOfGoal >= 100) metaClass = "meta-success";
-    else if (percentOfGoal >= 90) metaClass = "meta-warning";
-
-    const currentRank = rank;
-    const prevRank = picker.prevRank !== undefined ? picker.prevRank : currentRank;
-
-    let trendClass = "stable";
-    let trendSymbol = "▬";
-    let trendTitle = "Posición estable";
-
-    if (prevRank > currentRank) {
-      trendClass = "up";
-      trendSymbol = "▲";
-      trendTitle = `Subió ${prevRank - currentRank} posiciones`;
-    } else if (prevRank < currentRank) {
-      trendClass = "down";
-      trendSymbol = "▼";
-      trendTitle = `Bajó ${currentRank - prevRank} posiciones`;
+    if (!grupo.length) {
+      html += `<div class="cat-podium-empty">Sin preparadores en esta categoría</div></div>`;
+      return;
     }
 
-    const pickerMetaItems = getPickerMeta(picker).metaItemsMes;
+    // Escala relativa al líder de ESTA categoría
+    var maxItemsCat = Math.max.apply(null, grupo.map(pickerItems).concat([1]));
+    var maxMontoCat = Math.max.apply(null, grupo.map(pickerMonto).concat([1]));
 
-    html += `
+    html += `<div class="cat-podium-row">`;
+    grupo.forEach(function (picker, index) {
+      html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
+    });
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
+
+  const cards = container.querySelectorAll(".pillar-card");
+  if (isInitial) {
+    gsap.set(cards, { opacity: 0, y: 50, scale: 0.9 });
+    gsap.to(cards, {
+      opacity: 1, y: 0, scale: 1,
+      duration: 0.7, stagger: 0.08, ease: "back.out(1.2)",
+      onComplete: () => { animateBarsAndNumbers(container); }
+    });
+  } else {
+    animateBarsAndNumbers(container);
+  }
+}
+
+function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
+  var imgSrc = picker.avatarType === "preset"
+    ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
+    : picker.avatarValue;
+
+  var percentOfGoal = getMetaPercent(picker);
+  var totalItems = pickerItems(picker);
+  var moneyValuePYG = pickerMonto(picker);
+
+  var itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
+  var moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
+
+  var metaClass = "meta-danger";
+  if (percentOfGoal >= 100) metaClass = "meta-success";
+  else if (percentOfGoal >= 90) metaClass = "meta-warning";
+
+  var prevRank = picker.prevRank !== undefined ? picker.prevRank : rank;
+  var trendClass = "stable", trendSymbol = "▬", trendTitle = "Posición estable";
+  if (prevRank > rank) { trendClass = "up"; trendSymbol = "▲"; trendTitle = `Subió ${prevRank - rank} posiciones`; }
+  else if (prevRank < rank) { trendClass = "down"; trendSymbol = "▼"; trendTitle = `Bajó ${rank - prevRank} posiciones`; }
+
+  var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
+
+  return `
       <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
         <div class="pillar-avatar-container">
           <div class="avatar-3d-card-wrapper">
@@ -556,21 +696,6 @@ function renderLeaderboard(isInitial = false) {
         </div>
       </div>
     `;
-  });
-
-  container.innerHTML = html;
-
-  const cards = container.querySelectorAll(".pillar-card");
-  if (isInitial) {
-    gsap.set(cards, { opacity: 0, y: 50, scale: 0.9 });
-    gsap.to(cards, {
-      opacity: 1, y: 0, scale: 1,
-      duration: 0.7, stagger: 0.08, ease: "back.out(1.2)",
-      onComplete: () => { animateBarsAndNumbers(container); }
-    });
-  } else {
-    animateBarsAndNumbers(container);
-  }
 }
 
 function animateBarsAndNumbers(container) {
@@ -658,6 +783,28 @@ function renderAdminView() {
   renderAdminGrid();
 }
 
+function catHeaderHTML(cat, count) {
+  var info = CATEGORIA_INFO[cat];
+  return `<div class="cat-header" style="--cat:${info.color};--cat-soft:${info.soft}">
+    <span class="cat-header__icon">${info.icon}</span>
+    <span class="cat-header__title">${info.label}</span>
+    <span class="cat-header__count">${count}</span>
+  </div>`;
+}
+
+function admCatSelectHTML(picker, canEdit) {
+  var cur = pickerCategoria(picker);
+  if (!canEdit) {
+    var ci = CATEGORIA_INFO[cur];
+    return `<div class="adm-cat-badge" style="--cat:${ci.color};--cat-soft:${ci.soft}">${ci.icon}<span>${ci.label}</span></div>`;
+  }
+  return `<div class="adm-cat-select">` + CATEGORIAS.map(function (c) {
+    var ci = CATEGORIA_INFO[c];
+    var active = cur === c ? ' active' : '';
+    return `<button type="button" class="adm-cat-opt${active}" style="--cat:${ci.color};--cat-soft:${ci.soft}" onclick="updatePickerCategoria('${picker.id}','${c}')">${ci.label}</button>`;
+  }).join('') + `</div>`;
+}
+
 function renderAdminGrid() {
   var container = document.getElementById('admin-grid-container');
   if (!container) return;
@@ -677,43 +824,69 @@ function renderAdminGrid() {
     `;
   }
 
-  pickers.forEach((picker) => {
-    var imgSrc = picker.avatarType === 'preset'
-      ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-      : picker.avatarValue;
+  CATEGORIAS.forEach(function (cat) {
+    var grupo = pickers.filter(function (p) { return pickerCategoria(p) === cat; });
+    html += catHeaderHTML(cat, grupo.length);
+    if (!grupo.length) { html += `<div class="cat-empty">Sin preparadores en esta categoría</div>`; return; }
 
-    var meta = getPickerMeta(picker);
-    var readonlyAttr = canEdit ? '' : 'readonly';
-    var fmtItems = meta.metaItemsMes.toLocaleString('es-PY');
+    grupo.forEach(function (picker) {
+      var imgSrc = picker.avatarType === 'preset'
+        ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
+        : picker.avatarValue;
 
-    html += `
-      <div class="adm-card" data-id="${picker.id}">
-        ${canEdit ? `<button class="adm-card-del" title="Eliminar preparador" onclick="deletePreparadorAdmin('${picker.id}')">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-        </button>` : ''}
-        <div class="adm-card-photo">
-          <img src="${imgSrc}" alt="${picker.name}">
-          ${canEdit ? `<label class="adm-card-photo-edit" title="Cambiar foto">
-            <input type="file" style="display:none" accept="image/*" onchange="updatePickerPhoto('${picker.id}', event)">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          </label>` : ''}
-        </div>
-        <span class="adm-card-name" title="${picker.name}">${picker.name}</span>
-        <div class="adm-card-meta">
-          <span class="adm-meta-label">Meta de ítems / mes</span>
-          <div class="adm-meta-row">
-            <span class="adm-meta-key">Ítems</span>
-            <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtItems}"
-              onfocus="metaFocus(this)" oninput="metaFormat(this)"
-              onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
+      var meta = getPickerMeta(picker);
+      var readonlyAttr = canEdit ? '' : 'readonly';
+      var fmtItems = meta.metaItemsMes.toLocaleString('es-PY');
+
+      html += `
+        <div class="adm-card" data-id="${picker.id}">
+          ${canEdit ? `<button class="adm-card-del" title="Eliminar preparador" onclick="deletePreparadorAdmin('${picker.id}')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          </button>` : ''}
+          <div class="adm-card-photo">
+            <img src="${imgSrc}" alt="${picker.name}">
+            ${canEdit ? `<label class="adm-card-photo-edit" title="Cambiar foto">
+              <input type="file" style="display:none" accept="image/*" onchange="updatePickerPhoto('${picker.id}', event)">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </label>` : ''}
+          </div>
+          <span class="adm-card-name" title="${picker.name}">${picker.name}</span>
+          ${admCatSelectHTML(picker, canEdit)}
+          <div class="adm-card-meta">
+            <span class="adm-meta-label">Meta de ítems / mes</span>
+            <div class="adm-meta-row">
+              <span class="adm-meta-key">Ítems</span>
+              <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtItems}"
+                onfocus="metaFocus(this)" oninput="metaFormat(this)"
+                onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    });
   });
 
   container.innerHTML = html;
 }
+
+window.updatePickerCategoria = async function (id, categoria) {
+  if (!window._alasCanEdit) return;
+  if (CATEGORIAS.indexOf(categoria) === -1) return;
+  var picker = pickers.find(p => p.id === id);
+  if (!picker || picker.categoria === categoria) return;
+  picker.categoria = categoria;
+  saveData();
+  renderAdminGrid();
+  renderLeaderboard(false);
+
+  if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
+    showToast('Guardando…', 'loading');
+    var ok = await PickingAPI.updatePreparadorCategoria(picker.codigo, categoria);
+    showToast(ok ? 'Categoría: ' + (CATEGORIA_INFO[categoria].label) : 'No se pudo guardar en la nube', ok ? 'success' : 'error');
+  } else {
+    showToast('Categoría guardada localmente', 'success');
+  }
+};
 
 window.openNewPickerModal = function () {
   document.getElementById("modal-edit-id").value = "__new__";
@@ -1309,7 +1482,7 @@ function handleModalSubmit(event) {
     }
     var newPicker = {
       id: newCodigo, codigo: newCodigo, name: name, score: score, deletedScore: 0,
-      items: 0, monto: 0,
+      items: 0, monto: 0, categoria: 'JUNIOR',
       avatarType: avatarType, avatarValue: avatarValue,
       metaItemsMes: targetGoal * 8, metaMontoMes: Math.round(targetGoal * 8 * ratePerItem * 7500)
     };

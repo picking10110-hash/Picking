@@ -262,37 +262,57 @@ function renderResumen() {
     </div>
   </div>`;
 
-  // Table
+  // Table — agrupada por categoría
   html += '<div class="resumen-table-wrap"><table class="dash-table"><thead><tr>';
   html += '<th style="width:40px">#</th><th>Preparador</th>';
   html += '<th>Ítems Preparados</th><th>Monto Alcanzado</th><th>Meta</th>';
   html += '</tr></thead><tbody>';
 
-  sorted.forEach(function (p, i) {
-    var imgSrc = p.avatarType === 'preset'
-      ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
-      : p.avatarValue;
+  var cats = (typeof CATEGORIAS !== 'undefined') ? CATEGORIAS : ['JUNIOR'];
+  cats.forEach(function (cat) {
+    var info = (typeof CATEGORIA_INFO !== 'undefined') ? CATEGORIA_INFO[cat] : { label: cat, color: '#64748b', soft: 'rgba(100,116,139,0.1)', icon: '' };
+    var grupo = sorted.filter(function (p) { return (typeof pickerCategoria === 'function' ? pickerCategoria(p) : 'JUNIOR') === cat; });
+    if (!grupo.length) return;
 
-    var totalIt = realItems(p);
-    var monto = realMonto(p);
-    var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
+    var subItems = grupo.reduce(function (s, p) { return s + realItems(p); }, 0);
+    var subMonto = grupo.reduce(function (s, p) { return s + realMonto(p); }, 0);
 
-    var metaClass = metaPct >= 100 ? 'color:#059669' : metaPct >= 80 ? 'color:#d97706' : 'color:#ef4444';
-
-    html += `<tr>
-      <td style="font-weight:800;color:var(--text-muted);text-align:center;">${i + 1}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <img src="${imgSrc}" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:1.5px solid var(--border-color);" alt="">
-          <div>
-            <div style="font-weight:700;font-size:0.82rem;">${p.name}</div>
-          </div>
+    html += `<tr class="resumen-cat-row" style="--cat:${info.color};--cat-soft:${info.soft}">
+      <td colspan="5">
+        <div class="resumen-cat-head">
+          <span class="cat-header__icon">${info.icon}</span>
+          <span class="resumen-cat-title">${info.label}</span>
+          <span class="resumen-cat-count">${grupo.length}</span>
+          <span class="resumen-cat-sub">${fmtNum(subItems)} ítems · ${fmtGs(subMonto)}</span>
         </div>
       </td>
-      <td style="font-weight:800">${fmtNum(totalIt)}</td>
-      <td style="font-weight:800">${fmtGs(monto)}</td>
-      <td style="font-weight:800;${metaClass}">${metaPct}%</td>
     </tr>`;
+
+    grupo.forEach(function (p, i) {
+      var imgSrc = p.avatarType === 'preset'
+        ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
+        : p.avatarValue;
+
+      var totalIt = realItems(p);
+      var monto = realMonto(p);
+      var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
+      var metaClass = metaPct >= 100 ? 'color:#059669' : metaPct >= 80 ? 'color:#d97706' : 'color:#ef4444';
+
+      html += `<tr>
+        <td style="font-weight:800;color:var(--text-muted);text-align:center;">${i + 1}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="${imgSrc}" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:1.5px solid var(--border-color);" alt="">
+            <div>
+              <div style="font-weight:700;font-size:0.82rem;">${p.name}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight:800">${fmtNum(totalIt)}</td>
+        <td style="font-weight:800">${fmtGs(monto)}</td>
+        <td style="font-weight:800;${metaClass}">${metaPct}%</td>
+      </tr>`;
+    });
   });
 
   html += '</tbody></table></div>';
@@ -394,6 +414,7 @@ function _afterViewEnter(viewName) {
   if (viewName === 'resumen') renderResumen();
   if (viewName === 'importar') renderDashboard();
   if (viewName === 'admin' && typeof renderAdminView === 'function') renderAdminView();
+  if (viewName === 'premios' && typeof renderPremios === 'function') renderPremios();
 
   // Stagger animate direct children of the new view
   var view = document.getElementById('view-' + viewName);
@@ -595,6 +616,30 @@ window.handleExcelUpload = function (event) {
         if (!saveInfo) {
           importError('Datos procesados, pero no se pudieron guardar en la nube. Verificá el schema en Supabase.');
           return;
+        }
+
+        // Premios: bloquear al 1º en llegar a 100% por categoría (cronológico).
+        // Sólo la PRIMERA importación que detecta ≥100% en una categoría fija al ganador.
+        if (reps && reps.length) {
+          var metaByCode = {}, catByCode = {}, nameByCode = {};
+          reps.forEach(function (r) {
+            metaByCode[r.codigo] = Number(r.meta_items_mes) || 0;
+            catByCode[r.codigo] = r.categoria || 'JUNIOR';
+            nameByCode[r.codigo] = r.nombre;
+          });
+          var bestByCat = {};
+          result.pickers.forEach(function (p) {
+            var meta = metaByCode[p.code];
+            if (!meta) return;
+            var pct = Math.round((Number(p.items) || 0) / meta * 100);
+            if (pct < 100) return;
+            var cat = catByCode[p.code] || 'JUNIOR';
+            if (!bestByCat[cat] || pct > bestByCat[cat].metaPct) {
+              bestByCat[cat] = { categoria: cat, code: p.code, name: nameByCode[p.code] || p.name, metaPct: pct };
+            }
+          });
+          var candidatos = Object.keys(bestByCat).map(function (k) { return bestByCat[k]; });
+          if (candidatos.length) await PickingAPI.lockPrimeroMeta(result.periodo, candidatos);
         }
 
         setImportProgress(95, 'Actualizando ranking…');

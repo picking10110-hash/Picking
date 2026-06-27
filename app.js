@@ -830,8 +830,9 @@ function renderAdminGrid() {
 
   html += '<div class="adm-cols">';
   CATEGORIAS.forEach(function (cat) {
+    var info = CATEGORIA_INFO[cat];
     var grupo = pickers.filter(function (p) { return pickerCategoria(p) === cat; });
-    html += `<div class="adm-cat-col">`;
+    html += `<div class="adm-cat-col" style="--cat:${info.color};--cat-soft:${info.soft}">`;
     html += catHeaderHTML(cat, grupo.length);
     if (!grupo.length) { html += `<div class="cat-empty">Sin preparadores en esta categoría</div></div>`; return; }
     html += `<div class="adm-cat-cards">`;

@@ -3142,9 +3142,14 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   flex-direction: row; min-height: auto; gap: 10px;
   padding: 12px 18px; max-width: 280px; align-items: center;
 }
-.adm-cols { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.adm-cat-col { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.adm-cat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.adm-cols { display: flex; gap: 14px; align-items: flex-start; }
+.adm-cat-col {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px;
+  background: var(--cat-soft); border: 1px solid color-mix(in srgb, var(--cat, #64748b) 18%, transparent);
+  border-radius: 16px; padding: 12px;
+}
+.adm-cat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .adm-cols { flex-wrap: wrap; } .adm-cat-col { flex: 1 1 240px; } }
 
 .adm-cat-select {
   display: inline-flex; width: 100%; gap: 4px;

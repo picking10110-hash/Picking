@@ -421,7 +421,9 @@ async function renderPremios() {
         var isPrimero = p.codigo && p.codigo === primeroCode;
         var is110 = pct >= 110;
         var imgSrc = p.avatarType === 'preset' ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
+        var cajasRow = (isPrimero ? 1 : 0) + (is110 ? 1 : 0);
         var wins = '';
+        if (cajasRow > 0) wins += `<span class="caja-win caja-win--count">${MILK_ICON}<span>${cajasRow} caja${cajasRow !== 1 ? 's' : ''} de leche</span></span>`;
         if (isPrimero) wins += `<span class="caja-win caja-win--blue">${CHECK_ICON}<span>1º a 100%</span></span>`;
         if (is110) wins += `<span class="caja-win caja-win--green">${CHECK_ICON}<span>110%</span></span>`;
         html += `<div class="premio-row ${cls}${isPrimero ? ' is-first' : ''}">

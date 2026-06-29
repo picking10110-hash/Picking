@@ -367,6 +367,18 @@ async function renderPremios() {
     html += `<div class="premios-note">Los premios se calculan por mes. Elegí un mes en el navegador de arriba.</div>`;
   }
 
+  // Banner: qué se premia (claro)
+  html += `<div class="premio-intro">
+    <div class="premio-intro-milk">${MILK_ICON}</div>
+    <div class="premio-intro-text">
+      <strong class="premio-intro-title">Premio: una caja de leche</strong>
+      <div class="premio-intro-rules">
+        <span class="premio-rule"><span class="caja-check caja-check--blue">${CHECK_ICON}</span><span>Al <b>1º</b> en llegar al <b>100%</b> de su meta <em>(uno por categoría)</em></span></span>
+        <span class="premio-rule"><span class="caja-check caja-check--green">${CHECK_ICON}</span><span>A <b>todos</b> los que lleguen al <b>110%</b> de su meta</span></span>
+      </div>
+    </div>
+  </div>`;
+
   CATEGORIAS.forEach(function (cat) {
     var info = CATEGORIA_INFO[cat];
     var grupo = pickers
@@ -398,12 +410,7 @@ async function renderPremios() {
         <span class="premio-cat-title">${info.label}</span>
         <span class="premio-cat-cajas">${MILK_ICON}<b>${totalCajas}</b> caja${totalCajas !== 1 ? 's' : ''}</span>
       </div>
-      <div class="premio-legend">
-        <span class="premio-legend-item"><span class="chk chk--gold">${DCHECK_ICON}</span> 1º a 100%</span>
-        <span class="premio-legend-item"><span class="chk chk--milk">${CHECK_ICON}</span> Llegó a 110%</span>
-      </div>`;
-
-    html += `<div class="premio-race">`;
+      <div class="premio-race">`;
     if (!grupo.length) {
       html += `<div class="cat-empty">Sin preparadores</div>`;
     } else {
@@ -414,6 +421,9 @@ async function renderPremios() {
         var isPrimero = p.codigo && p.codigo === primeroCode;
         var is110 = pct >= 110;
         var imgSrc = p.avatarType === 'preset' ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
+        var wins = '';
+        if (isPrimero) wins += `<span class="caja-win caja-win--blue">${CHECK_ICON}<span>1º a 100%</span></span>`;
+        if (is110) wins += `<span class="caja-win caja-win--green">${CHECK_ICON}<span>110%</span></span>`;
         html += `<div class="premio-row ${cls}${isPrimero ? ' is-first' : ''}">
           <span class="premio-row-pos">${i + 1}</span>
           <img class="premio-row-img" src="${imgSrc}" alt="">
@@ -423,10 +433,7 @@ async function renderPremios() {
               <span class="premio-row-pct">${pct}%</span>
             </div>
             <div class="premio-row-bar"><div class="premio-row-fill" style="width:${barW}%"></div></div>
-          </div>
-          <div class="premio-checks">
-            <span class="chk chk--gold${isPrimero ? '' : ' chk--off'}" title="1º a 100%">${DCHECK_ICON}</span>
-            <span class="chk chk--milk${is110 ? '' : ' chk--off'}" title="Llegó a 110%">${CHECK_ICON}</span>
+            ${wins ? `<div class="premio-wins">${wins}</div>` : ''}
           </div>
         </div>`;
       });

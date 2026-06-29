@@ -273,30 +273,35 @@ function renderResumen() {
       <th class="rsm-th-meta">Meta</th>
     </tr></thead><tbody>`;
 
-  sorted.forEach(function (p, i) {
-    var imgSrc = p.avatarType === 'preset'
-      ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
-      : p.avatarValue;
-    var totalIt = realItems(p);
-    var monto = realMonto(p);
-    var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
-    var metaCls = metaPct >= 100 ? 'is-100' : metaPct >= 80 ? 'is-mid' : 'is-low';
-    var cat = (typeof pickerCategoria === 'function') ? pickerCategoria(p) : 'JUNIOR';
+  var cats = (typeof CATEGORIAS !== 'undefined') ? CATEGORIAS : ['JUNIOR'];
+  cats.forEach(function (cat) {
     var info = (typeof CATEGORIA_INFO !== 'undefined') ? CATEGORIA_INFO[cat] : { label: cat, color: '#64748b', soft: 'rgba(100,116,139,0.1)', icon: '' };
+    // sorted ya viene por ítems desc → el filtro conserva ese orden dentro de la categoría
+    var grupo = sorted.filter(function (p) { return (typeof pickerCategoria === 'function' ? pickerCategoria(p) : 'JUNIOR') === cat; });
 
-    html += `<tr class="rsm-trow">
-      <td class="rsm-td-rank">${i + 1}</td>
-      <td>
-        <div class="rsm-prep">
-          <img class="rsm-img" src="${imgSrc}" alt="">
-          <span class="rsm-name" title="${p.name}">${p.name}</span>
-        </div>
-      </td>
-      <td><span class="rsm-cat-chip" style="--cat:${info.color};--cat-soft:${info.soft}">${info.icon}<span>${info.label}</span></span></td>
-      <td class="rsm-td-num">${fmtNum(totalIt)}</td>
-      <td class="rsm-td-num rsm-td-monto">${fmtGs(monto)}</td>
-      <td class="rsm-td-meta"><span class="rsm-pct ${metaCls}">${metaPct}%</span></td>
-    </tr>`;
+    grupo.forEach(function (p, i) {
+      var imgSrc = p.avatarType === 'preset'
+        ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
+        : p.avatarValue;
+      var totalIt = realItems(p);
+      var monto = realMonto(p);
+      var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
+      var metaCls = metaPct >= 100 ? 'is-100' : metaPct >= 80 ? 'is-mid' : 'is-low';
+
+      html += `<tr class="rsm-trow${i === 0 ? ' rsm-trow--catstart' : ''}" style="--cat:${info.color}">
+        <td class="rsm-td-rank">${i + 1}</td>
+        <td>
+          <div class="rsm-prep">
+            <img class="rsm-img" src="${imgSrc}" alt="">
+            <span class="rsm-name" title="${p.name}">${p.name}</span>
+          </div>
+        </td>
+        <td><span class="rsm-cat-chip" style="--cat:${info.color};--cat-soft:${info.soft}">${info.icon}<span>${info.label}</span></span></td>
+        <td class="rsm-td-num">${fmtNum(totalIt)}</td>
+        <td class="rsm-td-num rsm-td-monto">${fmtGs(monto)}</td>
+        <td class="rsm-td-meta"><span class="rsm-pct ${metaCls}">${metaPct}%</span></td>
+      </tr>`;
+    });
   });
 
   html += '</tbody></table></div>';

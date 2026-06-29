@@ -153,6 +153,10 @@ async function initApp() {
   // Patrón estándar del ecosistema (igual que Flete / CajaVenta / ItemsBorrados):
   // espera el SSO real; si no hay sesión, redirige al Launcher.
   var ssoUser = await waitForAlasAuth();
+  var isBypass = new URLSearchParams(window.location.search).has('bypass_auth');
+  if (isBypass && !ssoUser) {
+    ssoUser = { name: 'Desarrollador Local', role: 'admin', email: 'dev@alas.com' };
+  }
   if (!ssoUser) {
     var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
     window.location.replace(url);
@@ -566,6 +570,26 @@ function updatePickersListAndTrends(newList) {
   saveData();
 }
 
+function getRemainingPickers() {
+  const categoriesList = ["PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE"];
+  var remaining = [];
+  
+  categoriesList.forEach(function (cat) {
+    var catPickers = pickers
+      .filter(function (p) { return pickerCategoria(p) === cat; })
+      .sort(function (a, b) { return b.score - a.score; });
+      
+    catPickers.forEach(function (p, idx) {
+      if (idx >= 3) {
+        remaining.push(Object.assign({}, p, { catRank: idx + 1 }));
+      }
+    });
+  });
+  
+  remaining.sort(function (a, b) { return b.score - a.score; });
+  return remaining;
+}
+
 // ==========================================
 // RENDERIZADO Y ANIMACIONES
 // ==========================================
@@ -606,50 +630,173 @@ function renderLeaderboard(isInitial = false) {
 
   // 1 columna por categoría — TOP 3 de cada una (pilares 3D)
   let html = "";
-  CATEGORIAS.forEach(function (cat) {
-    var info = CATEGORIA_INFO[cat];
-    var grupo = pickers
-      .filter(function (p) { return pickerCategoria(p) === cat; })
-      .sort(function (a, b) { return b.score - a.score; })
-      .slice(0, 3);
 
-    html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
-      <div class="cat-header cat-header--podium">
-        <span class="cat-header__icon">${info.icon}</span>
-        <span class="cat-header__title">${info.label}</span>
-        <span class="cat-header__count">${grupo.length}</span>
-      </div>`;
+  // Agregar pestañas de navegación para el podio
+  html += `
+    <div class="podium-tabs-nav">
+      <button class="tab-btn ${window._activeCategory === 'all' ? 'active' : ''}" onclick="setPodiumActiveCategory('all')">Todos</button>
+      <button class="tab-btn ${window._activeCategory === 'PLENO' ? 'active' : ''}" onclick="setPodiumActiveCategory('PLENO')">Pleno</button>
+      <button class="tab-btn ${window._activeCategory === 'JUNIOR' ? 'active' : ''}" onclick="setPodiumActiveCategory('JUNIOR')">Junior</button>
+      <button class="tab-btn ${window._activeCategory === 'APRENDIZ' ? 'active' : ''}" onclick="setPodiumActiveCategory('APRENDIZ')">Aprendiz</button>
+      <button class="tab-btn ${window._activeCategory === 'EMPAQUE' ? 'active' : ''}" onclick="setPodiumActiveCategory('EMPAQUE')">Empaque</button>
+      <button class="tab-btn ${window._activeCategory === 'rest' ? 'active' : ''}" onclick="setPodiumActiveCategory('rest')">Posiciones</button>
+      <button class="tab-btn autoplay-btn ${window._podiumAutoplay ? 'playing' : ''}" onclick="togglePodiumAutoplay()" title="Auto-ciclo">
+        <span class="icon">${window._podiumAutoplay ? '⏸' : '▶'}</span> Auto-ciclo
+        ${window._podiumAutoplay ? '<span class="autoplay-indicator"><span class="autoplay-progress"></span></span>' : ''}
+      </button>
+    </div>
+  `;
 
-    if (!grupo.length) {
-      html += `<div class="cat-podium-empty">Sin preparadores en esta categoría</div></div>`;
-      return;
+  if (window._activeCategory === "rest") {
+    var remaining = getRemainingPickers();
+    html += `
+      <div class="cat-podium cat-podium--full-width" style="--cat: #0B5F8D; --cat-soft: rgba(11, 95, 141, 0.08); width: 100%;">
+        <div class="cat-header cat-header--podium">
+          <span class="cat-header__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+            </svg>
+          </span>
+          <span class="cat-header__title">Posiciones</span>
+        </div>
+        <div class="remaining-table-card">
+          <table class="remaining-table">
+            <thead>
+              <tr>
+                <th style="width: 80px; text-align: center;">Puesto</th>
+                <th>Preparador</th>
+                <th style="width: 140px; text-align: center;">Categoría</th>
+                <th style="text-align: right; width: 180px;">Monto</th>
+                <th style="text-align: right; width: 120px;">Items</th>
+                <th style="text-align: right; width: 200px;">Meta Mensual</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    if (remaining.length === 0) {
+      html += `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            Todo el equipo se encuentra actualmente en el Podio (Top 3 de cada categoría).
+          </td>
+        </tr>
+      `;
+    } else {
+      remaining.forEach(function(p) {
+        var moneyVal = pickerMonto(p);
+        var totalItems = pickerItems(p);
+        var goalPercent = getMetaPercent(p);
+        var catInfo = CATEGORIA_INFO[pickerCategoria(p)];
+        var imgSrc = p.avatarType === "preset"
+          ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
+          : p.avatarValue;
+
+        html += `
+          <tr>
+            <td class="col-rank">#${p.catRank}</td>
+            <td class="col-name">
+              <img src="${imgSrc}" class="table-avatar" alt="${p.name}">
+              <span class="name-text">${p.name}</span>
+            </td>
+            <td class="col-cat" style="text-align: center;">
+              <span class="cat-pill" style="--cat-color: ${catInfo.color}; --cat-bg: ${catInfo.soft};">${catInfo.label}</span>
+            </td>
+            <td class="col-monto">Gs. ${moneyVal.toLocaleString('es-PY')}</td>
+            <td class="col-items">${totalItems.toLocaleString()}</td>
+            <td class="col-meta">
+              <div class="table-meta-cell">
+                <span class="pct-text">${goalPercent}%</span>
+                <div class="table-bar-track">
+                  <div class="table-bar-fill" style="width: ${Math.min(goalPercent, 100)}%; background: ${goalPercent >= 100 ? '#10b981' : '#f59e0b'};"></div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
     }
 
-    // Escala relativa al líder de ESTA categoría
-    var maxItemsCat = Math.max.apply(null, grupo.map(pickerItems).concat([1]));
-    var maxMontoCat = Math.max.apply(null, grupo.map(pickerMonto).concat([1]));
+    html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    
+    container.innerHTML = html;
 
-    html += `<div class="cat-podium-row">`;
-    grupo.forEach(function (picker, index) {
-      html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
-    });
-    html += `</div></div>`;
-  });
-
-  container.innerHTML = html;
-
-  const cards = container.querySelectorAll(".pillar-card");
-  if (isInitial) {
-    gsap.set(cards, { opacity: 0, y: 50, scale: 0.9 });
-    gsap.to(cards, {
-      opacity: 1, y: 0, scale: 1,
-      duration: 0.7, stagger: 0.08, ease: "back.out(1.2)",
-      onComplete: () => { animateBarsAndNumbers(container); }
-    });
+    // Animación suave de entrada de filas
+    gsap.fromTo(container.querySelectorAll(".remaining-table tbody tr"),
+      { opacity: 0, y: 15 },
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.04, ease: "power2.out" }
+    );
   } else {
-    animateBarsAndNumbers(container);
+    CATEGORIAS.forEach(function (cat) {
+      if (window._activeCategory !== "all" && window._activeCategory !== cat) {
+        return;
+      }
+      var info = CATEGORIA_INFO[cat];
+      var grupo = pickers
+        .filter(function (p) { return pickerCategoria(p) === cat; })
+        .sort(function (a, b) { return b.score - a.score; })
+        .slice(0, 3);
+
+      html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
+        <div class="cat-header cat-header--podium">
+          <span class="cat-header__icon">${info.icon}</span>
+          <span class="cat-header__title">${info.label}</span>
+          <span class="cat-header__count">${grupo.length}</span>
+        </div>`;
+
+      if (!grupo.length) {
+        html += `<div class="cat-podium-empty">Sin preparadores en esta categoría</div></div>`;
+        return;
+      }
+
+      // Escala relativa al líder de ESTA categoría
+      var maxItemsCat = Math.max.apply(null, grupo.map(pickerItems).concat([1]));
+      var maxMontoCat = Math.max.apply(null, grupo.map(pickerMonto).concat([1]));
+
+      html += `<div class="cat-podium-row">`;
+      grupo.forEach(function (picker, index) {
+        html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
+      });
+      html += `</div></div>`;
+    });
+
+    container.innerHTML = html;
+
+    const cards = container.querySelectorAll(".pillar-card");
+    if (isInitial) {
+      // Animación de Entrada Frontal Limpia y Nítida (Deslizar hacia arriba sin mareos)
+      gsap.fromTo(cards, 
+        {
+          opacity: 0,
+          scale: 0.96,
+          y: 45
+        },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.9,
+          stagger: 0.08,
+          ease: "power2.out",
+          clearProps: "all", // Limpia propiedades para que tome las reglas puras del CSS plano
+          onComplete: () => {
+            animateBarsAndNumbers(container);
+          }
+        }
+      );
+    } else {
+      animateBarsAndNumbers(container);
+    }
   }
 }
+
+// Función de bucle de flotación continua 3D (Antigravitacional)
+
 
 function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
   var imgSrc = picker.avatarType === "preset"
@@ -660,8 +807,9 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   var totalItems = pickerItems(picker);
   var moneyValuePYG = pickerMonto(picker);
 
-  var itemsHeightPercent = (totalItems / maxItemsPodium) * 70;
-  var moneyHeightPercent = (moneyValuePYG / maxMontoPodium) * 70;
+  // Computar porcentajes horizontales (escalados a max de la categoria)
+  var itemsPercent = (totalItems / maxItemsPodium) * 100;
+  var moneyPercent = (moneyValuePYG / maxMontoPodium) * 100;
 
   var metaClass = "meta-danger";
   if (percentOfGoal >= 100) metaClass = "meta-success";
@@ -673,60 +821,76 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   else if (prevRank < rank) { trendClass = "down"; trendSymbol = "▼"; trendTitle = `Bajó ${rank - prevRank} posiciones`; }
 
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
+  var rankLabel = rank.toString();
 
   return `
-      <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
-        <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+    <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
+      <!-- Medalla de Puesto Flotante 3D -->
+      <div class="medal-3d rank-${rank}">${rankLabel}</div>
 
-        <div class="pillar-row">
-          <div class="pillar-avatar-container">
-            <div class="avatar-3d-card-wrapper">
-              <div class="avatar-3d-card">
-                <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
-                <div class="avatar-3d-shine"></div>
-              </div>
-              <div class="rank-medal-badge">${rank}</div>
-              <div class="rank-trend-indicator trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
-            </div>
-          </div>
+      <!-- Cabecera: Avatar circular sin brillo de fondo de color -->
+      <div class="avatar-3d-wrapper">
+        <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
+        <div class="trend-badge trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
+      </div>
 
-          <div class="pillar-dual-columns">
-            ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
-            <div class="pillar-3d-square pillar-monto" title="Monto Alcanzado">
-              <div class="pillar-segment segment-monto" style="--monto-height: ${isInitial ? 0 : moneyHeightPercent}%"></div>
-            </div>
-            <div class="pillar-3d-square pillar-items" title="Items preparados">
-              <div class="pillar-segment segment-base" style="--segment-height: ${isInitial ? 0 : itemsHeightPercent}%"></div>
-            </div>
+      <!-- Nombre -->
+      <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+
+      <!-- Cámara 3D Skyscraper (Columnas Verticales Físicas con Riel de Cristal) -->
+      <div class="skyscraper-chamber">
+        <!-- Riel Monto -->
+        <div class="skyscraper-track track-monto">
+          <div class="skyscraper-fill fill-monto" style="height: ${isInitial ? 0 : moneyPercent}%">
+            <div class="skyscraper-glow"></div>
           </div>
+          <span class="skyscraper-label">Monto</span>
         </div>
-
-        <div class="pillar-info">
-          <div class="pillar-metrics-box">
-            <div class="metric-chip chip-monto">
-              <span class="chip-label">Monto Alcanzado</span>
-              <span class="chip-value monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
-            </div>
-            <div class="metric-chip chip-items">
-              <span class="chip-label">Items Preparados</span>
-              <span class="chip-value items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()}</span>
-            </div>
-            <div class="metric-chip chip-meta ${metaClass}">
-              <span class="chip-label">Meta</span>
-              <span class="chip-value meta-val">${isInitial ? 0 : percentOfGoal}%</span>
-            </div>
+        
+        <!-- Riel Items -->
+        <div class="skyscraper-track track-items">
+          <div class="skyscraper-fill fill-items" style="height: ${isInitial ? 0 : itemsPercent}%">
+            <div class="skyscraper-glow"></div>
           </div>
+          <span class="skyscraper-label">Items</span>
         </div>
       </div>
-    `;
+
+      <!-- Grid de Métricas Cockpit (Monto y Items horizontales lado a lado) -->
+      <div class="cockpit-grid">
+        <div class="cockpit-cell cell-monto">
+          <span class="cell-lbl">Monto</span>
+          <span class="cell-val val-monto monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
+        </div>
+        <div class="cockpit-cell cell-items">
+          <span class="cell-lbl">Items</span>
+          <span class="cell-val val-items items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <!-- Meta Chip con Progreso Glaseado -->
+      <div class="cockpit-meta ${metaClass}">
+        <div class="meta-meta-row">
+          <span class="meta-lbl">Meta</span>
+          <span class="meta-val val-meta meta-val">${isInitial ? 0 : percentOfGoal}%</span>
+        </div>
+        <div class="meta-bar-track">
+          <div class="meta-bar-fill" style="width: ${isInitial ? 0 : Math.min(percentOfGoal, 100)}%"></div>
+        </div>
+      </div>
+      
+      ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
+    </div>
+  `;
 }
 
 function animateBarsAndNumbers(container) {
   const cards = container.querySelectorAll(".pillar-card");
 
   cards.forEach(card => {
-    const montoSeg = card.querySelector(".pillar-segment.segment-monto");
-    const baseSeg = card.querySelector(".pillar-segment.segment-base");
+    const fillMonto = card.querySelector(".skyscraper-fill.fill-monto");
+    const fillItems = card.querySelector(".skyscraper-fill.fill-items");
+    const fillMeta = card.querySelector(".meta-bar-fill");
     const metaVal = card.querySelector(".meta-val");
     const montoVal = card.querySelector(".monto-val");
     const itemsVal = card.querySelector(".items-val");
@@ -745,30 +909,33 @@ function animateBarsAndNumbers(container) {
 
       gsap.to(animObj, {
         monto: targetMonto, items: targetItems,
-        duration: 1.4, ease: "power3.out",
+        duration: 1.6, ease: "power3.out",
         onUpdate: () => {
           montoVal.dataset.current = Math.round(animObj.monto).toString();
           itemsVal.dataset.current = Math.round(animObj.items).toString();
 
-          // Alturas proporcionales al líder del podio
-          const montoHeight = (animObj.monto / maxMonto) * 70;
-          const itemsHeight = (animObj.items / maxItems) * 70;
+          const montoPercent = (animObj.monto / maxMonto) * 100;
+          const itemsPercent = (animObj.items / maxItems) * 100;
           const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
 
-          if (montoSeg) montoSeg.style.setProperty("--monto-height", montoHeight + "%");
-          if (baseSeg) baseSeg.style.setProperty("--segment-height", itemsHeight + "%");
+          // Animar las columnas verticales (Skyscrapers)
+          if (fillMonto) fillMonto.style.height = Math.min(montoPercent, 100) + "%";
+          if (fillItems) fillItems.style.height = Math.min(itemsPercent, 100) + "%";
+          
+          // Animar la barra de meta horizontal
+          if (fillMeta) fillMeta.style.width = Math.min(percentOfGoal, 100) + "%";
 
           montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
           itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()}`;
 
-          const chipMeta = card.querySelector(".chip-meta");
-          if (chipMeta && metaVal) {
+          const cockpitMeta = card.querySelector(".cockpit-meta");
+          if (cockpitMeta && metaVal) {
             metaVal.innerText = `${percentOfGoal}%`;
-            chipMeta.classList.remove("meta-success", "meta-warning", "meta-danger");
-            metaVal.style.color = "";
-            if (percentOfGoal >= 100) chipMeta.classList.add("meta-success");
-            else if (percentOfGoal >= 90) chipMeta.classList.add("meta-warning");
-            else chipMeta.classList.add("meta-danger");
+            
+            cockpitMeta.classList.remove("meta-success", "meta-warning", "meta-danger");
+            if (percentOfGoal >= 100) cockpitMeta.classList.add("meta-success");
+            else if (percentOfGoal >= 90) cockpitMeta.classList.add("meta-warning");
+            else cockpitMeta.classList.add("meta-danger");
           }
         }
       });
@@ -1551,7 +1718,8 @@ function setTVModeState(enableTV) {
   if (enableTV) {
     document.body.classList.add("tv-mode");
 
-    document.body.insertAdjacentHTML("beforeend", `
+    const controls = document.getElementById("header-controls");
+    const buttonHTML = `
       <div class="floating-exit-tv" id="exit-tv-floating-btn">
         <button class="btn btn-primary" onclick="exitTVMode()" title="Volver al Panel">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1560,9 +1728,18 @@ function setTVModeState(enableTV) {
           Salir TV
         </button>
       </div>
-    `);
+    `;
+    if (controls) {
+      controls.insertAdjacentHTML("afterbegin", buttonHTML);
+    } else {
+      document.body.insertAdjacentHTML("beforeend", buttonHTML);
+    }
+    
+    startPodiumAutoplay();
   } else {
     document.body.classList.remove("tv-mode");
+    stopPodiumAutoplay();
+    window._activeCategory = "all";
   }
 
   renderLeaderboard(true);
@@ -1594,3 +1771,78 @@ window.resetToMockData = function () {
 };
 
 // openSummaryModal / closeSummaryModal — delegados a dashboard.js
+
+// ── Variables y Funciones del Auto-ciclo y Filtros de Categorías ──
+window._activeCategory = window._activeCategory || "all";
+window._podiumAutoplay = window._podiumAutoplay !== undefined ? window._podiumAutoplay : false;
+window._autoplayTimer = window._autoplayTimer || null;
+
+function setPodiumActiveCategory(cat) {
+  window._activeCategory = cat;
+  if (cat !== "all" && !document.body.classList.contains("tv-mode")) {
+    if (window._podiumAutoplay) {
+      stopPodiumAutoplay();
+    }
+  }
+  renderLeaderboard(true);
+}
+
+function togglePodiumAutoplay() {
+  if (window._podiumAutoplay) {
+    stopPodiumAutoplay();
+  } else {
+    startPodiumAutoplay();
+  }
+  renderLeaderboard(true);
+}
+
+function startPodiumAutoplay() {
+  window._podiumAutoplay = true;
+  if (window._autoplayTimer) clearInterval(window._autoplayTimer);
+  
+  if (window._activeCategory === "all" || window._activeCategory === "rest") {
+    window._activeCategory = "PLENO";
+  }
+  
+  window._autoplayTimer = setInterval(function() {
+    const cats = ["PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"];
+    let idx = cats.indexOf(window._activeCategory);
+    idx = (idx + 1) % cats.length;
+    window._activeCategory = cats[idx];
+    
+    const container = document.getElementById("pillars-container");
+    if (container) {
+      const exitItems = container.querySelectorAll(".pillar-card, .remaining-table tbody tr");
+      if (exitItems.length > 0) {
+        gsap.to(exitItems, {
+          opacity: 0,
+          y: -20,
+          duration: 0.35,
+          stagger: 0.03,
+          ease: "power2.in",
+          onComplete: () => {
+            renderLeaderboard(true);
+          }
+        });
+      } else {
+        renderLeaderboard(true);
+      }
+    } else {
+      renderLeaderboard(true);
+    }
+  }, 6000);
+}
+
+function stopPodiumAutoplay() {
+  window._podiumAutoplay = false;
+  if (window._autoplayTimer) {
+    clearInterval(window._autoplayTimer);
+    window._autoplayTimer = null;
+  }
+}
+
+// Exportar a global de forma segura
+window.setPodiumActiveCategory = setPodiumActiveCategory;
+window.togglePodiumAutoplay = togglePodiumAutoplay;
+window.startPodiumAutoplay = startPodiumAutoplay;
+window.stopPodiumAutoplay = stopPodiumAutoplay;

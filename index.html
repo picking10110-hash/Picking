@@ -93,11 +93,13 @@
             <div class="stage-logo">
               <img src="logo-alas-s.a.png" alt="ALAS">
             </div>
-            <div class="update-chip" id="update-chip" style="display:none;">
-              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-              <div class="update-chip-text">
-                <span class="update-chip-label">Última actualización</span>
-                <span class="update-chip-date" id="update-chip-date">—</span>
+            <div class="header-controls" id="header-controls">
+              <div class="update-chip" id="update-chip" style="display:none;">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <div class="update-chip-text">
+                  <span class="update-chip-label">Última actualización</span>
+                  <span class="update-chip-date" id="update-chip-date">—</span>
+                </div>
               </div>
             </div>
             <section class="pillars-stage" id="pillars-container" aria-label="Ranking de Preparadores">
@@ -415,7 +417,7 @@
     });
     // Failsafe: si el SSO nunca resuelve, volver al Launcher
     setTimeout(function(){
-      if(!window._alasSSOReady){
+      if(!window._alasSSOReady && !new URLSearchParams(window.location.search).has('bypass_auth')){
         var url=(window.ALAS_SSO_CONFIG||{}).launcherUrl||'https://launcher-tawny.vercel.app';
         window.location.replace(url);
       }

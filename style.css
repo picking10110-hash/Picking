@@ -3612,8 +3612,8 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
 /* Avatar Container sin brillo de color */
 .avatar-3d-wrapper {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 94px;
+  height: 94px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4257,8 +4257,8 @@ body.tv-mode .cat-podium-row .pillar-card {
 }
 
 body.tv-mode .avatar-3d-wrapper {
-  width: 96px;
-  height: 96px;
+  width: 124px;
+  height: 124px;
   margin-top: 10px;
 }
 

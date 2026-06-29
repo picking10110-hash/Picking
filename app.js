@@ -41,6 +41,9 @@ const CATEGORIA_INFO = {
 const MILK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l1.5-4h7L17 8v12H7z"/><path d="M7 8h10M10 4v4M14 4v4"/><line x1="10" y1="13" x2="14" y2="13"/></svg>';
 // Medalla 1º lugar — cinta azul + disco dorado
 const MEDAL_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M15.5 12.6L17.6 22 12 18.7 6.4 22l2.1-9.4" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="12" cy="8.3" r="6.3" fill="#fbbf24" stroke="#d97706" stroke-width="1.4"/><path d="M12 5.4l.93 1.88 2.07.3-1.5 1.46.35 2.06L12 10.18l-1.85.97.35-2.06-1.5-1.46 2.07-.3z" fill="#fffbeb"/></svg>';
+// Check simple (110%) y doble check (1º a 100%)
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12.5 9.5 18 20 6.5"/></svg>';
+const DCHECK_ICON = '<svg viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12.5 7 17.5 16 7"/><polyline points="11 17.5 12.5 19 23 6.5"/></svg>';
 function pickerCategoria(p) {
   var c = p && p.categoria;
   return CATEGORIA_INFO[c] ? c : 'JUNIOR';
@@ -394,22 +397,11 @@ async function renderPremios() {
         <span class="cat-header__icon">${info.icon}</span>
         <span class="premio-cat-title">${info.label}</span>
         <span class="premio-cat-cajas">${MILK_ICON}<b>${totalCajas}</b> caja${totalCajas !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="premio-legend">
+        <span class="premio-legend-item"><span class="chk chk--gold">${DCHECK_ICON}</span> 1º a 100%</span>
+        <span class="premio-legend-item"><span class="chk chk--milk">${CHECK_ICON}</span> Llegó a 110%</span>
       </div>`;
-
-    if (primero) {
-      var pObj = pickers.find(function (p) { return p.codigo === primeroCode; });
-      var nombre = primero.preparador_nombre || (pObj && pObj.name) || primeroCode;
-      html += `<div class="premio-winner">
-        <span class="premio-medal">${MEDAL_ICON}</span>
-        <div class="premio-winner-info">
-          <span class="premio-winner-label">1º en llegar a 100%</span>
-          <span class="premio-winner-name">${nombre}</span>
-        </div>
-        <span class="premio-winner-caja">${MILK_ICON} 1 caja</span>
-      </div>`;
-    } else if (!_periodoTodo) {
-      html += `<div class="premio-winner premio-winner--empty">Nadie llegó al 100% todavía</div>`;
-    }
 
     html += `<div class="premio-race">`;
     if (!grupo.length) {
@@ -421,9 +413,8 @@ async function renderPremios() {
         var cls = pct >= 110 ? 'is-110' : pct >= 100 ? 'is-100' : pct >= 80 ? 'is-mid' : 'is-low';
         var isPrimero = p.codigo && p.codigo === primeroCode;
         var is110 = pct >= 110;
-        var cajas = (isPrimero ? 1 : 0) + (is110 ? 1 : 0);
         var imgSrc = p.avatarType === 'preset' ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
-        html += `<div class="premio-row ${cls}">
+        html += `<div class="premio-row ${cls}${isPrimero ? ' is-first' : ''}">
           <span class="premio-row-pos">${i + 1}</span>
           <img class="premio-row-img" src="${imgSrc}" alt="">
           <div class="premio-row-main">
@@ -433,10 +424,9 @@ async function renderPremios() {
             </div>
             <div class="premio-row-bar"><div class="premio-row-fill" style="width:${barW}%"></div></div>
           </div>
-          <div class="premio-row-badges">
-            ${isPrimero ? `<span class="premio-badge premio-badge--gold" title="1º a 100%">${MEDAL_ICON}</span>` : ''}
-            ${is110 ? `<span class="premio-badge premio-badge--milk" title="Llegó a 110%">${MILK_ICON}</span>` : ''}
-            ${cajas > 0 ? `<span class="premio-row-cajas" title="Cajas de leche">${cajas}</span>` : ''}
+          <div class="premio-checks">
+            <span class="chk chk--gold${isPrimero ? '' : ' chk--off'}" title="1º a 100%">${DCHECK_ICON}</span>
+            <span class="chk chk--milk${is110 ? '' : ' chk--off'}" title="Llegó a 110%">${CHECK_ICON}</span>
           </div>
         </div>`;
       });

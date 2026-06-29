@@ -4553,21 +4553,20 @@ body.tv-mode .table-bar-track {
 }
 .rsm-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .rsm-table thead th {
-  text-align: left; padding: 9px 14px;
+  text-align: center; padding: 9px 14px;
   font: 800 0.68rem 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text-muted); border-bottom: 1.5px solid var(--border-color); white-space: nowrap;
   position: sticky; top: 0; background: var(--bg-secondary); z-index: 2;
 }
-.rsm-table .rsm-th-rank { width: 40px; text-align: center; }
-.rsm-table .rsm-th-num { text-align: right; }
-.rsm-table .rsm-th-meta { width: 78px; text-align: right; }
+.rsm-table .rsm-th-rank { width: 40px; }
+.rsm-table .rsm-th-meta { width: 78px; }
 .rsm-table .rsm-th-cat { width: 132px; }
-.rsm-trow td { padding: 7px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.rsm-trow td { padding: 7px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; text-align: center; }
 .rsm-trow:last-child td { border-bottom: none; }
 .rsm-trow:hover td { background: rgba(148,163,184,0.06); }
 .rsm-trow--catstart td { border-top: 2px solid color-mix(in srgb, var(--cat, #64748b) 28%, transparent); }
-.rsm-td-rank { text-align: center; font: 800 0.85rem 'Outfit', sans-serif; color: var(--text-muted); }
-.rsm-prep { display: flex; align-items: center; gap: 10px; }
+.rsm-td-rank { font: 800 0.85rem 'Outfit', sans-serif; color: var(--text-muted); }
+.rsm-prep { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .rsm-prep .rsm-img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; border: 1.5px solid var(--border-color); flex-shrink: 0; }
 .rsm-prep .rsm-name { font: 800 0.84rem 'Outfit', sans-serif; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rsm-cat-chip {
@@ -4578,9 +4577,8 @@ body.tv-mode .table-bar-track {
   font: 800 0.66rem 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;
 }
 .rsm-cat-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
-.rsm-td-num { text-align: right; font: 800 0.88rem 'Outfit', sans-serif; color: var(--text-main); white-space: nowrap; }
+.rsm-td-num { font: 800 0.88rem 'Outfit', sans-serif; color: var(--text-main); white-space: nowrap; }
 .rsm-td-monto { color: #475569; font-weight: 700; }
-.rsm-td-meta { text-align: right; }
 .rsm-td-meta .rsm-pct { font: 800 0.92rem 'Outfit', sans-serif; color: var(--text-muted); }
 .rsm-pct.is-100 { color: #059669; }
 .rsm-pct.is-mid  { color: #d97706; }

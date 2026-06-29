@@ -4560,18 +4560,20 @@ body.tv-mode .table-bar-track {
 }
 .rsm-table .rsm-th-rank { width: 40px; }
 .rsm-table .rsm-th-meta { width: 78px; }
-.rsm-table .rsm-th-cat { width: 132px; }
-.rsm-trow td { padding: 7px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; text-align: center; }
-.rsm-trow:last-child td { border-bottom: none; }
-.rsm-trow:hover td { background: rgba(148,163,184,0.06); }
-.rsm-trow--catstart td { border-top: 2px solid color-mix(in srgb, var(--cat, #64748b) 28%, transparent); }
-.rsm-td-rank { font: 800 0.85rem 'Outfit', sans-serif; color: var(--text-muted); }
-.rsm-prep { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.rsm-prep .rsm-img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; border: 1.5px solid var(--border-color); flex-shrink: 0; }
+.rsm-table .rsm-th-cat { width: 140px; }
+.rsm-table .rsm-th-prep { text-align: left; padding-left: 18px; }
+.rsm-trow td { padding: 8px 14px; border-bottom: 1px solid rgba(148,163,184,0.12); vertical-align: middle; text-align: center; }
+.rsm-trow:nth-of-type(odd) td { background: rgba(148,163,184,0.035); }
+.rsm-trow:hover td { background: color-mix(in srgb, var(--cat, #64748b) 7%, transparent); }
+.rsm-trow--catstart td { border-top: 2px solid color-mix(in srgb, var(--cat, #64748b) 30%, transparent); }
+.rsm-td-rank { font: 800 0.85rem 'Outfit', sans-serif; color: var(--cat, var(--text-muted)); }
+.rsm-prep { display: flex; align-items: center; justify-content: flex-start; gap: 11px; padding-left: 4px; }
+.rsm-prep .rsm-img { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; border: 1.5px solid var(--border-color); flex-shrink: 0; }
 .rsm-prep .rsm-name { font: 800 0.84rem 'Outfit', sans-serif; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rsm-cat-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 104px; box-sizing: border-box;
+  padding: 4px 10px; border-radius: 999px;
   background: var(--cat-soft); color: var(--cat);
   border: 1px solid color-mix(in srgb, var(--cat, #64748b) 28%, transparent);
   font: 800 0.66rem 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;

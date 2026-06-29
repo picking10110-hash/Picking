@@ -266,7 +266,7 @@ function renderResumen() {
   html += `<div class="rsm-tablewrap"><table class="rsm-table">
     <thead><tr>
       <th class="rsm-th-rank">#</th>
-      <th>Preparador</th>
+      <th class="rsm-th-prep">Preparador</th>
       <th class="rsm-th-cat">Categoría</th>
       <th class="rsm-th-num">Ítems</th>
       <th class="rsm-th-num">Monto Gs.</th>

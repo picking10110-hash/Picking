@@ -262,52 +262,44 @@ function renderResumen() {
     </div>
   </div>`;
 
-  // Columnas por categoría
-  var cats = (typeof CATEGORIAS !== 'undefined') ? CATEGORIAS : ['JUNIOR'];
-  html += '<div class="resumen-cols">';
-  cats.forEach(function (cat) {
+  // Tabla con columna Categoría (chips)
+  html += `<div class="rsm-tablewrap"><table class="rsm-table">
+    <thead><tr>
+      <th class="rsm-th-rank">#</th>
+      <th>Preparador</th>
+      <th class="rsm-th-cat">Categoría</th>
+      <th class="rsm-th-num">Ítems</th>
+      <th class="rsm-th-num">Monto Gs.</th>
+      <th class="rsm-th-meta">Meta</th>
+    </tr></thead><tbody>`;
+
+  sorted.forEach(function (p, i) {
+    var imgSrc = p.avatarType === 'preset'
+      ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
+      : p.avatarValue;
+    var totalIt = realItems(p);
+    var monto = realMonto(p);
+    var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
+    var metaCls = metaPct >= 100 ? 'is-100' : metaPct >= 80 ? 'is-mid' : 'is-low';
+    var cat = (typeof pickerCategoria === 'function') ? pickerCategoria(p) : 'JUNIOR';
     var info = (typeof CATEGORIA_INFO !== 'undefined') ? CATEGORIA_INFO[cat] : { label: cat, color: '#64748b', soft: 'rgba(100,116,139,0.1)', icon: '' };
-    var grupo = sorted.filter(function (p) { return (typeof pickerCategoria === 'function' ? pickerCategoria(p) : 'JUNIOR') === cat; });
 
-    var subItems = grupo.reduce(function (s, p) { return s + realItems(p); }, 0);
-    var subMonto = grupo.reduce(function (s, p) { return s + realMonto(p); }, 0);
-
-    html += `<div class="resumen-cat-col" style="--cat:${info.color};--cat-soft:${info.soft}">
-      <div class="resumen-cat-head">
-        <span class="cat-header__icon">${info.icon}</span>
-        <span class="resumen-cat-title">${info.label}</span>
-        <span class="resumen-cat-count">${grupo.length}</span>
-      </div>
-      <div class="resumen-cat-sub">${fmtNum(subItems)} ítems · ${fmtGs(subMonto)}</div>`;
-
-    if (!grupo.length) {
-      html += `<div class="cat-empty">Sin preparadores</div></div>`;
-      return;
-    }
-
-    html += `<div class="rsm-list">`;
-    grupo.forEach(function (p, i) {
-      var imgSrc = p.avatarType === 'preset'
-        ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
-        : p.avatarValue;
-      var totalIt = realItems(p);
-      var monto = realMonto(p);
-      var metaPct = typeof getMetaPercent === 'function' ? getMetaPercent(p) : 0;
-      var metaCls = metaPct >= 100 ? 'is-100' : metaPct >= 80 ? 'is-mid' : 'is-low';
-
-      html += `<div class="rsm-row">
-        <span class="rsm-pos">${i + 1}</span>
-        <img class="rsm-img" src="${imgSrc}" alt="">
-        <div class="rsm-main">
+    html += `<tr class="rsm-trow">
+      <td class="rsm-td-rank">${i + 1}</td>
+      <td>
+        <div class="rsm-prep">
+          <img class="rsm-img" src="${imgSrc}" alt="">
           <span class="rsm-name" title="${p.name}">${p.name}</span>
-          <span class="rsm-sub">${fmtNum(totalIt)} ítems · ${fmtGs(monto)}</span>
         </div>
-        <span class="rsm-meta ${metaCls}">${metaPct}%</span>
-      </div>`;
-    });
-    html += `</div></div>`;
+      </td>
+      <td><span class="rsm-cat-chip" style="--cat:${info.color};--cat-soft:${info.soft}">${info.icon}<span>${info.label}</span></span></td>
+      <td class="rsm-td-num">${fmtNum(totalIt)}</td>
+      <td class="rsm-td-num rsm-td-monto">${fmtGs(monto)}</td>
+      <td class="rsm-td-meta"><span class="rsm-pct ${metaCls}">${metaPct}%</span></td>
+    </tr>`;
   });
-  html += '</div>';
+
+  html += '</tbody></table></div>';
 
   container.innerHTML = html;
 }

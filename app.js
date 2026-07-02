@@ -870,38 +870,46 @@ function animateBarsAndNumbers(container) {
     const maxItems = parseFloat(card.dataset.maxItems) || 1;
     const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
 
-    let lastRounded = -1, lastPct = -1;
+    const targetPct = cardMetaItems > 0 ? Math.round((targetItems / cardMetaItems) * 100) : 0;
+    const delay = i * 0.05;
+
+    // 1) Número de Ítems: barra suave (cada frame), número con throttle por entero
+    let lastRounded = -1;
     const animObj = { items: currentItems };
     gsap.to(animObj, {
-      items: targetItems, duration: 0.9, ease: "power2.out",
-      delay: i * 0.04, // encadena las cards para una sensación más fluida
+      items: targetItems, duration: 1.15, ease: "power2.out", delay: delay,
       onUpdate: () => {
-        const rounded = Math.round(animObj.items);
-        if (rounded === lastRounded) return; // throttle: solo escribimos DOM al cambiar el entero
-        lastRounded = rounded;
-
-        itemsVal.dataset.current = rounded.toString();
-        if (fillItems) fillItems.style.width = Math.min((rounded / maxItems) * 100, 100) + "%";
-        itemsVal.innerText = rounded.toLocaleString('es-PY');
-
-        const percentOfGoal = cardMetaItems > 0 ? Math.round((rounded / cardMetaItems) * 100) : 0;
-        if (percentOfGoal !== lastPct) {
-          lastPct = percentOfGoal;
-          if (metaVal) metaVal.innerText = percentOfGoal + "%";
-          if (avatar) {
-            avatar.style.setProperty("--pct", Math.min(percentOfGoal, 100));
-            avatar.classList.remove("meta-success", "meta-base");
-            avatar.classList.add(percentOfGoal >= 100 ? "meta-success" : "meta-base");
-          }
+        const val = animObj.items;
+        if (fillItems) fillItems.style.width = Math.min((val / maxItems) * 100, 100) + "%";
+        const rounded = Math.round(val);
+        if (rounded !== lastRounded) {
+          lastRounded = rounded;
+          itemsVal.dataset.current = rounded.toString();
+          itemsVal.innerText = rounded.toLocaleString('es-PY');
         }
       },
       onComplete: () => {
-        // Asegurar valores exactos finales
         itemsVal.innerText = targetItems.toLocaleString('es-PY');
         if (fillItems) fillItems.style.width = Math.min((targetItems / maxItems) * 100, 100) + "%";
-        const finalPct = cardMetaItems > 0 ? Math.round((targetItems / cardMetaItems) * 100) : 0;
-        if (metaVal) metaVal.innerText = finalPct + "%";
-        if (avatar) avatar.style.setProperty("--pct", Math.min(finalPct, 100));
+      }
+    });
+
+    // 2) Aro de meta (gauge): llenado FLUIDO con su propia tween (decimales) + %
+    const gaugeObj = { pct: 0 };
+    gsap.to(gaugeObj, {
+      pct: targetPct, duration: 1.35, ease: "power3.out", delay: delay,
+      onUpdate: () => {
+        const v = Math.min(gaugeObj.pct, 100);
+        if (avatar) avatar.style.setProperty("--pct", v.toFixed(2));
+        if (metaVal) metaVal.innerText = Math.round(gaugeObj.pct) + "%";
+      },
+      onComplete: () => {
+        if (avatar) avatar.style.setProperty("--pct", Math.min(targetPct, 100).toFixed(2));
+        if (metaVal) metaVal.innerText = targetPct + "%";
+        // Pulso sutil al completar el aro (más vivo)
+        if (avatar && window.gsap) {
+          gsap.fromTo(avatar, { scale: 1 }, { scale: 1.03, duration: 0.16, yoyo: true, repeat: 1, ease: "power1.inOut" });
+        }
       }
     });
   });

@@ -4677,9 +4677,12 @@ body.tv-mode .table-bar-track {
   transform: none !important;
   order: 0 !important;
 }
-.cat-podium-row .pillar-card:hover {
-  transform: translateY(-7px) !important;
-  box-shadow: 0 34px 64px -26px rgba(11, 52, 90, 0.36) !important;
+.cat-podium-row .pillar-card:hover,
+.cat-podium-row .pillar-card.rank-1:hover,
+.cat-podium-row .pillar-card.rank-2:hover,
+.cat-podium-row .pillar-card.rank-3:hover {
+  transform: none !important;   /* sin animación de hover */
+  box-shadow: 0 26px 56px -24px rgba(11, 52, 90, 0.28) !important;
 }
 
 /* Acento superior sutil (más marcado para el #1) */
@@ -4702,8 +4705,8 @@ body.tv-mode .table-bar-track {
 /* Galardón (imagen primer-lugar.png) — solo #1, adentro esquina sup. izquierda */
 .pod-award {
   position: absolute; top: 14px; left: 14px;
-  width: 46px; z-index: 7; pointer-events: none;
-  filter: drop-shadow(0 4px 8px rgba(11, 52, 90, 0.22));
+  width: 66px; z-index: 7; pointer-events: none;
+  filter: drop-shadow(0 5px 10px rgba(11, 52, 90, 0.24));
 }
 .pod-award img { width: 100%; height: auto; display: block; }
 
@@ -4769,7 +4772,7 @@ body.tv-mode .cat-podium-row .pillar-card {
 body.tv-mode .pod-avatar { width: 300px; height: 300px; }
 body.tv-mode .pod-photo { inset: 15px; }
 body.tv-mode .pod-meta-pill { font-size: 1.25rem; padding: 8px 16px; }
-body.tv-mode .pod-award { width: 62px; top: 20px; left: 20px; }
+body.tv-mode .pod-award { width: 88px; top: 22px; left: 22px; }
 body.tv-mode .pod-name { font-size: 2rem; margin-top: 32px; }
 body.tv-mode .pod-role { font-size: 0.9rem; margin-bottom: 32px; }
 body.tv-mode .pod-items-lbl { font-size: 0.9rem; }

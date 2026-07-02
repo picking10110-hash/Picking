@@ -823,33 +823,6 @@ function startPodiumFloat(container) {
 // Función de bucle de flotación continua 3D (Antigravitacional)
 
 
-// Galardón (roseta con listón de cola de golondrina) para el 1er puesto — estilo medalla azul
-function awardRosetteSVG(num) {
-  var navy = "#33506f", navyDark = "#294162", blue = "#3d78c4";
-  var cx = 40, cy = 34, N = 12, R = 24, sc = 6.6;
-  var scallops = "";
-  for (var i = 0; i < N; i++) {
-    var a = (i / N) * Math.PI * 2;
-    var x = (cx + Math.cos(a) * R).toFixed(2);
-    var y = (cy + Math.sin(a) * R).toFixed(2);
-    scallops += '<circle cx="' + x + '" cy="' + y + '" r="' + sc + '" fill="' + navy + '"/>';
-  }
-  return '<svg viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    // Listones (colas) con cola de golondrina, ligeramente abiertos
-    + '<g fill="' + navyDark + '">'
-    +   '<g transform="translate(28 50) rotate(-14)"><path d="M0 0 H14 V44 L7 34 L0 44 Z"/></g>'
-    +   '<g transform="translate(38 50) rotate(14)"><path d="M0 0 H14 V44 L7 34 L0 44 Z"/></g>'
-    + '</g>'
-    // Roseta festoneada
-    + scallops
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + navy + '"/>'
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#ffffff"/>'
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="' + blue + '"/>'
-    + '<text x="' + cx + '" y="' + (cy + 0.5) + '" text-anchor="middle" dominant-baseline="central" '
-    +   'font-family="Outfit, sans-serif" font-weight="800" font-size="18" fill="#ffffff">' + num + '</text>'
-    + '</svg>';
-}
-
 function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
   var imgSrc = picker.avatarType === "preset"
     ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
@@ -862,7 +835,7 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
   var roleLbl = rank + "º lugar";
-  var award = rank === 1 ? '<div class="pod-award">' + awardRosetteSVG(1) + '</div>' : '';
+  var award = rank === 1 ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar"></div>' : '';
 
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">

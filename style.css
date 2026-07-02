@@ -4704,13 +4704,13 @@ body.tv-mode .table-bar-track {
   background: linear-gradient(90deg, transparent, #0B5F8D, transparent);
 }
 
-/* Galardón (roseta con listón) — solo #1 */
+/* Galardón (imagen primer-lugar.png) — solo #1 */
 .pod-award {
-  position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
-  width: 66px; z-index: 7; pointer-events: none;
+  position: absolute; top: -34px; left: 50%; transform: translateX(-50%);
+  width: 62px; z-index: 7; pointer-events: none;
   filter: drop-shadow(0 6px 12px rgba(11, 52, 90, 0.28));
 }
-.pod-award svg { width: 100%; height: auto; display: block; }
+.pod-award img { width: 100%; height: auto; display: block; }
 
 /* ── Retrato con medidor de meta (donut conic) ── */
 .pod-avatar {

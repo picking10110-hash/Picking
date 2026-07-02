@@ -781,8 +781,7 @@ function playPodiumIntro(container, cards, isInitial) {
   }
 
   var avatars = container.querySelectorAll(".pod-avatar");
-  var crowns  = container.querySelectorAll(".pod-crown");
-  var ranks   = container.querySelectorAll(".pod-rank");
+  var awards  = container.querySelectorAll(".pod-award");
   var pills   = container.querySelectorAll(".pod-meta-pill");
   var names   = container.querySelectorAll(".pod-name");
   var roles   = container.querySelectorAll(".pod-role");
@@ -791,33 +790,31 @@ function playPodiumIntro(container, cards, isInitial) {
   // Frenar cualquier float previo para no acumular tweens
   gsap.killTweensOf(avatars);
 
-  // s = factor de velocidad (1 = dramático inicial, 0.62 = ágil al cambiar)
-  var s = isInitial ? 1 : 0.62;
+  // s = factor de velocidad (1 = entrada al abrir; 0.75 = ágil al cambiar)
+  var s = isInitial ? 1 : 0.75;
 
-  gsap.set(cards,   { opacity: 0, y: 56 * s, scale: 0.94 });
-  gsap.set(avatars, { opacity: 0, scale: 0.62, y: 0 });
-  gsap.set(ranks,   { opacity: 0, scale: 0, transformOrigin: "50% 50%" });
+  gsap.set(cards,   { opacity: 0, y: 38 * s, scale: 0.96 });
+  gsap.set(avatars, { opacity: 0, scale: 0.72, y: 0 });
   gsap.set(pills,   { opacity: 0, scale: 0, transformOrigin: "50% 50%" });
-  gsap.set(crowns,  { opacity: 0, scale: 0, y: 8, transformOrigin: "50% 100%" });
-  gsap.set(names,   { opacity: 0, y: 14 });
-  gsap.set(roles,   { opacity: 0, y: 12 });
-  gsap.set(itemsB,  { opacity: 0, y: 16 });
+  gsap.set(awards,  { opacity: 0, scale: 0, y: 6, transformOrigin: "50% 100%" });
+  gsap.set(names,   { opacity: 0, y: 10 });
+  gsap.set(roles,   { opacity: 0, y: 8 });
+  gsap.set(itemsB,  { opacity: 0, y: 12 });
 
   var tl = gsap.timeline({
-    defaults: { ease: "expo.out" },
+    defaults: { ease: "power3.out" },
     onComplete: function () { startPodiumFloat(container); }
   });
 
-  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 1.0 * s, stagger: 0.12 * s })
-    .to(avatars, { opacity: 1, scale: 1, duration: 0.85, stagger: 0.12 * s, ease: "back.out(1.5)" }, "-=" + (0.72 * s))
-    .to(ranks,   { opacity: 1, scale: 1, duration: 0.55, stagger: 0.1 * s, ease: "back.out(2.2)" }, "-=0.45")
-    .to(pills,   { opacity: 1, scale: 1, duration: 0.5, stagger: 0.1 * s, ease: "back.out(2.2)" }, "<0.05")
-    .to(crowns,  { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(2.4)" }, "-=0.4")
-    .to(names,   { opacity: 1, y: 0, duration: 0.55, stagger: 0.08 * s }, "-=0.45")
-    .to(roles,   { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 * s }, "<0.05")
-    .to(itemsB,  { opacity: 1, y: 0, duration: 0.55, stagger: 0.08 * s }, "-=0.35")
+  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.5 * s, stagger: 0.07 * s })
+    .to(avatars, { opacity: 1, scale: 1, duration: 0.45, stagger: 0.07 * s, ease: "back.out(1.6)" }, "-=" + (0.32 * s))
+    .to(pills,   { opacity: 1, scale: 1, duration: 0.38, stagger: 0.06 * s, ease: "back.out(2.2)" }, "-=0.22")
+    .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(2.4)" }, "-=0.28")
+    .to(names,   { opacity: 1, y: 0, duration: 0.35, stagger: 0.05 * s }, "-=0.28")
+    .to(roles,   { opacity: 1, y: 0, duration: 0.3, stagger: 0.05 * s }, "<0.04")
+    .to(itemsB,  { opacity: 1, y: 0, duration: 0.35, stagger: 0.05 * s }, "-=0.2")
     // Contador + barras + gauge arrancan mientras aparece el bloque de ítems
-    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.35");
+    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.28");
 }
 
 // Flotación continua suave del retrato (antigravedad)
@@ -834,6 +831,31 @@ function startPodiumFloat(container) {
 // Función de bucle de flotación continua 3D (Antigravitacional)
 
 
+// Galardón (roseta con listón) para el 1er puesto — estilo medalla azul
+function awardRosetteSVG(num) {
+  var navy = "#33517a", blue = "#3d7fd0";
+  var cx = 32, cy = 30, N = 12, pr = 20, sr = 8;
+  var scallops = "";
+  for (var i = 0; i < N; i++) {
+    var a = (i / N) * Math.PI * 2;
+    var x = (cx + Math.cos(a) * pr).toFixed(1);
+    var y = (cy + Math.sin(a) * pr).toFixed(1);
+    scallops += '<circle cx="' + x + '" cy="' + y + '" r="' + sr + '" fill="' + navy + '"/>';
+  }
+  return '<svg viewBox="0 0 64 82" fill="none">'
+    + '<g fill="' + navy + '">'
+    +   '<path d="M24 46 L32 46 L32 79 L28 72 L24 79 Z" transform="rotate(-11 32 46)"/>'
+    +   '<path d="M32 46 L40 46 L40 79 L36 72 L32 79 Z" transform="rotate(11 32 46)"/>'
+    + '</g>'
+    + scallops
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="22" fill="' + navy + '"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="17" fill="#ffffff"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="13" fill="' + blue + '"/>'
+    + '<text x="' + cx + '" y="' + (cy + 1) + '" text-anchor="middle" dominant-baseline="central" '
+    +   'font-family="Outfit, sans-serif" font-weight="800" font-size="16" fill="#ffffff">' + num + '</text>'
+    + '</svg>';
+}
+
 function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
   var imgSrc = picker.avatarType === "preset"
     ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
@@ -846,17 +868,14 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
   var roleLbl = rank + "º lugar";
-  var crown = rank === 1
-    ? '<div class="pod-crown"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7l4.5 3.2L12 4l4.5 6.2L21 7l-1.8 11.2H4.8L3 7z"/><rect x="4.6" y="19" width="14.8" height="2.4" rx="1.2"/></svg></div>'
-    : '';
+  var award = rank === 1 ? '<div class="pod-award">' + awardRosetteSVG(1) + '</div>' : '';
 
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
-      ${crown}
+      ${award}
       <div class="pod-avatar ${metaClass}" style="--pct:0">
         <div class="pod-gauge"></div>
         <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
-        <div class="pod-rank rank-${rank}">${rank}</div>
         <div class="pod-meta-pill"><span class="meta-val">0%</span></div>
       </div>
 
@@ -891,8 +910,8 @@ function animateBarsAndNumbers(container) {
 
     const animObj = { items: currentItems };
     gsap.to(animObj, {
-      items: targetItems, duration: 1.7, ease: "power2.out",
-      delay: i * 0.1, // encadena las cards para una sensación más fluida
+      items: targetItems, duration: 1.0, ease: "power2.out",
+      delay: i * 0.06, // encadena las cards para una sensación más fluida
       onUpdate: () => {
         const rounded = Math.round(animObj.items);
         itemsVal.dataset.current = rounded.toString();

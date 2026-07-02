@@ -3437,37 +3437,32 @@ body.tv-mode .metric-chip.chip-monto .chip-value {
   border: none !important;
   box-shadow: none !important;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 4px 0 10px;
+  gap: 3px;
+  padding: 4px 0 16px;
   width: 100%;
 }
-.cat-header--podium .cat-header__icon {
-  width: 28px;
-  height: 28px;
-  color: var(--cat);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.cat-header--podium .cat-header__icon svg {
-  width: 100%;
-  height: 100%;
+.cat-header--podium .cat-header__kicker {
+  font-family: 'Inter', var(--font-main);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: #9aa7b8;
 }
 .cat-header--podium .cat-header__title {
   font-family: var(--font-main);
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: 4px;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--cat);
   text-shadow: none;
 }
-.cat-header--podium .cat-header__count {
-  display: none !important;
-}
+.cat-header--podium .cat-header__icon { display: none !important; }
+.cat-header--podium .cat-header__count { display: none !important; }
 .cat-podium-row {
   display: flex;
   flex-direction: row;
@@ -4320,16 +4315,16 @@ body.tv-mode .medal-3d {
   left: 20px;
 }
 
-body.tv-mode .cat-header--podium .cat-header__icon {
-  width: 44px !important;
-  height: 44px !important;
+body.tv-mode .cat-header--podium .cat-header__kicker {
+  font-size: 0.9rem !important;
+  letter-spacing: 3.5px;
 }
 
 body.tv-mode .cat-header--podium .cat-header__title {
   font-family: var(--font-main);
-  font-size: 2.0rem !important;
+  font-size: 1.7rem !important;
   font-weight: 700;
-  letter-spacing: 6px;
+  letter-spacing: 4px;
 }
 
 /* ── Navegador de Pestañas y Auto-ciclo del Podio ── */

@@ -767,32 +767,68 @@ function renderLeaderboard(isInitial = false) {
     container.innerHTML = html;
 
     const cards = container.querySelectorAll(".pillar-card");
-    animatePodiumAvatars(container, isInitial);
-    if (isInitial) {
-      // Animación de Entrada Frontal Limpia y Nítida (Deslizar hacia arriba sin mareos)
-      gsap.fromTo(cards,
-        {
-          opacity: 0,
-          scale: 0.96,
-          y: 45
-        },
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 0.9,
-          stagger: 0.08,
-          ease: "power2.out",
-          clearProps: "all", // Limpia propiedades para que tome las reglas puras del CSS plano
-          onComplete: () => {
-            animateBarsAndNumbers(container);
-          }
-        }
-      );
-    } else {
-      animateBarsAndNumbers(container);
-    }
+    playPodiumIntro(container, cards, isInitial);
   }
+}
+
+// Intro orquestada del podio: una sola timeline fluida y encadenada.
+// isInitial = entrada dramática al abrir; cambios de pestaña = versión ágil.
+function playPodiumIntro(container, cards, isInitial) {
+  if (!window.gsap || !cards.length) {
+    animateBarsAndNumbers(container);
+    startPodiumFloat(container);
+    return;
+  }
+
+  var avatars = container.querySelectorAll(".pod-avatar");
+  var crowns  = container.querySelectorAll(".pod-crown");
+  var ranks   = container.querySelectorAll(".pod-rank");
+  var pills   = container.querySelectorAll(".pod-meta-pill");
+  var names   = container.querySelectorAll(".pod-name");
+  var roles   = container.querySelectorAll(".pod-role");
+  var itemsB  = container.querySelectorAll(".pod-items");
+
+  // Frenar cualquier float previo para no acumular tweens
+  gsap.killTweensOf(avatars);
+
+  // s = factor de velocidad (1 = dramático inicial, 0.62 = ágil al cambiar)
+  var s = isInitial ? 1 : 0.62;
+
+  gsap.set(cards,   { opacity: 0, y: 56 * s, scale: 0.94 });
+  gsap.set(avatars, { opacity: 0, scale: 0.62, y: 0 });
+  gsap.set(ranks,   { opacity: 0, scale: 0, transformOrigin: "50% 50%" });
+  gsap.set(pills,   { opacity: 0, scale: 0, transformOrigin: "50% 50%" });
+  gsap.set(crowns,  { opacity: 0, scale: 0, y: 8, transformOrigin: "50% 100%" });
+  gsap.set(names,   { opacity: 0, y: 14 });
+  gsap.set(roles,   { opacity: 0, y: 12 });
+  gsap.set(itemsB,  { opacity: 0, y: 16 });
+
+  var tl = gsap.timeline({
+    defaults: { ease: "expo.out" },
+    onComplete: function () { startPodiumFloat(container); }
+  });
+
+  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 1.0 * s, stagger: 0.12 * s })
+    .to(avatars, { opacity: 1, scale: 1, duration: 0.85, stagger: 0.12 * s, ease: "back.out(1.5)" }, "-=" + (0.72 * s))
+    .to(ranks,   { opacity: 1, scale: 1, duration: 0.55, stagger: 0.1 * s, ease: "back.out(2.2)" }, "-=0.45")
+    .to(pills,   { opacity: 1, scale: 1, duration: 0.5, stagger: 0.1 * s, ease: "back.out(2.2)" }, "<0.05")
+    .to(crowns,  { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(2.4)" }, "-=0.4")
+    .to(names,   { opacity: 1, y: 0, duration: 0.55, stagger: 0.08 * s }, "-=0.45")
+    .to(roles,   { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 * s }, "<0.05")
+    .to(itemsB,  { opacity: 1, y: 0, duration: 0.55, stagger: 0.08 * s }, "-=0.35")
+    // Contador + barras + gauge arrancan mientras aparece el bloque de ítems
+    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.35");
+}
+
+// Flotación continua suave del retrato (antigravedad)
+function startPodiumFloat(container) {
+  if (!window.gsap) return;
+  var avatars = container.querySelectorAll(".pod-avatar");
+  if (!avatars.length) return;
+  gsap.to(avatars, {
+    y: -9, duration: 2.8, repeat: -1, yoyo: true, ease: "sine.inOut",
+    stagger: { each: 0.5, from: "center" }
+  });
 }
 
 // Función de bucle de flotación continua 3D (Antigravitacional)
@@ -809,7 +845,6 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
 
   var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
-  var gaugePct = isInitial ? 0 : Math.min(percentOfGoal, 100);
   var roleLbl = rank + "º lugar";
   var crown = rank === 1
     ? '<div class="pod-crown"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7l4.5 3.2L12 4l4.5 6.2L21 7l-1.8 11.2H4.8L3 7z"/><rect x="4.6" y="19" width="14.8" height="2.4" rx="1.2"/></svg></div>'
@@ -818,11 +853,11 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
       ${crown}
-      <div class="pod-avatar ${metaClass}" style="--pct:${gaugePct}">
+      <div class="pod-avatar ${metaClass}" style="--pct:0">
         <div class="pod-gauge"></div>
         <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
         <div class="pod-rank rank-${rank}">${rank}</div>
-        <div class="pod-meta-pill"><span class="meta-val">${isInitial ? 0 : percentOfGoal}%</span></div>
+        <div class="pod-meta-pill"><span class="meta-val">0%</span></div>
       </div>
 
       <div class="pod-name" title="${picker.name}">${picker.name}</div>
@@ -831,9 +866,9 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
       <div class="pod-items">
         <div class="pod-items-head">
           <span class="pod-items-lbl">Ítems preparados</span>
-          <span class="pod-items-num items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString('es-PY')}</span>
+          <span class="pod-items-num items-val" data-target="${totalItems}" data-current="0">0</span>
         </div>
-        <div class="pod-bar"><div class="pod-bar-fill fill-items" style="width:${isInitial ? 0 : Math.min(itemsPercent, 100)}%"></div></div>
+        <div class="pod-bar"><div class="pod-bar-fill fill-items" style="width:0%"></div></div>
       </div>
     </div>
   `;
@@ -842,7 +877,7 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
 function animateBarsAndNumbers(container) {
   const cards = container.querySelectorAll(".pillar-card");
 
-  cards.forEach(card => {
+  cards.forEach((card, i) => {
     const fillItems = card.querySelector(".fill-items");
     const metaVal = card.querySelector(".meta-val");
     const itemsVal = card.querySelector(".items-val");
@@ -856,7 +891,8 @@ function animateBarsAndNumbers(container) {
 
     const animObj = { items: currentItems };
     gsap.to(animObj, {
-      items: targetItems, duration: 1.4, ease: "power3.out",
+      items: targetItems, duration: 1.7, ease: "power2.out",
+      delay: i * 0.1, // encadena las cards para una sensación más fluida
       onUpdate: () => {
         const rounded = Math.round(animObj.items);
         itemsVal.dataset.current = rounded.toString();
@@ -874,23 +910,6 @@ function animateBarsAndNumbers(container) {
         }
       }
     });
-  });
-}
-
-// Animación PRO de los retratos: pop de entrada + flotación continua
-function animatePodiumAvatars(container, isInitial) {
-  if (!window.gsap) return;
-  var rings = container.querySelectorAll(".pod-avatar");
-  if (!rings.length) return;
-  if (isInitial) {
-    gsap.fromTo(rings,
-      { scale: 0.55, opacity: 0, y: 10 },
-      { scale: 1, opacity: 1, y: 0, duration: 0.75, stagger: 0.12, ease: "back.out(1.7)", delay: 0.15 });
-  }
-  // Flotación suave continua (antigravedad)
-  gsap.to(rings, {
-    y: -8, duration: 2.4, repeat: -1, yoyo: true, ease: "sine.inOut",
-    stagger: { each: 0.4, from: "center" }, delay: isInitial ? 0.9 : 0
   });
 }
 

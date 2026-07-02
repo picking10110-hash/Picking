@@ -4776,7 +4776,7 @@ body.tv-mode .table-bar-track {
 .pod-bar-fill {
   height: 100%; border-radius: 8px; width: 0;
   background: linear-gradient(90deg, #0B5F8D, #0a4a6f);
-  transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+  /* El ancho lo maneja GSAP frame a frame (sin transición CSS para evitar lag) */
 }
 
 /* ── TV mode — protagonismo total ── */

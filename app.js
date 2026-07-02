@@ -1840,11 +1840,11 @@ function startPodiumAutoplay() {
   if (window._autoplayTimer) clearInterval(window._autoplayTimer);
   
   if (window._activeCategory === "all" || window._activeCategory === "rest") {
-    window._activeCategory = "PLENO";
+    window._activeCategory = "destacados";
   }
-  
+
   window._autoplayTimer = setInterval(function() {
-    const cats = ["PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"];
+    const cats = ["destacados", "PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"];
     let idx = cats.indexOf(window._activeCategory);
     idx = (idx + 1) % cats.length;
     window._activeCategory = cats[idx];

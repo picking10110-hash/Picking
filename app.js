@@ -782,39 +782,31 @@ function playPodiumIntro(container, cards, isInitial) {
 
   var avatars = container.querySelectorAll(".pod-avatar");
   var awards  = container.querySelectorAll(".pod-award");
-  var pills   = container.querySelectorAll(".pod-meta-pill");
-  var names   = container.querySelectorAll(".pod-name");
-  var roles   = container.querySelectorAll(".pod-role");
-  var itemsB  = container.querySelectorAll(".pod-items");
+  // Contenido interno en orden del DOM (cascada por card, no por tipo)
+  var content = container.querySelectorAll(".pod-meta-pill, .pod-name, .pod-role, .pod-items");
 
   // Frenar cualquier float previo para no acumular tweens
   gsap.killTweensOf(avatars);
 
-  // s = factor de velocidad (1 = entrada al abrir; 0.75 = ágil al cambiar)
-  var s = isInitial ? 1 : 0.75;
+  // s = factor de velocidad (1 = entrada al abrir; 0.7 = ágil al cambiar)
+  var s = isInitial ? 1 : 0.7;
 
-  gsap.set(cards,   { opacity: 0, y: 38 * s, scale: 0.96 });
-  gsap.set(avatars, { opacity: 0, scale: 0.72, y: 0 });
-  gsap.set(pills,   { opacity: 0, scale: 0, transformOrigin: "50% 50%" });
-  gsap.set(awards,  { opacity: 0, scale: 0, y: 6, transformOrigin: "50% 100%" });
-  gsap.set(names,   { opacity: 0, y: 10 });
-  gsap.set(roles,   { opacity: 0, y: 8 });
-  gsap.set(itemsB,  { opacity: 0, y: 12 });
+  gsap.set(cards,   { opacity: 0, y: 30 * s, scale: 0.97 });
+  gsap.set(avatars, { opacity: 0, scale: 0.78 });
+  gsap.set(awards,  { opacity: 0, scale: 0, y: 5, transformOrigin: "50% 100%" });
+  gsap.set(content, { opacity: 0, y: 8 });
 
   var tl = gsap.timeline({
-    defaults: { ease: "power3.out" },
+    defaults: { ease: "power2.out" },
     onComplete: function () { startPodiumFloat(container); }
   });
 
-  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.5 * s, stagger: 0.07 * s })
-    .to(avatars, { opacity: 1, scale: 1, duration: 0.45, stagger: 0.07 * s, ease: "back.out(1.6)" }, "-=" + (0.32 * s))
-    .to(pills,   { opacity: 1, scale: 1, duration: 0.38, stagger: 0.06 * s, ease: "back.out(2.2)" }, "-=0.22")
-    .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(2.4)" }, "-=0.28")
-    .to(names,   { opacity: 1, y: 0, duration: 0.35, stagger: 0.05 * s }, "-=0.28")
-    .to(roles,   { opacity: 1, y: 0, duration: 0.3, stagger: 0.05 * s }, "<0.04")
-    .to(itemsB,  { opacity: 1, y: 0, duration: 0.35, stagger: 0.05 * s }, "-=0.2")
-    // Contador + barras + gauge arrancan mientras aparece el bloque de ítems
-    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.28");
+  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.42 * s, stagger: 0.06 * s })
+    .to(avatars, { opacity: 1, scale: 1, duration: 0.4, stagger: 0.06 * s, ease: "back.out(1.5)" }, "-=" + (0.26 * s))
+    .to(content, { opacity: 1, y: 0, duration: 0.32, stagger: 0.03 }, "-=0.2")
+    .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(2.2)" }, "-=0.3")
+    // Contador + barras + gauge arrancan casi enseguida (sensación ágil)
+    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.26");
 }
 
 // Flotación continua suave del retrato (antigravedad)
@@ -831,28 +823,30 @@ function startPodiumFloat(container) {
 // Función de bucle de flotación continua 3D (Antigravitacional)
 
 
-// Galardón (roseta con listón) para el 1er puesto — estilo medalla azul
+// Galardón (roseta con listón de cola de golondrina) para el 1er puesto — estilo medalla azul
 function awardRosetteSVG(num) {
-  var navy = "#33517a", blue = "#3d7fd0";
-  var cx = 32, cy = 30, N = 12, pr = 20, sr = 8;
+  var navy = "#33506f", navyDark = "#294162", blue = "#3d78c4";
+  var cx = 40, cy = 34, N = 12, R = 24, sc = 6.6;
   var scallops = "";
   for (var i = 0; i < N; i++) {
     var a = (i / N) * Math.PI * 2;
-    var x = (cx + Math.cos(a) * pr).toFixed(1);
-    var y = (cy + Math.sin(a) * pr).toFixed(1);
-    scallops += '<circle cx="' + x + '" cy="' + y + '" r="' + sr + '" fill="' + navy + '"/>';
+    var x = (cx + Math.cos(a) * R).toFixed(2);
+    var y = (cy + Math.sin(a) * R).toFixed(2);
+    scallops += '<circle cx="' + x + '" cy="' + y + '" r="' + sc + '" fill="' + navy + '"/>';
   }
-  return '<svg viewBox="0 0 64 82" fill="none">'
-    + '<g fill="' + navy + '">'
-    +   '<path d="M24 46 L32 46 L32 79 L28 72 L24 79 Z" transform="rotate(-11 32 46)"/>'
-    +   '<path d="M32 46 L40 46 L40 79 L36 72 L32 79 Z" transform="rotate(11 32 46)"/>'
+  return '<svg viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    // Listones (colas) con cola de golondrina, ligeramente abiertos
+    + '<g fill="' + navyDark + '">'
+    +   '<g transform="translate(28 50) rotate(-14)"><path d="M0 0 H14 V44 L7 34 L0 44 Z"/></g>'
+    +   '<g transform="translate(38 50) rotate(14)"><path d="M0 0 H14 V44 L7 34 L0 44 Z"/></g>'
     + '</g>'
+    // Roseta festoneada
     + scallops
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="22" fill="' + navy + '"/>'
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="17" fill="#ffffff"/>'
-    + '<circle cx="' + cx + '" cy="' + cy + '" r="13" fill="' + blue + '"/>'
-    + '<text x="' + cx + '" y="' + (cy + 1) + '" text-anchor="middle" dominant-baseline="central" '
-    +   'font-family="Outfit, sans-serif" font-weight="800" font-size="16" fill="#ffffff">' + num + '</text>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + navy + '"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#ffffff"/>'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="' + blue + '"/>'
+    + '<text x="' + cx + '" y="' + (cy + 0.5) + '" text-anchor="middle" dominant-baseline="central" '
+    +   'font-family="Outfit, sans-serif" font-weight="800" font-size="18" fill="#ffffff">' + num + '</text>'
     + '</svg>';
 }
 
@@ -908,25 +902,38 @@ function animateBarsAndNumbers(container) {
     const maxItems = parseFloat(card.dataset.maxItems) || 1;
     const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
 
+    let lastRounded = -1, lastPct = -1;
     const animObj = { items: currentItems };
     gsap.to(animObj, {
-      items: targetItems, duration: 1.0, ease: "power2.out",
-      delay: i * 0.06, // encadena las cards para una sensación más fluida
+      items: targetItems, duration: 0.9, ease: "power2.out",
+      delay: i * 0.04, // encadena las cards para una sensación más fluida
       onUpdate: () => {
         const rounded = Math.round(animObj.items);
+        if (rounded === lastRounded) return; // throttle: solo escribimos DOM al cambiar el entero
+        lastRounded = rounded;
+
         itemsVal.dataset.current = rounded.toString();
-        const itemsPercent = (animObj.items / maxItems) * 100;
-        const percentOfGoal = cardMetaItems > 0 ? Math.round((rounded / cardMetaItems) * 100) : 0;
-
-        if (fillItems) fillItems.style.width = Math.min(itemsPercent, 100) + "%";
+        if (fillItems) fillItems.style.width = Math.min((rounded / maxItems) * 100, 100) + "%";
         itemsVal.innerText = rounded.toLocaleString('es-PY');
-        if (metaVal) metaVal.innerText = percentOfGoal + "%";
 
-        if (avatar) {
-          avatar.style.setProperty("--pct", Math.min(percentOfGoal, 100));
-          avatar.classList.remove("meta-success", "meta-base");
-          avatar.classList.add(percentOfGoal >= 100 ? "meta-success" : "meta-base");
+        const percentOfGoal = cardMetaItems > 0 ? Math.round((rounded / cardMetaItems) * 100) : 0;
+        if (percentOfGoal !== lastPct) {
+          lastPct = percentOfGoal;
+          if (metaVal) metaVal.innerText = percentOfGoal + "%";
+          if (avatar) {
+            avatar.style.setProperty("--pct", Math.min(percentOfGoal, 100));
+            avatar.classList.remove("meta-success", "meta-base");
+            avatar.classList.add(percentOfGoal >= 100 ? "meta-success" : "meta-base");
+          }
         }
+      },
+      onComplete: () => {
+        // Asegurar valores exactos finales
+        itemsVal.innerText = targetItems.toLocaleString('es-PY');
+        if (fillItems) fillItems.style.width = Math.min((targetItems / maxItems) * 100, 100) + "%";
+        const finalPct = cardMetaItems > 0 ? Math.round((targetItems / cardMetaItems) * 100) : 0;
+        if (metaVal) metaVal.innerText = finalPct + "%";
+        if (avatar) avatar.style.setProperty("--pct", Math.min(finalPct, 100));
       }
     });
   });

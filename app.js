@@ -807,37 +807,33 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
   var totalItems = pickerItems(picker);
   var itemsPercent = (totalItems / maxItemsPodium) * 100;
 
-  var metaClass = "meta-danger";
-  if (percentOfGoal >= 100) metaClass = "meta-success";
-  else if (percentOfGoal >= 90) metaClass = "meta-warning";
-
+  var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
+  var gaugePct = isInitial ? 0 : Math.min(percentOfGoal, 100);
+  var roleLbl = rank + "º lugar";
+  var crown = rank === 1
+    ? '<div class="pod-crown"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7l4.5 3.2L12 4l4.5 6.2L21 7l-1.8 11.2H4.8L3 7z"/><rect x="4.6" y="19" width="14.8" height="2.4" rx="1.2"/></svg></div>'
+    : '';
 
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
-      <div class="podium-medal rank-${rank}">${rank}</div>
-
-      <div class="podium-photo-ring">
-        <div class="podium-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
+      ${crown}
+      <div class="pod-avatar ${metaClass}" style="--pct:${gaugePct}">
+        <div class="pod-gauge"></div>
+        <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
+        <div class="pod-rank rank-${rank}">${rank}</div>
+        <div class="pod-meta-pill"><span class="meta-val">${isInitial ? 0 : percentOfGoal}%</span></div>
       </div>
 
-      <span class="podium-name" title="${picker.name}">${picker.name}</span>
+      <div class="pod-name" title="${picker.name}">${picker.name}</div>
+      <div class="pod-role">${roleLbl}</div>
 
-      <div class="podium-stats">
-        <div class="podium-stat">
-          <div class="podium-stat-head">
-            <span class="podium-stat-lbl">Ítems</span>
-            <span class="podium-stat-val items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString('es-PY')}</span>
-          </div>
-          <div class="podium-stat-bar"><div class="podium-stat-fill fill-items" style="width:${isInitial ? 0 : Math.min(itemsPercent, 100)}%"></div></div>
+      <div class="pod-items">
+        <div class="pod-items-head">
+          <span class="pod-items-lbl">Ítems preparados</span>
+          <span class="pod-items-num items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString('es-PY')}</span>
         </div>
-        <div class="podium-stat podium-stat--meta ${metaClass}">
-          <div class="podium-stat-head">
-            <span class="podium-stat-lbl">Meta</span>
-            <span class="podium-stat-val meta-val">${isInitial ? 0 : percentOfGoal}%</span>
-          </div>
-          <div class="podium-stat-bar"><div class="podium-stat-fill fill-meta" style="width:${isInitial ? 0 : Math.min(percentOfGoal, 100)}%"></div></div>
-        </div>
+        <div class="pod-bar"><div class="pod-bar-fill fill-items" style="width:${isInitial ? 0 : Math.min(itemsPercent, 100)}%"></div></div>
       </div>
     </div>
   `;
@@ -848,9 +844,9 @@ function animateBarsAndNumbers(container) {
 
   cards.forEach(card => {
     const fillItems = card.querySelector(".fill-items");
-    const fillMeta = card.querySelector(".fill-meta");
     const metaVal = card.querySelector(".meta-val");
     const itemsVal = card.querySelector(".items-val");
+    const avatar = card.querySelector(".pod-avatar");
     if (!itemsVal) return;
 
     const targetItems = parseInt(itemsVal.dataset.target, 10) || 0;
@@ -862,20 +858,19 @@ function animateBarsAndNumbers(container) {
     gsap.to(animObj, {
       items: targetItems, duration: 1.4, ease: "power3.out",
       onUpdate: () => {
-        itemsVal.dataset.current = Math.round(animObj.items).toString();
+        const rounded = Math.round(animObj.items);
+        itemsVal.dataset.current = rounded.toString();
         const itemsPercent = (animObj.items / maxItems) * 100;
-        const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
+        const percentOfGoal = cardMetaItems > 0 ? Math.round((rounded / cardMetaItems) * 100) : 0;
 
         if (fillItems) fillItems.style.width = Math.min(itemsPercent, 100) + "%";
-        if (fillMeta) fillMeta.style.width = Math.min(percentOfGoal, 100) + "%";
-
-        itemsVal.innerText = Math.round(animObj.items).toLocaleString('es-PY');
+        itemsVal.innerText = rounded.toLocaleString('es-PY');
         if (metaVal) metaVal.innerText = percentOfGoal + "%";
 
-        const metaWrap = card.querySelector(".podium-stat--meta");
-        if (metaWrap) {
-          metaWrap.classList.remove("meta-success", "meta-warning", "meta-danger");
-          metaWrap.classList.add(percentOfGoal >= 100 ? "meta-success" : percentOfGoal >= 90 ? "meta-warning" : "meta-danger");
+        if (avatar) {
+          avatar.style.setProperty("--pct", Math.min(percentOfGoal, 100));
+          avatar.classList.remove("meta-success", "meta-base");
+          avatar.classList.add(percentOfGoal >= 100 ? "meta-success" : "meta-base");
         }
       }
     });
@@ -885,7 +880,7 @@ function animateBarsAndNumbers(container) {
 // Animación PRO de los retratos: pop de entrada + flotación continua
 function animatePodiumAvatars(container, isInitial) {
   if (!window.gsap) return;
-  var rings = container.querySelectorAll(".podium-photo-ring");
+  var rings = container.querySelectorAll(".pod-avatar");
   if (!rings.length) return;
   if (isInitial) {
     gsap.fromTo(rings,

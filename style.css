@@ -4648,23 +4648,23 @@ body.tv-mode .table-bar-track {
 /* ═══════════════════════════════════════════════════════════════════
    REDISEÑO PODIO — retrato protagonista + barras horizontales (azul oscuro)
    ═══════════════════════════════════════════════════════════════════ */
-.cat-podium { max-width: 1320px !important; }
+.cat-podium { max-width: 1520px !important; }
 
 .cat-podium-row {
   align-items: stretch !important;   /* todo nivelado, misma altura */
-  gap: 34px !important;
-  padding: 40px 24px 20px !important;
+  gap: 44px !important;
+  padding: 48px 8px 20px !important;
 }
 .cat-podium-row .pillar-card {
   width: auto !important;
   height: auto !important;
-  flex: 1 1 380px;
-  max-width: 420px;
-  padding: 52px 38px 40px !important;
-  border-radius: 28px !important;
+  flex: 1 1 460px;
+  max-width: 500px;
+  padding: 60px 48px 46px !important;
+  border-radius: 32px !important;
   background: #ffffff !important;
-  border: 1px solid rgba(148, 163, 184, 0.2) !important;
-  box-shadow: 0 14px 38px -14px rgba(15, 23, 42, 0.14) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 18px 44px -16px rgba(15, 23, 42, 0.13) !important;
   overflow: visible !important;
   gap: 0 !important;
   backdrop-filter: none !important;
@@ -4698,24 +4698,24 @@ body.tv-mode .table-bar-track {
   box-shadow: 0 6px 16px rgba(11, 95, 141, 0.35); z-index: 5;
 }
 
-/* Retrato grande con anillo — azul uniforme */
+/* Retrato protagonista — anillo azul fino y limpio (minimalista) */
 .podium-photo-ring {
-  width: 172px; height: 172px; border-radius: 50%;
-  padding: 5px; margin-top: 4px; flex-shrink: 0;
+  width: 230px; height: 230px; border-radius: 50%;
+  padding: 4px; margin-top: 2px; flex-shrink: 0;
   background: conic-gradient(from 200deg, #0B5F8D, #0f3d5c, #0B5F8D) !important;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 14px 30px -8px rgba(11, 95, 141, 0.35);
+  box-shadow: 0 20px 40px -12px rgba(11, 95, 141, 0.32);
   will-change: transform;
 }
 .podium-photo {
   width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-  border: 4px solid #fff; background: #eef2f7;
+  border: 5px solid #fff; background: #eef2f7;
 }
 .podium-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .podium-name {
-  font: 800 1.3rem 'Outfit', sans-serif; color: var(--text-main);
-  text-align: center; margin: 22px 0 26px; letter-spacing: -0.3px;
+  font: 800 1.5rem 'Outfit', sans-serif; color: var(--text-main);
+  text-align: center; margin: 26px 0 30px; letter-spacing: -0.4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 
@@ -4731,13 +4731,13 @@ body.tv-mode .table-bar-track {
 .podium-stat--meta.meta-success .podium-stat-val { color: #059669; }
 
 /* TV mode — protagonismo total del retrato */
-body.tv-mode .cat-podium { max-width: 1500px !important; }
+body.tv-mode .cat-podium { max-width: 1680px !important; }
 body.tv-mode .cat-podium-row .pillar-card {
   width: auto !important; height: auto !important;
-  flex: 1 1 420px; max-width: 480px; padding: 60px 44px 46px !important; border-radius: 32px !important;
+  flex: 1 1 480px; max-width: 540px; padding: 64px 50px 50px !important; border-radius: 34px !important;
 }
-body.tv-mode .podium-medal { width: 50px; height: 50px; font-size: 1.4rem; top: -24px; }
-body.tv-mode .podium-photo-ring { width: 220px; height: 220px; }
+body.tv-mode .podium-medal { width: 52px; height: 52px; font-size: 1.45rem; top: -26px; }
+body.tv-mode .podium-photo-ring { width: 280px; height: 280px; }
 body.tv-mode .podium-name { font-size: 1.85rem; margin: 30px 0 34px; }
 body.tv-mode .podium-stats { gap: 28px; }
 body.tv-mode .podium-stat-lbl { font-size: 0.95rem; }

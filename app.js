@@ -850,22 +850,32 @@ function playPodiumIntro(container, cards, isInitial) {
   // s = factor de velocidad (1 = entrada al abrir; 0.7 = ágil al cambiar)
   var s = isInitial ? 1 : 0.7;
 
-  gsap.set(cards,   { opacity: 0, y: 30 * s, scale: 0.97 });
+  // 1) Estado inicial INMEDIATO (mismo tick) → evita flash de contenido completo
+  gsap.set(cards,   { opacity: 0, y: 30 * s, scale: 0.97, willChange: "transform,opacity" });
   gsap.set(avatars, { opacity: 0, scale: 0.78 });
   gsap.set(awards,  { opacity: 0, scale: 0, y: 5, transformOrigin: "50% 100%" });
   gsap.set(content, { opacity: 0, y: 8 });
 
-  var tl = gsap.timeline({
-    defaults: { ease: "power2.out" },
-    onComplete: function () { startPodiumFloat(container); }
-  });
+  // 2) Arrancar la timeline recién cuando el layout/paint terminó (2 frames),
+  //    así no compite con la decodificación de imágenes y no se "traba".
+  var start = function () {
+    var tl = gsap.timeline({
+      defaults: { ease: "power2.out" },
+      onComplete: function () {
+        gsap.set(cards, { clearProps: "willChange" });
+        startPodiumFloat(container);
+      }
+    });
 
-  tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.42 * s, stagger: 0.06 * s })
-    .to(avatars, { opacity: 1, scale: 1, duration: 0.4, stagger: 0.06 * s, ease: "back.out(1.5)" }, "-=" + (0.26 * s))
-    .to(content, { opacity: 1, y: 0, duration: 0.32, stagger: 0.03 }, "-=0.2")
-    .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(2.2)" }, "-=0.3")
-    // Contador + barras + gauge arrancan casi enseguida (sensación ágil)
-    .call(function () { animateBarsAndNumbers(container); }, null, "-=0.26");
+    tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.42 * s, stagger: 0.06 * s })
+      .to(avatars, { opacity: 1, scale: 1, duration: 0.4, stagger: 0.06 * s, ease: "back.out(1.5)" }, "-=" + (0.26 * s))
+      .to(content, { opacity: 1, y: 0, duration: 0.32, stagger: 0.03 }, "-=0.2")
+      .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(2.2)" }, "-=0.3")
+      // Contador + barras + gauge arrancan casi enseguida (sensación ágil)
+      .call(function () { animateBarsAndNumbers(container); }, null, "-=0.26");
+  };
+
+  requestAnimationFrame(function () { requestAnimationFrame(start); });
 }
 
 // Flotación continua suave del retrato (antigravedad)
@@ -897,14 +907,14 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial,
   var roleLbl = opts.roleLabel || (rank + "º lugar");
   // El galardón lo controla quien llama (1º en llegar al 100%); sin opción, no se muestra
   var showAward = !!opts.award;
-  var award = showAward ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar"></div>' : '';
+  var award = showAward ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar" decoding="async"></div>' : '';
 
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
       ${award}
       <div class="pod-avatar ${metaClass}" style="--pct:0">
         <div class="pod-gauge"></div>
-        <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
+        <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}" decoding="async"></div>
         <div class="pod-meta-pill"><span class="meta-val">0%</span></div>
       </div>
 

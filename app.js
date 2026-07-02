@@ -767,9 +767,10 @@ function renderLeaderboard(isInitial = false) {
     container.innerHTML = html;
 
     const cards = container.querySelectorAll(".pillar-card");
+    animatePodiumAvatars(container, isInitial);
     if (isInitial) {
       // Animación de Entrada Frontal Limpia y Nítida (Deslizar hacia arriba sin mareos)
-      gsap.fromTo(cards, 
+      gsap.fromTo(cards,
         {
           opacity: 0,
           scale: 0.96,
@@ -804,81 +805,40 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
 
   var percentOfGoal = getMetaPercent(picker);
   var totalItems = pickerItems(picker);
-  var moneyValuePYG = pickerMonto(picker);
-
-  // Computar porcentajes horizontales (escalados a max de la categoria)
   var itemsPercent = (totalItems / maxItemsPodium) * 100;
-  var moneyPercent = (moneyValuePYG / maxMontoPodium) * 100;
 
   var metaClass = "meta-danger";
   if (percentOfGoal >= 100) metaClass = "meta-success";
   else if (percentOfGoal >= 90) metaClass = "meta-warning";
 
-  var prevRank = picker.prevRank !== undefined ? picker.prevRank : rank;
-  var trendClass = "stable", trendSymbol = "▬", trendTitle = "Posición estable";
-  if (prevRank > rank) { trendClass = "up"; trendSymbol = "▲"; trendTitle = `Subió ${prevRank - rank} posiciones`; }
-  else if (prevRank < rank) { trendClass = "down"; trendSymbol = "▼"; trendTitle = `Bajó ${rank - prevRank} posiciones`; }
-
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
-  var rankLabel = rank.toString();
 
   return `
-    <div class="pillar-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}" data-max-monto="${maxMontoPodium}">
-      <!-- Medalla de Puesto Flotante 3D -->
-      <div class="medal-3d rank-${rank}">${rankLabel}</div>
+    <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
+      <div class="podium-medal rank-${rank}">${rank}</div>
 
-      <!-- Cabecera: Avatar circular sin brillo de fondo de color -->
-      <div class="avatar-3d-wrapper">
-        <img class="avatar-3d-img" src="${imgSrc}" alt="${picker.name}">
-        <div class="trend-badge trend-${trendClass}" title="${trendTitle}">${trendSymbol}</div>
+      <div class="podium-photo-ring">
+        <div class="podium-photo"><img src="${imgSrc}" alt="${picker.name}"></div>
       </div>
 
-      <!-- Nombre -->
-      <span class="pillar-name" title="${picker.name}">${picker.name}</span>
+      <span class="podium-name" title="${picker.name}">${picker.name}</span>
 
-      <!-- Cámara 3D Skyscraper (Columnas Verticales Físicas con Riel de Cristal) -->
-      <div class="skyscraper-chamber">
-        <!-- Riel Monto -->
-        <div class="skyscraper-track track-monto">
-          <div class="skyscraper-fill fill-monto" style="height: ${isInitial ? 0 : moneyPercent}%">
-            <div class="skyscraper-glow"></div>
+      <div class="podium-stats">
+        <div class="podium-stat">
+          <div class="podium-stat-head">
+            <span class="podium-stat-lbl">Ítems</span>
+            <span class="podium-stat-val items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString('es-PY')}</span>
           </div>
-          <span class="skyscraper-label">Monto</span>
+          <div class="podium-stat-bar"><div class="podium-stat-fill fill-items" style="width:${isInitial ? 0 : Math.min(itemsPercent, 100)}%"></div></div>
         </div>
-        
-        <!-- Riel Items -->
-        <div class="skyscraper-track track-items">
-          <div class="skyscraper-fill fill-items" style="height: ${isInitial ? 0 : itemsPercent}%">
-            <div class="skyscraper-glow"></div>
+        <div class="podium-stat podium-stat--meta ${metaClass}">
+          <div class="podium-stat-head">
+            <span class="podium-stat-lbl">Meta</span>
+            <span class="podium-stat-val meta-val">${isInitial ? 0 : percentOfGoal}%</span>
           </div>
-          <span class="skyscraper-label">Items</span>
+          <div class="podium-stat-bar"><div class="podium-stat-fill fill-meta" style="width:${isInitial ? 0 : Math.min(percentOfGoal, 100)}%"></div></div>
         </div>
       </div>
-
-      <!-- Grid de Métricas Cockpit (Monto y Items horizontales lado a lado) -->
-      <div class="cockpit-grid">
-        <div class="cockpit-cell cell-monto">
-          <span class="cell-lbl">Monto</span>
-          <span class="cell-val val-monto monto-val" data-target="${moneyValuePYG}" data-current="${isInitial ? 0 : moneyValuePYG}">Gs. ${isInitial ? 0 : moneyValuePYG.toLocaleString('es-PY')}</span>
-        </div>
-        <div class="cockpit-cell cell-items">
-          <span class="cell-lbl">Items</span>
-          <span class="cell-val val-items items-val" data-target="${totalItems}" data-current="${isInitial ? 0 : totalItems}">${isInitial ? 0 : totalItems.toLocaleString()}</span>
-        </div>
-      </div>
-
-      <!-- Meta Chip con Progreso Glaseado -->
-      <div class="cockpit-meta ${metaClass}">
-        <div class="meta-meta-row">
-          <span class="meta-lbl">Meta</span>
-          <span class="meta-val val-meta meta-val">${isInitial ? 0 : percentOfGoal}%</span>
-        </div>
-        <div class="meta-bar-track">
-          <div class="meta-bar-fill" style="width: ${isInitial ? 0 : Math.min(percentOfGoal, 100)}%"></div>
-        </div>
-      </div>
-      
-      ${rank <= 3 ? `<div class="podium-pedestal-base rank-${rank}-pedestal"></div>` : ""}
     </div>
   `;
 }
@@ -887,58 +847,55 @@ function animateBarsAndNumbers(container) {
   const cards = container.querySelectorAll(".pillar-card");
 
   cards.forEach(card => {
-    const fillMonto = card.querySelector(".skyscraper-fill.fill-monto");
-    const fillItems = card.querySelector(".skyscraper-fill.fill-items");
-    const fillMeta = card.querySelector(".meta-bar-fill");
+    const fillItems = card.querySelector(".fill-items");
+    const fillMeta = card.querySelector(".fill-meta");
     const metaVal = card.querySelector(".meta-val");
-    const montoVal = card.querySelector(".monto-val");
     const itemsVal = card.querySelector(".items-val");
+    if (!itemsVal) return;
 
-    if (montoVal && itemsVal) {
-      const targetMonto = parseInt(montoVal.dataset.target, 10);
-      const targetItems = parseInt(itemsVal.dataset.target, 10);
-      const currentMonto = parseInt(montoVal.dataset.current || "0", 10);
-      const currentItems = parseInt(itemsVal.dataset.current || "0", 10);
+    const targetItems = parseInt(itemsVal.dataset.target, 10) || 0;
+    const currentItems = parseInt(itemsVal.dataset.current || "0", 10);
+    const maxItems = parseFloat(card.dataset.maxItems) || 1;
+    const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
 
-      const maxItems = parseFloat(card.dataset.maxItems) || 1;
-      const maxMonto = parseFloat(card.dataset.maxMonto) || 1;
-      const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
+    const animObj = { items: currentItems };
+    gsap.to(animObj, {
+      items: targetItems, duration: 1.4, ease: "power3.out",
+      onUpdate: () => {
+        itemsVal.dataset.current = Math.round(animObj.items).toString();
+        const itemsPercent = (animObj.items / maxItems) * 100;
+        const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
 
-      const animObj = { monto: currentMonto, items: currentItems };
+        if (fillItems) fillItems.style.width = Math.min(itemsPercent, 100) + "%";
+        if (fillMeta) fillMeta.style.width = Math.min(percentOfGoal, 100) + "%";
 
-      gsap.to(animObj, {
-        monto: targetMonto, items: targetItems,
-        duration: 1.6, ease: "power3.out",
-        onUpdate: () => {
-          montoVal.dataset.current = Math.round(animObj.monto).toString();
-          itemsVal.dataset.current = Math.round(animObj.items).toString();
+        itemsVal.innerText = Math.round(animObj.items).toLocaleString('es-PY');
+        if (metaVal) metaVal.innerText = percentOfGoal + "%";
 
-          const montoPercent = (animObj.monto / maxMonto) * 100;
-          const itemsPercent = (animObj.items / maxItems) * 100;
-          const percentOfGoal = cardMetaItems > 0 ? Math.round((Math.round(animObj.items) / cardMetaItems) * 100) : 0;
-
-          // Animar las columnas verticales (Skyscrapers)
-          if (fillMonto) fillMonto.style.height = Math.min(montoPercent, 100) + "%";
-          if (fillItems) fillItems.style.height = Math.min(itemsPercent, 100) + "%";
-          
-          // Animar la barra de meta horizontal
-          if (fillMeta) fillMeta.style.width = Math.min(percentOfGoal, 100) + "%";
-
-          montoVal.innerText = `Gs. ${Math.round(animObj.monto).toLocaleString('es-PY')}`;
-          itemsVal.innerText = `${Math.round(animObj.items).toLocaleString()}`;
-
-          const cockpitMeta = card.querySelector(".cockpit-meta");
-          if (cockpitMeta && metaVal) {
-            metaVal.innerText = `${percentOfGoal}%`;
-            
-            cockpitMeta.classList.remove("meta-success", "meta-warning", "meta-danger");
-            if (percentOfGoal >= 100) cockpitMeta.classList.add("meta-success");
-            else if (percentOfGoal >= 90) cockpitMeta.classList.add("meta-warning");
-            else cockpitMeta.classList.add("meta-danger");
-          }
+        const metaWrap = card.querySelector(".podium-stat--meta");
+        if (metaWrap) {
+          metaWrap.classList.remove("meta-success", "meta-warning", "meta-danger");
+          metaWrap.classList.add(percentOfGoal >= 100 ? "meta-success" : percentOfGoal >= 90 ? "meta-warning" : "meta-danger");
         }
-      });
-    }
+      }
+    });
+  });
+}
+
+// Animación PRO de los retratos: pop de entrada + flotación continua
+function animatePodiumAvatars(container, isInitial) {
+  if (!window.gsap) return;
+  var rings = container.querySelectorAll(".podium-photo-ring");
+  if (!rings.length) return;
+  if (isInitial) {
+    gsap.fromTo(rings,
+      { scale: 0.55, opacity: 0, y: 10 },
+      { scale: 1, opacity: 1, y: 0, duration: 0.75, stagger: 0.12, ease: "back.out(1.7)", delay: 0.15 });
+  }
+  // Flotación suave continua (antigravedad)
+  gsap.to(rings, {
+    y: -8, duration: 2.4, repeat: -1, yoyo: true, ease: "sine.inOut",
+    stagger: { each: 0.4, from: "center" }, delay: isInitial ? 0.9 : 0
   });
 }
 

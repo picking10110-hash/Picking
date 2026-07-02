@@ -179,6 +179,7 @@ async function initApp() {
   lockAdminForm();
 
   await loadData();
+  await refreshPrimeros();
 
   handleRouting();
   if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
@@ -198,6 +199,7 @@ function handleRouting() {
 // DATOS
 // ==========================================
 let currentPeriodo = null;
+let _primerosByCat = {}; // { categoria: {preparador_codigo, preparador_nombre, meta_pct} } — 1º en llegar al 100%
 
 async function loadData() {
   // 1. Intentar roster real desde Supabase
@@ -329,6 +331,7 @@ window.changePeriodo = async function (delta) {
   if (newIdx < 0 || newIdx >= _periodos.length) return;
   currentPeriodo = _periodos[newIdx];
   await mergeProductividad(currentPeriodo);
+  await refreshPrimeros();
   updatePeriodoUI();
   renderLeaderboard(true);
   if (typeof renderResumen === 'function') renderResumen();
@@ -342,11 +345,46 @@ window.togglePeriodoTodo = async function () {
   } else {
     await mergeProductividad(currentPeriodo);
   }
+  await refreshPrimeros();
   updatePeriodoUI();
   renderLeaderboard(true);
   if (typeof renderResumen === 'function') renderResumen();
   if (typeof renderPremios === 'function') renderPremios();
 };
+
+// Fuente ÚNICA del "1º en llegar al 100%" por categoría (compartida por podio y Premios).
+// Trae los bloqueados de la nube y, si no hay pero el líder ya está ≥100%, lo fija y persiste.
+async function refreshPrimeros() {
+  _primerosByCat = {};
+  if (_periodoTodo || !currentPeriodo || !window.PickingAPI || !PickingAPI.isReady()) return _primerosByCat;
+
+  var rows = await PickingAPI.getPremiosPrimero(currentPeriodo);
+  var byCat = {};
+  (rows || []).forEach(function (r) { byCat[r.categoria] = r; });
+
+  CATEGORIAS.forEach(function (cat) {
+    var grupo = pickers
+      .filter(function (p) { return pickerCategoria(p) === cat; })
+      .map(function (p) { return { p: p, pct: getMetaPercent(p), items: pickerItems(p) }; })
+      .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
+
+    var primero = byCat[cat];
+    // Si el bloqueado ya no está en la categoría (reasignado), se ignora
+    if (primero && !grupo.some(function (x) { return x.p.codigo === primero.preparador_codigo; })) primero = null;
+
+    // Lazy: si no hay bloqueado pero el líder ya está ≥100%, ese es el 1º (y se persiste)
+    if (!primero && grupo.length && grupo[0].pct >= 100) {
+      var top = grupo[0];
+      primero = { preparador_codigo: top.p.codigo, preparador_nombre: top.p.name, meta_pct: top.pct };
+      PickingAPI.setPrimero(currentPeriodo, { categoria: cat, code: top.p.codigo, name: top.p.name, metaPct: top.pct });
+    }
+
+    if (primero) _primerosByCat[cat] = primero;
+  });
+
+  return _primerosByCat;
+}
+window.refreshPrimeros = refreshPrimeros;
 
 // ==========================================
 // PREMIOS — Carrera de metas (caja de leche)
@@ -355,12 +393,8 @@ async function renderPremios() {
   var container = document.getElementById('premios-body');
   if (!container) return;
 
-  // Ganadores bloqueados (1º a 100%) del período seleccionado
-  var primeroByCat = {};
-  if (!_periodoTodo && currentPeriodo && window.PickingAPI && PickingAPI.isReady()) {
-    var rows = await PickingAPI.getPremiosPrimero(currentPeriodo);
-    (rows || []).forEach(function (r) { primeroByCat[r.categoria] = r; });
-  }
+  // Ganadores bloqueados (1º a 100%) — fuente única compartida con el podio
+  var primeroByCat = await refreshPrimeros();
 
   var html = '';
   if (_periodoTodo) {
@@ -386,21 +420,8 @@ async function renderPremios() {
       .map(function (p) { return { p: p, pct: getMetaPercent(p), items: pickerItems(p) }; })
       .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
 
-    var primero = primeroByCat[cat];
-    // Si el "primero" bloqueado ya no está en esta categoría (reasignado), ignorarlo
-    if (primero && !grupo.some(function (x) { return x.p.codigo === primero.preparador_codigo; })) {
-      primero = null;
-    }
+    var primero = primeroByCat[cat] || null;
     var primeroCode = primero ? primero.preparador_codigo : null;
-    // Lazy: si no hay primero válido pero el líder ya está ≥100%, ese es el 1º (y se persiste)
-    if (!primero && !_periodoTodo && currentPeriodo && grupo.length && grupo[0].pct >= 100) {
-      var top = grupo[0];
-      primeroCode = top.p.codigo;
-      primero = { preparador_codigo: primeroCode, preparador_nombre: top.p.name, meta_pct: top.pct };
-      if (window.PickingAPI && PickingAPI.isReady()) {
-        PickingAPI.setPrimero(currentPeriodo, { categoria: cat, code: primeroCode, name: top.p.name, metaPct: top.pct });
-      }
-    }
     var club110 = grupo.filter(function (x) { return x.pct >= 110; });
     var totalCajas = (primero ? 1 : 0) + club110.length;
 
@@ -633,6 +654,7 @@ function renderLeaderboard(isInitial = false) {
   // Agregar pestañas de navegación para el podio
   html += `
     <div class="podium-tabs-nav">
+      <button class="tab-btn tab-btn--star ${window._activeCategory === 'destacados' ? 'active' : ''}" onclick="setPodiumActiveCategory('destacados')">★ Destacados</button>
       <button class="tab-btn ${window._activeCategory === 'all' ? 'active' : ''}" onclick="setPodiumActiveCategory('all')">Todos</button>
       <button class="tab-btn ${window._activeCategory === 'PLENO' ? 'active' : ''}" onclick="setPodiumActiveCategory('PLENO')">Pleno</button>
       <button class="tab-btn ${window._activeCategory === 'JUNIOR' ? 'active' : ''}" onclick="setPodiumActiveCategory('JUNIOR')">Junior</button>
@@ -646,7 +668,45 @@ function renderLeaderboard(isInitial = false) {
     </div>
   `;
 
-  if (window._activeCategory === "rest") {
+  if (window._activeCategory === "destacados") {
+    // Destacados del Mes: el 1º en llegar al 100% de cada categoría
+    var destacados = [];
+    CATEGORIAS.forEach(function (cat) {
+      var pr = _primerosByCat[cat];
+      if (!pr) return;
+      var picker = pickers.find(function (p) { return p.codigo === pr.preparador_codigo; });
+      if (picker) destacados.push({ picker: picker, cat: cat });
+    });
+
+    html += `<div class="destacados-wrap">
+      <div class="destacados-head">
+        <span class="destacados-kicker">Reconocimientos</span>
+        <h2 class="destacados-title">Destacados del Mes</h2>
+        <p class="destacados-sub">Los primeros en llegar al 100% de su meta</p>
+      </div>`;
+
+    if (!destacados.length) {
+      html += `<div class="destacados-empty">
+        <div class="destacados-empty-badge"><img src="primer-lugar.png" alt=""></div>
+        <p>Todavía nadie llegó al 100% de su meta este mes.</p>
+        <span>Cuando alguien lo logre, aparecerá destacado aquí.</span>
+      </div></div>`;
+    } else {
+      var maxItemsDest = Math.max.apply(null, destacados.map(function (d) { return pickerItems(d.picker); }).concat([1]));
+      html += `<div class="cat-podium-row destacados-grid">`;
+      destacados.forEach(function (d) {
+        html += pillarCardHTML(d.picker, 1, maxItemsDest, 1, isInitial, {
+          award: true,
+          roleLabel: CATEGORIA_INFO[d.cat].label
+        });
+      });
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+    const cardsD = container.querySelectorAll(".pillar-card");
+    playPodiumIntro(container, cardsD, isInitial);
+  } else if (window._activeCategory === "rest") {
     var remaining = getRemainingPickers();
     html += `
       <div class="cat-podium cat-podium--full-width" style="--cat: #0B5F8D; --cat-soft: rgba(11, 95, 141, 0.08); width: 100%;">
@@ -752,9 +812,13 @@ function renderLeaderboard(isInitial = false) {
       var maxItemsCat = Math.max.apply(null, grupo.map(pickerItems).concat([1]));
       var maxMontoCat = Math.max.apply(null, grupo.map(pickerMonto).concat([1]));
 
+      // Galardón: el 1º en llegar al 100% de esta categoría (no necesariamente el rank-1 por score)
+      var primeroCode = (_primerosByCat[cat] || {}).preparador_codigo || null;
+
       html += `<div class="cat-podium-row">`;
       grupo.forEach(function (picker, index) {
-        html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial);
+        var isPrimero = !!(picker.codigo && picker.codigo === primeroCode);
+        html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial, { award: isPrimero });
       });
       html += `</div></div>`;
     });
@@ -818,7 +882,8 @@ function startPodiumFloat(container) {
 // Función de bucle de flotación continua 3D (Antigravitacional)
 
 
-function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial) {
+function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial, opts) {
+  opts = opts || {};
   var imgSrc = picker.avatarType === "preset"
     ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
     : picker.avatarValue;
@@ -829,8 +894,10 @@ function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial)
 
   var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
   var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
-  var roleLbl = rank + "º lugar";
-  var award = rank === 1 ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar"></div>' : '';
+  var roleLbl = opts.roleLabel || (rank + "º lugar");
+  // El galardón lo controla quien llama (1º en llegar al 100%); sin opción, no se muestra
+  var showAward = !!opts.award;
+  var award = showAward ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar"></div>' : '';
 
   return `
     <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
@@ -1745,7 +1812,7 @@ window.resetToMockData = function () {
 // openSummaryModal / closeSummaryModal — delegados a dashboard.js
 
 // ── Variables y Funciones del Auto-ciclo y Filtros de Categorías ──
-window._activeCategory = window._activeCategory || "all";
+window._activeCategory = window._activeCategory || "destacados";
 window._podiumAutoplay = window._podiumAutoplay !== undefined ? window._podiumAutoplay : false;
 window._autoplayTimer = window._autoplayTimer || null;
 

@@ -635,6 +635,7 @@ window.handleExcelUpload = function (event) {
         if (typeof loadData === 'function') {
           currentPeriodo = result.periodo;
           await loadData();
+          if (typeof refreshPrimeros === 'function') await refreshPrimeros();
           if (typeof renderLeaderboard === 'function') renderLeaderboard(true);
           if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
           if (typeof refreshUpdateChip === 'function') refreshUpdateChip();

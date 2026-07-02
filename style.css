@@ -4779,5 +4779,50 @@ body.tv-mode .pod-items-lbl { font-size: 0.9rem; }
 body.tv-mode .pod-items-num { font-size: 2.3rem; }
 body.tv-mode .pod-bar { height: 16px; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   DESTACADOS DEL MES — 1º en llegar al 100% de cada categoría
+   ═══════════════════════════════════════════════════════════════════ */
+.destacados-wrap { width: 100%; }
+.destacados-head {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 4px; padding: 8px 0 6px;
+}
+.destacados-kicker {
+  font: 700 0.66rem 'Inter', sans-serif; text-transform: uppercase;
+  letter-spacing: 2.6px; color: #9aa7b8;
+}
+.destacados-title {
+  font: 800 1.55rem 'Outfit', var(--font-main); color: var(--text-main);
+  letter-spacing: -0.4px; margin: 0;
+}
+.destacados-sub { font: 500 0.9rem 'DM Sans', sans-serif; color: #94a3b8; margin: 0; }
+
+/* Grilla de destacados: reutiliza las cards del podio, con wrap y centrado */
+.destacados-grid {
+  flex-wrap: wrap !important;
+  align-items: stretch !important;
+}
+.destacados-grid .pillar-card {
+  flex: 0 1 360px !important;
+  max-width: 400px !important;
+}
+
+/* Estado vacío */
+.destacados-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px; padding: 48px 24px 40px; color: var(--text-muted);
+}
+.destacados-empty-badge { width: 68px; opacity: 0.5; filter: grayscale(0.4); }
+.destacados-empty-badge img { width: 100%; height: auto; display: block; }
+.destacados-empty p { font: 700 1rem 'Outfit', sans-serif; color: var(--text-main); margin: 6px 0 0; }
+.destacados-empty span { font-size: 0.85rem; }
+
+/* Pestaña Destacados con acento */
+.tab-btn--star.active { background: #0B5F8D; border-color: #0B5F8D; }
+
+body.tv-mode .destacados-title { font-size: 2.2rem; }
+body.tv-mode .destacados-sub { font-size: 1.1rem; }
+body.tv-mode .destacados-grid .pillar-card { flex: 0 1 460px !important; max-width: 520px !important; }
+
 
 

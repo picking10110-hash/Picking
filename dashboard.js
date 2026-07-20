@@ -365,10 +365,13 @@ function switchView(viewName) {
   var newView = document.getElementById('view-' + viewName);
   if (!newView) return;
 
-  // Sidebar highlight
+  // Sidebar highlight (con pop del ícono activo — patrón Control de Facturas)
   document.querySelectorAll('.sidebar-icon').forEach(function (b) { b.classList.remove('active'); });
   document.querySelectorAll('.sidebar-icon[data-view]').forEach(function (b) {
-    if (b.dataset.view === viewName) b.classList.add('active');
+    if (b.dataset.view === viewName) {
+      b.classList.add('active');
+      if (window.gsap) gsap.fromTo(b, { scale: 0.78 }, { scale: 1, duration: 0.4, ease: 'back.out(2.2)', clearProps: 'transform' });
+    }
   });
 
   // Exit old view

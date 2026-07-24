@@ -1891,11 +1891,16 @@ function tvCycleCats() {
   var cats = ["destacados", "PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"].filter(catHasData);
   return cats.length ? cats : ["all"];
 }
-// Cuánto queda cada categoría en pantalla (Posiciones dura más: tiene que mostrar todas las páginas de a 3)
+// Cuánto queda cada categoría en pantalla (Posiciones dura una vuelta completa del scroll)
+var TVRANK_VISIBLE = 5, TVRANK_SPEED = 34; // filas visibles a la vez · velocidad px/s (lento)
+function tvRankAvail() { return Math.max(320, window.innerHeight - 210); }
 function catDwellMs(cat) {
   if (cat === 'rest') {
-    var pages = Math.ceil(getRemainingPickers().length / 3);
-    return Math.max(6, pages * 3.4 + 1.4) * 1000;
+    var n = getRemainingPickers().length;
+    if (n <= TVRANK_VISIBLE) return 9000;
+    var rowH = tvRankAvail() / TVRANK_VISIBLE;
+    var downDur = ((n - TVRANK_VISIBLE) * rowH) / TVRANK_SPEED;
+    return Math.round((2.2 + downDur + 2.4 + 1.8 + 1) * 1000); // pausas + scroll
   }
   return 6000;
 }
@@ -1925,22 +1930,38 @@ function stopPodiumAutoplay() {
   _clearAutoplayTimer();
   stopRestTicker();
 }
-// Ticker de "Posiciones" en TV: muestra de a 3 filas y baja la lista solo
-function stopRestTicker() { if (window._restTicker) { clearInterval(window._restTicker); window._restTicker = null; } }
+// Ticker de "Posiciones" en TV: muestra 5 filas y baja la lista con scroll continuo LENTO (sin saltos)
+function stopRestTicker() {
+  if (window._restTween) { window._restTween.kill(); window._restTween = null; }
+  if (window._restTicker) { clearInterval(window._restTicker); window._restTicker = null; }
+}
+// Dimensiona el ranking para que LLENE la pantalla (5 filas, o menos si hay menos)
+function layoutRestTV() {
+  var vp = document.getElementById('tvrank-vp'), list = document.getElementById('tvrank-list');
+  if (!vp || !list) return;
+  var rows = list.children.length; if (!rows) return;
+  var visible = Math.min(TVRANK_VISIBLE, rows);
+  var top = vp.getBoundingClientRect().top;
+  var avail = Math.max(320, window.innerHeight - top - 34);
+  vp.style.height = avail + 'px';
+  var rowH = Math.floor(avail / visible);
+  list.querySelectorAll('.tvrank-row').forEach(function (r) { r.style.height = rowH + 'px'; });
+}
 function startRestTicker() {
   stopRestTicker();
   var vp = document.getElementById('tvrank-vp'), list = document.getElementById('tvrank-list');
   if (!vp || !list) return;
-  var rows = list.children.length;
-  if (rows <= 3) return;
-  var pages = Math.ceil(rows / 3), page = 0;
-  window._restTicker = setInterval(function () {
-    page = (page + 1) % pages;
-    var vpH = vp.clientHeight, maxY = Math.min(0, vpH - list.scrollHeight), y = -(page * vpH);
-    if (y < maxY) y = maxY;
-    if (window.gsap) gsap.to(list, { y: y, duration: 0.85, ease: 'power2.inOut' });
-    else list.style.transform = 'translateY(' + y + 'px)';
-  }, 3200);
+  layoutRestTV();
+  if (list.children.length <= TVRANK_VISIBLE) return;   // entran todas, sin scroll
+  var distance = list.scrollHeight - vp.clientHeight;
+  if (distance <= 2 || !window.gsap) return;
+  var downDur = distance / TVRANK_SPEED; // segundos (lento)
+  window._restTween = gsap.timeline({ repeat: -1 })
+    .set(list, { y: 0 })
+    .to({}, { duration: 2.2 })                                   // pausa arriba
+    .to(list, { y: -distance, duration: downDur, ease: 'none' })// baja lento y parejo
+    .to({}, { duration: 2.4 })                                   // pausa abajo
+    .to(list, { y: 0, duration: 1.8, ease: 'power1.inOut' });    // vuelve suave al inicio
 }
 function buildRestTV(remaining) {
   var rows = remaining.map(function (p) {

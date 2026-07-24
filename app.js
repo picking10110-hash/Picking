@@ -1942,7 +1942,7 @@ function layoutRestTV() {
   var rows = list.children.length; if (!rows) return;
   var visible = Math.min(TVRANK_VISIBLE, rows);
   var top = vp.getBoundingClientRect().top;
-  var avail = Math.max(320, window.innerHeight - top - 34);
+  var avail = Math.max(320, window.innerHeight - top - 52);
   vp.style.height = avail + 'px';
   var rowH = Math.floor(avail / visible);
   list.querySelectorAll('.tvrank-row').forEach(function (r) { r.style.height = rowH + 'px'; });

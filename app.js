@@ -614,6 +614,7 @@ function getRemainingPickers() {
 // RENDERIZADO Y ANIMACIONES
 // ==========================================
 function renderLeaderboard(isInitial = false) {
+  stopRestTicker();
   const goalInput = document.getElementById("plant-goal-input");
   if (goalInput) goalInput.value = targetGoal;
 
@@ -708,6 +709,14 @@ function renderLeaderboard(isInitial = false) {
     playPodiumIntro(container, cardsD, isInitial);
   } else if (window._activeCategory === "rest") {
     var remaining = getRemainingPickers();
+    // En Modo TV: lista grande de a 3 que baja sola (ticker)
+    if (document.body.classList.contains('tv-mode')) {
+      html += buildRestTV(remaining);
+      container.innerHTML = html;
+      if (window.gsap) gsap.fromTo(container.querySelectorAll('.tvrank-row'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, ease: 'power2.out' });
+      startRestTicker();
+      return;
+    }
     html += `
       <div class="cat-podium cat-podium--full-width" style="--cat: #0B5F8D; --cat-soft: rgba(11, 95, 141, 0.08); width: 100%;">
         <div class="cat-header cat-header--podium">
@@ -1872,49 +1881,86 @@ function togglePodiumAutoplay() {
   renderLeaderboard(true);
 }
 
+// ¿La categoría tiene datos para mostrar? (para omitir vacías en el ciclo TV)
+function catHasData(cat) {
+  if (cat === 'destacados') return Object.keys(_primerosByCat).length > 0;
+  if (cat === 'rest') return getRemainingPickers().length > 0;
+  return pickers.some(function (p) { return pickerCategoria(p) === cat && pickerItems(p) > 0; });
+}
+function tvCycleCats() {
+  var cats = ["destacados", "PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"].filter(catHasData);
+  return cats.length ? cats : ["all"];
+}
+// Cuánto queda cada categoría en pantalla (Posiciones dura más: tiene que mostrar todas las páginas de a 3)
+function catDwellMs(cat) {
+  if (cat === 'rest') {
+    var pages = Math.ceil(getRemainingPickers().length / 3);
+    return Math.max(6, pages * 3.4 + 1.4) * 1000;
+  }
+  return 6000;
+}
+function _clearAutoplayTimer() { if (window._autoplayTimer) { clearTimeout(window._autoplayTimer); window._autoplayTimer = null; } }
+function _scheduleAutoplay() { _clearAutoplayTimer(); window._autoplayTimer = setTimeout(_autoplayAdvance, catDwellMs(window._activeCategory)); }
+function _autoplayAdvance() {
+  stopRestTicker();
+  var cats = tvCycleCats();
+  var idx = cats.indexOf(window._activeCategory);
+  idx = idx === -1 ? 0 : (idx + 1) % cats.length;
+  window._activeCategory = cats[idx];
+  var container = document.getElementById("pillars-container");
+  var exitItems = container ? container.querySelectorAll(".pillar-card, .remaining-table tbody tr, .tvrank-row") : [];
+  if (window.gsap && exitItems.length) {
+    gsap.to(exitItems, { opacity: 0, y: -20, duration: 0.35, stagger: 0.03, ease: "power2.in", onComplete: function () { renderLeaderboard(true); _scheduleAutoplay(); } });
+  } else { renderLeaderboard(true); _scheduleAutoplay(); }
+}
 function startPodiumAutoplay() {
   window._podiumAutoplay = true;
-  if (window._autoplayTimer) clearInterval(window._autoplayTimer);
-  
-  if (window._activeCategory === "all" || window._activeCategory === "rest") {
-    window._activeCategory = "destacados";
-  }
-
-  window._autoplayTimer = setInterval(function() {
-    const cats = ["destacados", "PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"];
-    let idx = cats.indexOf(window._activeCategory);
-    idx = (idx + 1) % cats.length;
-    window._activeCategory = cats[idx];
-    
-    const container = document.getElementById("pillars-container");
-    if (container) {
-      const exitItems = container.querySelectorAll(".pillar-card, .remaining-table tbody tr");
-      if (exitItems.length > 0) {
-        gsap.to(exitItems, {
-          opacity: 0,
-          y: -20,
-          duration: 0.35,
-          stagger: 0.03,
-          ease: "power2.in",
-          onComplete: () => {
-            renderLeaderboard(true);
-          }
-        });
-      } else {
-        renderLeaderboard(true);
-      }
-    } else {
-      renderLeaderboard(true);
-    }
-  }, 6000);
+  _clearAutoplayTimer();
+  var cats = tvCycleCats();
+  if (cats.indexOf(window._activeCategory) === -1) window._activeCategory = cats[0];
+  _scheduleAutoplay();
 }
-
 function stopPodiumAutoplay() {
   window._podiumAutoplay = false;
-  if (window._autoplayTimer) {
-    clearInterval(window._autoplayTimer);
-    window._autoplayTimer = null;
-  }
+  _clearAutoplayTimer();
+  stopRestTicker();
+}
+// Ticker de "Posiciones" en TV: muestra de a 3 filas y baja la lista solo
+function stopRestTicker() { if (window._restTicker) { clearInterval(window._restTicker); window._restTicker = null; } }
+function startRestTicker() {
+  stopRestTicker();
+  var vp = document.getElementById('tvrank-vp'), list = document.getElementById('tvrank-list');
+  if (!vp || !list) return;
+  var rows = list.children.length;
+  if (rows <= 3) return;
+  var pages = Math.ceil(rows / 3), page = 0;
+  window._restTicker = setInterval(function () {
+    page = (page + 1) % pages;
+    var vpH = vp.clientHeight, maxY = Math.min(0, vpH - list.scrollHeight), y = -(page * vpH);
+    if (y < maxY) y = maxY;
+    if (window.gsap) gsap.to(list, { y: y, duration: 0.85, ease: 'power2.inOut' });
+    else list.style.transform = 'translateY(' + y + 'px)';
+  }, 3200);
+}
+function buildRestTV(remaining) {
+  var rows = remaining.map(function (p) {
+    var totalItems = pickerItems(p), goalPercent = getMetaPercent(p);
+    var catInfo = CATEGORIA_INFO[pickerCategoria(p)] || { color: '#0B5F8D', label: '' };
+    var imgSrc = p.avatarType === "preset" ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
+    return '<div class="tvrank-row">' +
+      '<div class="tvrank-pos">' + (p.catRank ? '#' + p.catRank : '') + '</div>' +
+      '<img class="tvrank-ava" src="' + imgSrc + '" alt="">' +
+      '<div class="tvrank-id"><span class="tvrank-name">' + p.name + '</span>' +
+        '<span class="tvrank-cat" style="color:' + catInfo.color + '">' + catInfo.label + '</span></div>' +
+      '<div class="tvrank-items">' + totalItems.toLocaleString() + '<small>items</small></div>' +
+      '<div class="tvrank-meta"><span class="tvrank-pct">' + goalPercent + '%</span>' +
+        '<div class="tvrank-track"><div class="tvrank-fill" style="width:' + Math.min(goalPercent, 100) + '%;background:' + (goalPercent >= 100 ? '#10b981' : '#f59e0b') + '"></div></div></div>' +
+      '</div>';
+  }).join('');
+  return '<div class="cat-podium cat-podium--full-width" style="--cat:#0B5F8D;--cat-soft:rgba(11,95,141,0.08);width:100%;">' +
+    '<div class="cat-header cat-header--podium"><span class="cat-header__kicker">Ranking</span><span class="cat-header__title">Posiciones</span></div>' +
+    '<div class="tvrank-viewport" id="tvrank-vp"><div class="tvrank-list" id="tvrank-list">' + rows + '</div></div>' +
+    '</div>';
 }
 
 // Exportar a global de forma segura

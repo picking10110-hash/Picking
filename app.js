@@ -1794,8 +1794,35 @@ function setTVModeState(enableTV) {
   renderLeaderboard(true);
 }
 
-window.enterTVMode = function () { window.location.hash = "tv"; };
-window.exitTVMode = function () { window.location.hash = ""; };
+function _fsElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+}
+function _requestFullscreen() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if (req) { try { const p = req.call(el); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+}
+function _exitFullscreen() {
+  if (!_fsElement()) return;
+  const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+  if (ex) { try { const p = ex.call(document); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+}
+window.enterTVMode = function () {
+  _requestFullscreen();            // pantalla completa REAL (oculta el marco del launcher/navegador)
+  window.location.hash = "tv";
+};
+window.exitTVMode = function () {
+  _exitFullscreen();
+  window.location.hash = "";
+};
+// Si el usuario sale de pantalla completa (tecla ESC), salir también del Modo TV
+["fullscreenchange", "webkitfullscreenchange", "msfullscreenchange"].forEach(function (ev) {
+  document.addEventListener(ev, function () {
+    if (!_fsElement() && document.body.classList.contains("tv-mode")) {
+      window.location.hash = "";
+    }
+  });
+});
 
 window.resetToMockData = function () {
   if (!window._alasCanEdit) return;

@@ -1932,18 +1932,29 @@ img {
    MODO TV (PANTALLA COMPLETA EN ALMACÉN) - OPTIMIZADO TEMA PLANO
    ========================================== */
 body.tv-mode {
-  padding: 0;
-  background: #f8fafc;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #eef2f7;
   overflow: hidden;
 }
 
-body.tv-mode .layout { padding: 0; }
-
+/* Full-bleed: cero marco blanco alrededor en Modo TV */
+body.tv-mode .layout { padding: 0 !important; margin: 0 !important; height: 100vh; }
 body.tv-mode .system-shell {
-  height: 100vh;
-  max-height: 100vh;
-  border-radius: 0;
-  box-shadow: none;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+body.tv-mode .stage { padding: 0 !important; margin-left: 0 !important; }
+body.tv-mode .pillars-wrap { padding: 0 !important; margin: 0 !important; height: 100vh; }
+body.tv-mode .pillars-stage {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  padding: 96px 48px 28px !important;
+  border-radius: 0 !important;
 }
 
 body.tv-mode .sidebar-wave { display: none; }

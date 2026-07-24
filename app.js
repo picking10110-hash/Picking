@@ -1964,12 +1964,12 @@ function startRestTicker() {
     .to(list, { y: 0, duration: 1.8, ease: 'power1.inOut' });    // vuelve suave al inicio
 }
 function buildRestTV(remaining) {
-  var rows = remaining.map(function (p) {
+  var rows = remaining.map(function (p, i) {
     var totalItems = pickerItems(p), goalPercent = getMetaPercent(p);
     var catInfo = CATEGORIA_INFO[pickerCategoria(p)] || { color: '#0B5F8D', label: '' };
     var imgSrc = p.avatarType === "preset" ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
     return '<div class="tvrank-row">' +
-      '<div class="tvrank-pos">' + (p.catRank ? '#' + p.catRank : '') + '</div>' +
+      '<div class="tvrank-pos">#' + (i + 4) + '</div>' +
       '<img class="tvrank-ava" src="' + imgSrc + '" alt="">' +
       '<div class="tvrank-id"><span class="tvrank-name">' + p.name + '</span>' +
         '<span class="tvrank-cat" style="color:' + catInfo.color + '">' + catInfo.label + '</span></div>' +

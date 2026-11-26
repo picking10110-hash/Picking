@@ -1928,14 +1928,14 @@
       var prev = null;
       var TL_ICO = [STG_ICO.lib, STG_ICO.pre, SV('<path d="M9 11l2.5 2.5L16 9"/><rect x="4" y="4" width="16" height="16" rx="3"/>'), SV('<path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8L12 12.5 20.5 8M8 5.8l8.5 4.6"/>'), STG_ICO.fac, STG_ICO.tra, SV('<path d="M20 6L9 17l-5-5"/>')];
       var ultimo = -1; hitos.forEach(function (h, i) { if (h[1]) ultimo = i; });
-      var el2 = q('#dwTl', bd); el2.className = 'tl2';
+      var el2 = q('#dwTl', bd); el2.className = 'tl2 tl3';
       el2.innerHTML = hitos.map(function (h, i) {
         var dlt = '';
         if (h[1] && prev) { var j = CALC.jornadas(CALC.aMin(prev), CALC.aMin(h[1])); dlt = '<span class="tl-d">+' + tiempo(j, true) + '</span>'; }
         if (h[1]) prev = h[1];
         var est = h[1] ? (i === hitos.length - 1 ? ' on fin' : ' on') : (i < ultimo ? ' skip' : '');
-        var sub = h[1] ? fechaHora(h[1]) : i < ultimo ? 'Sin registro en SAP' : 'Pendiente';
-        return '<div class="tl2-it' + est + (i < ultimo ? ' pasa' : '') + '"><div class="tl2-ic">' + TL_ICO[i] + '</div><div class="tl2-tx"><b>' + esc(h[0]) + '</b><small>' + sub + '</small></div>' + dlt + '</div>';
+        var sub = h[1] ? fechaHora(h[1]) : i < ultimo ? '<span title="La etapa no quedó registrada en SAP">Sin registro</span>' : 'Pendiente';
+        return '<div class="tl2-it' + est + (i < ultimo ? ' pasa' : '') + (i > 0 && i <= ultimo ? ' llega' : '') + '"><div class="tl2-ic">' + TL_ICO[i] + '</div><div class="tl2-tx"><b>' + esc(h[0]) + '</b><small>' + sub + '</small></div>' + dlt + '</div>';
       }).join('');
       q('#dwEnt', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Entrega</th><th>Alm.</th><th>Etapa</th><th>Chofer</th><th>Entregado</th></tr></thead><tbody>' +
         ents.map(function (e) { return '<tr><td class="b">' + esc(e.entrega) + '</td><td>' + esc(e.almacen || '—') + '</td><td>' + etapaChip(e) + '</td><td>' + esc(e.usuario_transp || '—') + '</td><td>' + fechaHora(e.ts_entrega) + '</td></tr>'; }).join('') +

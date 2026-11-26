@@ -1670,3 +1670,30 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .ot-meter__hd b{margin-left:auto}
 .ot-meter__n{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);font-style:normal;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap}
 .ot-meter__n strong{font-family:Sora,Inter,sans-serif;font-weight:800;color:#fff}
+
+/* ===== Zonas: Capital e Interior arriba, lado a lado y compactas ===== */
+.zn-stack--top{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.zn-stack--top .zn-card{display:grid;grid-template-columns:auto minmax(120px,1fr) auto;grid-template-areas:"top top top" "big meter foot";align-items:center;column-gap:22px;row-gap:12px;padding:16px 20px}
+.zn-stack--top .zn-top{grid-area:top;margin:0}
+.zn-stack--top .zn-big{grid-area:big;font-size:38px;flex-direction:column;align-items:flex-start;gap:2px}
+.zn-stack--top .zn-big small{font-size:11px}
+.zn-stack--top .zn-meter{grid-area:meter;margin:0 0 14px;height:10px}
+.zn-stack--top .zn-meter em i{top:15px}
+.zn-stack--top .ot-foot{grid-area:foot;margin:0;padding:0;border:0;display:flex;gap:0}
+.zn-stack--top .ot-st{padding:0 12px;border-left:1px solid rgba(255,255,255,.18)}
+.zn-stack--top .ot-st b{font-size:15px;white-space:nowrap}
+.zn-stack--top .ot-st span{font-size:9.5px;white-space:nowrap}
+.zn-stack--top .zn-tag{height:30px}
+.zn-stack--top .zn-chips .st-meta,.zn-stack--top .zn-chips .meta{height:24px}
+@media(max-width:1500px){.zn-stack--top .zn-card{grid-template-columns:auto 1fr;grid-template-areas:"top top" "big meter" "foot foot"}.zn-stack--top .ot-foot{justify-content:flex-start}.zn-stack--top .ot-st:first-child{padding-left:0;border-left:0}}
+@media(max-width:1100px){.zn-stack--top{grid-template-columns:1fr}}
+
+/* ===== Selección de departamentos sin borde negro ===== */
+.zn-di:focus{outline:none}
+.zn-di:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(37,128,212,.35)}
+.zn-di.on:focus-visible{box-shadow:0 0 0 3px rgba(37,128,212,.35),0 6px 14px -8px rgba(11,79,138,.6)}
+.zn-dl-all:focus,.zn-finfo button:focus{outline:none}
+.zn-dl-all:focus-visible,.zn-finfo button:focus-visible{box-shadow:0 0 0 3px rgba(37,128,212,.35)}
+/* durante el zoom el mapa no reacciona al mouse (evita trabajo extra) */
+.zn-map__box.zooming{pointer-events:none}
+.zn-map__box.zooming .pm-o{display:none}

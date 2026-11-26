@@ -719,9 +719,9 @@
     }
     body.innerHTML =
       // Diseño en dos columnas: [Capital · Interior · ranking] | [mapa fijo a la derecha]
+      '<div class="zn-stack zn-stack--top">' + zonas.map(zonaCard).join('') + '</div>' +
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
-          '<div class="zn-stack">' + zonas.map(zonaCard).join('') + '</div>' +
           '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Ranking por departamento</h3>' +
             '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Más pedidos faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor cumplimiento</button></div></div></div>' +
             '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
@@ -816,7 +816,7 @@
     ZN._alFiltrar = function () {
       var l = ZN.deps || [];
       if (ZN.abierto && l.length && l.indexOf(ZN.abierto) < 0) ZN.abierto = null;
-      var abrir = l.length === 1 ? l[0] : null;
+      var abrir = l.length ? l[l.length - 1] : null;   // se despliega el último elegido
       if (abrir) ZN.abierto = null;
       pintarFilas(true);
       if (abrir) { var r = q('#znRows .zn-row[data-dep="' + abrir + '"]'); if (r) toggleDep(r.parentNode, abrir); }
@@ -827,14 +827,14 @@
       if (GS) gsap.fromTo('#znFInfo', { backgroundColor: '#CFE4FA' }, { backgroundColor: '#EEF5FC', duration: 1.2, ease: 'power1.out', clearProps: 'backgroundColor' });
     };
     pintarFilas(entrada);
-    requestAnimationFrame(function () { requestAnimationFrame(function () { if (!q('#znMapBox') || VIEW !== 'zonas') return; mapApi = pintarMapa(deps, meta, entrada, function (dep) {
+    setTimeout(function () { if (!q('#znMapBox') || VIEW !== 'zonas') return; mapApi = pintarMapa(deps, meta, entrada, function (dep) {
       var r = qa('#znRows .zn-row[data-dep]').filter(function (x) { return x.dataset.dep === dep; })[0];
       if (!r) return;
       if (!r.parentNode.classList.contains('open')) toggleDep(r.parentNode, dep);
       var st = q('#stage'), top = r.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop - 90;
       if (GS) gsap.to(st, { scrollTop: top, duration: .6, ease: 'power2.inOut' }); else st.scrollTop = top;
       if (GS) gsap.fromTo(r, { backgroundColor: '#dbeafe' }, { backgroundColor: 'rgba(0,0,0,0)', duration: 1.4, delay: .4, ease: 'power1.out', clearProps: 'backgroundColor' });
-    }); }); });
+    }); }, GS && entrada !== false ? 380 : 0);   // el mapa se dibuja cuando termina la entrada de la página
 
     // animación de las tarjetas de zona
     qa('.zn-card').forEach(function (c, i) {
@@ -1223,9 +1223,9 @@
     VIEW = 'resumen'; setNav('resumen');
     var st = q('#stage');
     if (!GS) { renderShell(); return; }
-    gsap.to(st, { opacity: 0, y: 12, filter: 'blur(6px)', duration: .28, ease: 'power2.in', onComplete: function () {
+    gsap.to(st, { opacity: 0, y: 12, duration: .26, ease: 'power2.in', onComplete: function () {
       renderShell();
-      gsap.fromTo(st, { opacity: 0, y: -14, filter: 'blur(6px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .55, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
+      gsap.fromTo(st, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
     } });
   }
 
@@ -1385,11 +1385,22 @@
     function aplicarFiltro(anim, usuario) {
       var set = ZN.deps && ZN.deps.length ? ZN.deps.filter(function (k) { return by[k]; }) : null;
       var vis = function (k) { return !set || set.indexOf(k) >= 0; };
-      qa('[data-k]', svg).forEach(function (n) {
-        var v = vis(n.dataset.k);
-        n.style.pointerEvents = v ? '' : 'none';
-        if (GS && anim) gsap.to(n, { opacity: v ? 1 : 0, duration: .45, ease: 'power2.inOut' }); else n.style.opacity = v ? 1 : 0;
+      // piezas: solo se animan las que cambian de estado (una sola animación para todas)
+      var mostrar = [], ocultar = [];
+      qa('[data-k]:not(.pm-t)', svg).forEach(function (n) {
+        var v = vis(n.dataset.k), antes = n.dataset.v !== '0';
+        n.style.pointerEvents = v ? '' : 'none'; n.dataset.v = v ? '1' : '0';
+        if (v !== antes) (v ? mostrar : ocultar).push(n);
       });
+      var etiq = qa('.pm-t', svg);
+      if (GS && anim) {
+        if (ocultar.length) gsap.to(ocultar, { opacity: 0, duration: .35, ease: 'power2.in', overwrite: true });
+        if (mostrar.length) gsap.to(mostrar, { opacity: 1, duration: .4, delay: .2, ease: 'power2.out', overwrite: true });
+        gsap.to(etiq, { opacity: 0, duration: .15, ease: 'power1.in', overwrite: true });   // las etiquetas se apagan durante el zoom
+      } else {
+        ocultar.forEach(function (n) { n.style.opacity = 0; }); mostrar.forEach(function (n) { n.style.opacity = 1; });
+        etiq.forEach(function (t) { t.style.opacity = vis(t.dataset.k) ? 1 : 0; });
+      }
       // encuadre: caja de los elegidos (+ el relieve), con el mismo formato del mapa
       var vb = VB0.slice();
       if (set) {
@@ -1405,12 +1416,20 @@
       }
       ZOOM = vb[2] / VB0[2];
       var str = vb.map(function (v) { return v.toFixed(1); }).join(' ');
-      if (GS && anim) { gsap.to(svg, { attr: { viewBox: str }, '--z': ZOOM, duration: .85, ease: 'power3.inOut' }); }
-      else { svg.setAttribute('viewBox', str); svg.style.setProperty('--z', ZOOM); }
       if (set && set.indexOf(sel) < 0) { var mejor = orden.filter(function (d) { return set.indexOf(d.clave) >= 0; })[0]; if (mejor) sel = ZN.sel = mejor.clave; }
-      volver();
       pintarBotonFiltro();
-      if (usuario && ZN._alFiltrar) ZN._alFiltrar();
+      var alTerminar = function () {
+        svg.style.setProperty('--z', ZOOM);   // tamaño de etiquetas: una sola vez, al final
+        volver();
+        var ve = etiq.filter(function (t) { return vis(t.dataset.k); });
+        etiq.forEach(function (t) { if (!vis(t.dataset.k)) t.style.opacity = 0; });
+        if (GS && anim) gsap.fromTo(ve, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, stagger: .03, ease: 'power2.out', overwrite: true, clearProps: 'transform' }); else ve.forEach(function (t) { t.style.opacity = 1; });
+        if (usuario && ZN._alFiltrar) requestAnimationFrame(function () { ZN._alFiltrar(); });
+      };
+      if (GS && anim) {
+        var mapa = svg.closest('.zn-map__box');
+        gsap.to(svg, { attr: { viewBox: str }, duration: .7, delay: .1, ease: 'power3.inOut', overwrite: true, onStart: function () { mapa.classList.add('zooming'); }, onComplete: function () { mapa.classList.remove('zooming'); alTerminar(); } });
+      } else { svg.setAttribute('viewBox', str); alTerminar(); }
     }
     var fw = q('#znMFilW');
     var dl = q('#znDList'), LISTA = deps.slice();
@@ -2161,10 +2180,10 @@
     if (!body) { renderShell(); return; }
     if (!GS || !cambio) { renderPagina(true); return; }
     gsap.killTweensOf(body);
-    gsap.to(body, { opacity: 0, y: 10, filter: 'blur(5px)', duration: .2, ease: 'power2.in', onComplete: function () {
+    gsap.to(body, { opacity: 0, y: 8, duration: .18, ease: 'power2.in', onComplete: function () {
       q('#stage').scrollTop = 0;
       renderPagina(true);
-      gsap.fromTo(body, { opacity: 0, y: -10, filter: 'blur(5px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .42, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
+      gsap.fromTo(body, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .4, ease: 'power3.out', clearProps: 'transform,opacity' });
     } });
   }
 

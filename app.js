@@ -731,7 +731,7 @@
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
           '<div class="zn-stack zn-stack--top zn-stack--col">' + zonas.map(zonaCard).join('') + '</div>' +
-          '<div class="ot-card" id="znRank"><div class="ot-card__h"><div class="zn-rk-t"><h3>Ranking por departamento</h3><div class="ot-legend zn-rk-leg"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span></div></div>' +
+          '<div class="ot-card" id="znRank"><div class="ot-card__h"><div class="zn-rk-t"><h3>Ranking por departamento</h3></div>' +
             '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Más pedidos faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor cumplimiento</button></div></div></div>' +
             '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
             '<div class="zn-finfo" id="znFInfo" hidden></div>' +
@@ -790,22 +790,36 @@
         var go = function () { var c = r.dataset.city; abrirVendedores(tCase(c), dep + ' · ' + (zonaDe[dep] || ''), evDep.filter(function (o) { return (o.p.region_nombre || o.p.region_cod || '—') === c; }), { dep: dep, city: c }); };
         r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       });
-      qa('.zn-bar span', box).forEach(function (s) { s.style.width = s.dataset.w + '%'; });
-      if (!GS || animar === false) { box.style.height = 'auto'; return; }
-      gsap.fromTo(box, { height: 0 }, { height: 'auto', duration: .45, ease: 'power3.out' });
-      gsap.from(qa('.zn-row', box), { opacity: 0, y: -6, duration: .3, stagger: .025, delay: .08, ease: 'power2.out', clearProps: 'transform,opacity' });
+      var barras = qa('.zn-bar span', box);
+      if (!GS || animar === false) { barras.forEach(function (s) { s.style.width = s.dataset.w + '%'; }); box.style.height = 'auto'; return; }
+      gsap.fromTo(box, { height: 0 }, { height: 'auto', duration: .42, ease: 'power3.out', overwrite: true });
+      var vis = qa('.zn-subh, .zn-row', box).slice(0, 10);       // solo lo que se ve se anima
+      gsap.from(vis, { opacity: 0, y: -6, duration: .28, stagger: .03, delay: .06, ease: 'power2.out', clearProps: 'transform,opacity' });
+      crecer(barras.slice(9), { anim: false });
+      crecer(barras.slice(0, 9), { delay: .15, stagger: .03, dur: .6 });
     }
     function toggleDep(grp, dep) {
-      var abierto = grp.classList.contains('open');
+      var abierto = grp.classList.contains('open'), rows = q('#znRows'), fila0 = q('.zn-row', grp);
+      var antes = fila0.getBoundingClientRect().top;
+      var fijar = function () { var d = fila0.getBoundingClientRect().top - antes; if (Math.abs(d) > .5) rows.scrollTop += d; };   // ancla la fila tocada
       qa('#znRows .zn-grp.open').forEach(function (g) {
         if (g === grp) return;
         g.classList.remove('open'); var b = q('.zn-sub', g);
-        if (GS) gsap.to(b, { height: 0, duration: .3, ease: 'power2.in', onComplete: function () { b.innerHTML = ''; } }); else { b.innerHTML = ''; b.style.height = '0'; }
+        var arriba = g.compareDocumentPosition(grp) & Node.DOCUMENT_POSITION_FOLLOWING;
+        if (GS) gsap.to(b, { height: 0, duration: .3, ease: 'power2.inOut', overwrite: true, onUpdate: arriba ? fijar : null, onComplete: function () { b.innerHTML = ''; if (arriba) fijar(); } });
+        else { b.innerHTML = ''; b.style.height = '0'; if (arriba) fijar(); }
       });
       if (abierto) {
         grp.classList.remove('open'); ZN.abierto = null; var b2 = q('.zn-sub', grp);
         if (GS) gsap.to(b2, { height: 0, duration: .3, ease: 'power2.in', onComplete: function () { b2.innerHTML = ''; } }); else { b2.innerHTML = ''; b2.style.height = '0'; }
-      } else { grp.classList.add('open'); ZN.abierto = dep; llenarSub(grp, dep, true); }
+      } else {
+        grp.classList.add('open'); ZN.abierto = dep; llenarSub(grp, dep, true);
+        // si la fila quedó muy abajo, se acerca suave al inicio de la tabla para ver sus ciudades
+        setTimeout(function () {
+          var rr = fila0.getBoundingClientRect(), cr = rows.getBoundingClientRect();
+          if (rr.top - cr.top > cr.height * .45) { var t = rows.scrollTop + (rr.top - cr.top) - 6; if (GS) gsap.to(rows, { scrollTop: t, duration: .5, ease: 'power3.inOut' }); else rows.scrollTop = t; }
+        }, GS ? 320 : 0);
+      }
     }
     qa('#znSort button').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -1486,7 +1500,7 @@
           bt.addEventListener('mouseleave', salirSinTip);
         });
         q('.zn-dl-all', dl).addEventListener('click', function () { ZN.deps = []; aplicarFiltro(true, true); });
-        if (GS) gsap.from(qa('.zn-di', dl), { opacity: 0, x: 12, duration: .32, stagger: .025, delay: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
+        if (GS) gsap.from(q('.zn-dl-b', dl), { opacity: 0, x: 12, duration: .45, delay: .25, ease: 'power3.out', clearProps: 'transform,opacity' });
       }
       qa('.zn-di', dl).forEach(function (bt) { bt.classList.toggle('on', e2.indexOf(bt.dataset.dk) >= 0); });
       dl.classList.toggle('filtra', e2.length > 0);
@@ -1543,13 +1557,14 @@
     var orden2 = deps.slice().sort(function (a, b) { return a.pOtif - b.pOtif; }).map(function (d) { return d.clave; });
     qa('.pm-d:not(.has)', svg).forEach(function (p) { p.setAttribute('fill', '#e2e8f0'); });
     if (GS && entrada !== false) {
-      gsap.from(svg, { opacity: 0, scale: .96, transformOrigin: '50% 50%', duration: .5, ease: 'power2.out', clearProps: 'transform,opacity' });
-      orden2.forEach(function (k, i) { (pathsPorK[k] || []).forEach(function (p) { gsap.to(p, { attr: { fill: colorDe(k) }, duration: .45, delay: .25 + i * .07, ease: 'power2.out' }); }); });
-      gsap.from(qa('.pm-t', svg), { opacity: 0, y: 6, duration: .35, stagger: .03, delay: .35 + orden2.length * .07, ease: 'power2.out', clearProps: 'transform,opacity' });
+      // colores finales de una vez; la caja del mapa entra como una sola capa (la mueve la placa de video)
+      qa('.pm-d', svg).forEach(function (p) { p.setAttribute('fill', colorDe(p.dataset.k)); });
+      gsap.fromTo(box, { opacity: 0, y: 14, scale: .985 }, { opacity: 1, y: 0, scale: 1, duration: .55, ease: 'power3.out', force3D: true, clearProps: 'transform,opacity,willChange', onStart: function () { box.style.willChange = 'transform,opacity'; } });
+      gsap.from(qa('.pm-t', svg), { opacity: 0, duration: .35, stagger: .025, delay: .45, ease: 'power1.out', clearProps: 'opacity' });
     } else {
       qa('.pm-d', svg).forEach(function (p) { p.setAttribute('fill', colorDe(p.dataset.k)); });
     }
-    setTimeout(function () { if (ZN.deps && ZN.deps.length) aplicarFiltro(true); else volver(); }, GS && entrada !== false ? 350 + orden2.length * 70 : 0);
+    setTimeout(function () { if (ZN.deps && ZN.deps.length) aplicarFiltro(true); else volver(); }, GS && entrada !== false ? 650 : 0);
     return {
       filtro: function (l) { ZN.deps = l; aplicarFiltro(true, true); },
       foco: function (k) {

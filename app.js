@@ -730,8 +730,8 @@
           '</div>' +
         '</div>' +
         '<div class="zn-right">' +
-          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-mfil-w" id="znMFilW"></div><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
-            '<div class="zn-map__box" id="znMapBox"></div><div class="pm-scale" id="znMapLeg"></div><div class="md" id="znDet"></div></div>' +
+          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
+            '<div class="zn-map__wrap"><div class="zn-map__box" id="znMapBox"></div><div class="zn-dlist" id="znDList"></div></div><div class="pm-scale" id="znMapLeg"></div><div class="md" id="znDet"></div></div>' +
         '</div>' +
       '</div>';
 
@@ -1244,10 +1244,6 @@
     var asu = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0];
     box.innerHTML = '<svg viewBox="-10 -10 ' + (M.w + 20) + ' ' + (M.h + 20) + '" role="img" aria-label="Mapa de cumplimiento por departamento">' +
       '<defs><filter id="pmSh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0f172a" flood-opacity=".28"/></filter></defs>' +
-      '<g class="pm-ext">' + [6, 5, 4, 3, 2, 1].map(function (i) {
-        return '<g class="pm-x" style="--i:' + i + '">' + M.deptos.map(function (d) { return '<path data-k="' + esc(d.k) + '" d="' + d.d + '" fill="#cbd5e1"/>'; }).join('') +
-          (asu ? '<circle data-k="Asuncion" cx="' + asu.cx + '" cy="' + asu.cy + '" r="15" fill="#cbd5e1"/>' : '') + '</g>';
-      }).join('') + '</g>' +
       '<g class="pm-g">' + M.deptos.map(function (d) {
         return '<path class="pm-d' + (by[d.k] ? ' has' : '') + '" data-k="' + esc(d.k) + '" d="' + d.d + '" fill="#e2e8f0"/>';
       }).join('') +
@@ -1290,8 +1286,8 @@
       svg.classList.toggle('foco', !!k && apagar !== false);
       qa('.pm-d', svg).forEach(function (p) { p.classList.toggle('on', p.dataset.k === k); });
       var capa = q('.pm-o', svg);
-      capa.innerHTML = k ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', colorDe(k)); return c.outerHTML; }).join('') : '';
-      if (GS && k) gsap.fromTo(qa('.pm-hl', capa), { y: 0 }, { y: -9 * (ZOOM || 1), duration: .28, ease: 'back.out(2)' }); else qa('.pm-hl', capa).forEach(function (h) { h.setAttribute('transform', 'translate(0,' + (-9 * (ZOOM || 1)) + ')'); });
+      capa.innerHTML = k ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', colorDe(k)); var g = p.cloneNode(false); g.removeAttribute('data-k'); g.setAttribute('class', 'pm-glow'); g.setAttribute('fill', 'none'); return g.outerHTML + c.outerHTML; }).join('') : '';
+      if (GS && k) { gsap.fromTo(qa('.pm-hl', capa), { scale: 1 }, { scale: 1.035, transformOrigin: '50% 50%', duration: .32, ease: 'power3.out' }); gsap.fromTo(qa('.pm-glow', capa), { opacity: 0, scale: 1 }, { opacity: 1, scale: 1.035, transformOrigin: '50% 50%', duration: .32, ease: 'power3.out' }); }
       qa('.pm-t', svg).forEach(function (t) { t.classList.toggle('on', t.dataset.k === k); });
       qa('#znRows .zn-row[data-dep]').forEach(function (r) { r.classList.toggle('hl', r.dataset.dep === k); });
     }
@@ -1393,15 +1389,34 @@
       pintarBotonFiltro();
     }
     var fw = q('#znMFilW');
-    function pintarBotonFiltro() {
-      if (!fw) return;
-      var n = ZN.deps && ZN.deps.length ? ZN.deps.length : 0;
-      var b = q('.zn-mfil', fw);
-      if (!b) { fw.innerHTML = '<button type="button" class="zn-mfil">' + SV('<path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/>') + '<span></span><em hidden></em>' + SV('<path d="M6 9l6 6 6-6"/>') + '</button>'; b = q('.zn-mfil', fw); b.addEventListener('click', abrirFiltro); }
-      q('span', b).textContent = n === 0 ? 'Todos los departamentos' : n === 1 ? nombreDe(ZN.deps[0]) : 'Departamentos';
-      var em = q('em', b); em.hidden = n < 2; em.textContent = n;
-      b.classList.toggle('on', n > 0);
+    var dl = q('#znDList'), LISTA = deps.slice().sort(function (a, b) { return b.evaluados - a.evaluados; });
+    function pintarBotonFiltro() {   // (ahora: lista fija a la derecha del mapa)
+      if (!dl) return;
+      var e2 = ZN.deps || [];
+      if (!q('.zn-di', dl)) {
+        dl.innerHTML = '<div class="zn-dl-h"><span>Departamentos</span><button type="button" class="zn-dl-all">Todos</button></div><div class="zn-dl-b">' +
+          LISTA.map(function (d) {
+            return '<button type="button" class="zn-di" data-dk="' + esc(d.clave) + '"><i style="background:' + mapColor(d.pOtif, meta) + '"></i><span>' + esc(nombreDe(d.clave)) + '</span><b style="color:' + mapColor(d.pOtif, meta) + '">' + Math.round(d.pOtif) + '%</b></button>';
+          }).join('') + '</div>';
+        qa('.zn-di', dl).forEach(function (bt) {
+          var k = bt.dataset.dk;
+          bt.addEventListener('click', function () {
+            var l = (ZN.deps || []).slice(), i = l.indexOf(k);
+            if (i >= 0) l.splice(i, 1); else l.push(k);
+            ZN.deps = l; aplicarFiltro(true);
+            if (GS) gsap.fromTo(bt, { scale: .95 }, { scale: 1, duration: .35, ease: 'back.out(2.6)', clearProps: 'transform' });
+          });
+          bt.addEventListener('mouseenter', function () { if (!ZN.deps || !ZN.deps.length || ZN.deps.indexOf(k) >= 0) { entrar(k); tip.hidden = true; } });
+          bt.addEventListener('mouseleave', salirSinTip);
+        });
+        q('.zn-dl-all', dl).addEventListener('click', function () { ZN.deps = []; aplicarFiltro(true); });
+        if (GS) gsap.from(qa('.zn-di', dl), { opacity: 0, x: 12, duration: .32, stagger: .025, delay: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
+      }
+      qa('.zn-di', dl).forEach(function (bt) { bt.classList.toggle('on', e2.indexOf(bt.dataset.dk) >= 0); });
+      dl.classList.toggle('filtra', e2.length > 0);
+      q('.zn-dl-all', dl).classList.toggle('on', !e2.length);
     }
+    function salirSinTip() { salir(); }
     function abrirFiltro(e) {
       e.stopPropagation();
       var vieja = q('.dd-pop', fw); if (vieja) { vieja._cerrar(); return; }

@@ -113,7 +113,7 @@
     if (c.error) throw c.error;
     CFG = (c.data && c.data.data) || {};
     CALC = OtifCalc.crear(CFG);
-    var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos').order('cargado_en', { ascending: false });
+    var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos,pedidos_nuevos,filas').order('cargado_en', { ascending: false });
     if (im.error) throw im.error;
     IMPORTS = im.data || [];
     TCACHE = {};   // datos nuevos: la tendencia vuelve a pedir los meses
@@ -144,68 +144,126 @@
   }
   function diaPY(iso) { var t = CALC.aMin(iso); return new Date(t * 60000).toISOString().slice(0, 10); }
 
-  /* ── Toolbar ── */
+  /* ── Toolbar ──
+     [título]          [Total · Ferretería · Hierros]          [mes ▾] [última actualización] [↻]  */
   function mesLbl(ym) { return ym ? MESES[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4) : '—'; }
+  var SCOPES = [['tot', 'Total', 'grid', '#0B4F8A'], ['fer', 'Ferretería', 'deposito', '#0E7490'], ['hie', 'Hierros', 'fabrica', '#475569']];
+  var IC_CAL = '<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>';
+  var IC_CHEV = '<svg fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
   function toolbarHtml() {
-    var idx = MONTHS.indexOf(CUR), last = IMPORTS[0], chip = '';
+    var last = IMPORTS[0], chip = '';
     if (last && last.cargado_en) {
       var d = new Date(last.cargado_en);
       chip = '<span class="upd-chip" title="Último Excel cargado' + (last.cargado_por ? ' por ' + esc(last.cargado_por) : '') + '">' + IC.clock + '<span>Última actualización</span> <b>' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + '</b></span>';
     }
-    function sb(s, ico, lbl) { return '<button class="scopebtn' + (SCOPE === s ? ' on' : '') + '" data-s="' + s + '">' + ico + lbl + '</button>'; }
-    return '<div class="tbd-toolbar">' +
+    return '<div class="tb3">' +
       '<div class="tbd-title"><h2 id="tbTitle">Pedidos en tiempo y forma</h2><span class="sub" id="tbSub"></span></div>' +
-      '<div id="scopeSlot"><div class="scopebar" id="scopeSeg">' + sb('tot', IC.grid, 'Total') + sb('fer', IC.deposito, 'Ferretería') + sb('hie', IC.fabrica, 'Hierros') + '</div></div>' +
-      '<span class="spacer"></span>' + chip +
-      '<div class="mnav"><button class="mnav__btn" id="mnPrev"' + (idx > 0 ? '' : ' disabled') + ' title="Mes anterior">‹</button><span class="mnav__cur" id="mnCur">' + esc(mesLbl(CUR)) + '</span><button class="mnav__btn" id="mnNext"' + (idx >= 0 && idx < MONTHS.length - 1 ? '' : ' disabled') + ' title="Mes siguiente">›</button></div>' +
-      '<button class="refresh-btn" id="btnRefresh" type="button" title="Refrescar datos">' + IC.refresh + '</button>' +
-      (isAdmin() ? '<button class="btn btn--primary btn--hero" id="btnActualizar">' + IC.upload + ' Actualizar base</button>' : '') +
-      '</div>';
+      '<div class="tb3__mid" id="scopeSlot"><div class="seg3" id="scopeSeg" role="tablist" aria-label="Almacén"><span class="seg3__pill"></span>' +
+        SCOPES.map(function (s) { return '<button type="button" class="seg3__btn' + (SCOPE === s[0] ? ' on' : '') + '" data-s="' + s[0] + '" style="--c:' + s[3] + '">' + IC[s[2]] + '<span>' + s[1] + '</span></button>'; }).join('') +
+      '</div></div>' +
+      '<div class="tb3__right">' +
+        '<div class="mpick" id="mPick"><button type="button" class="mpick__btn" id="mPickBtn" aria-haspopup="true" aria-expanded="false">' + IC_CAL + '<span id="mnCur">' + esc(mesLbl(CUR)) + '</span>' + IC_CHEV + '</button></div>' +
+        chip +
+        '<button class="refresh-btn" id="btnRefresh" type="button" title="Refrescar datos">' + IC.refresh + '</button>' +
+      '</div></div>';
+  }
+  function moverPillScope(animar) {
+    var seg = q('#scopeSeg'); if (!seg) return;
+    var b = q('[data-s="' + SCOPE + '"]', seg), pill = q('.seg3__pill', seg), col = (SCOPES.filter(function (s) { return s[0] === SCOPE; })[0] || SCOPES[0])[3];
+    qa('.seg3__btn', seg).forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+    var to = { x: b.offsetLeft - 4, width: b.offsetWidth, backgroundColor: col };
+    if (GS && animar) gsap.to(pill, { x: to.x, width: to.width, backgroundColor: col, duration: .45, ease: 'back.out(1.5)' });
+    else { pill.style.transform = 'translateX(' + to.x + 'px)'; pill.style.width = to.width + 'px'; pill.style.backgroundColor = col; }
   }
   function wireToolbar() {
-    var b = q('#btnActualizar'); if (b) b.addEventListener('click', function () { q('#fileBase').click(); });
     q('#btnRefresh').addEventListener('click', refrescar);
-    q('#mnPrev').addEventListener('click', function () { var i = MONTHS.indexOf(CUR); if (i > 0) irMes(MONTHS[i - 1], -1); });
-    q('#mnNext').addEventListener('click', function () { var i = MONTHS.indexOf(CUR); if (i < MONTHS.length - 1) irMes(MONTHS[i + 1], 1); });
-    qa('#scopeSeg .scopebtn').forEach(function (bt) {
+    q('#mPickBtn').addEventListener('click', function (e) { e.stopPropagation(); toggleMeses(); });
+    qa('#scopeSeg .seg3__btn').forEach(function (bt) {
       bt.addEventListener('click', function () {
         if (SCOPE === bt.dataset.s) return;
         SCOPE = bt.dataset.s;
-        qa('#scopeSeg .scopebtn').forEach(function (x) { x.classList.toggle('on', x === bt); });
-        if (GS) { gsap.fromTo(bt, { scale: .92 }, { scale: 1, duration: .4, ease: 'back.out(2.4)', clearProps: 'transform' }); var ic = bt.querySelector('svg'); if (ic) gsap.fromTo(ic, { rotate: -18, scale: .7 }, { rotate: 0, scale: 1, duration: .5, ease: 'back.out(2.6)', clearProps: 'transform' }); }
+        moverPillScope(true);
+        if (GS) { var ic = bt.querySelector('svg'); if (ic) gsap.fromTo(ic, { rotate: -18, scale: .7 }, { rotate: 0, scale: 1, duration: .5, ease: 'back.out(2.6)', clearProps: 'transform' }); }
         renderPagina(false);
       });
     });
+    requestAnimationFrame(function () { moverPillScope(false); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moverPillScope(false); });
+  }
+
+  /* ── Selector de mes: grilla con los 12 meses del año ──
+     Los meses con datos se pueden elegir; el resto queda apagado. */
+  var MP_ANIO = null;
+  function cerrarMeses() {
+    var pop = q('#mPick .mpick__pop'); if (!pop) return;
+    q('#mPickBtn').setAttribute('aria-expanded', 'false'); q('#mPick').classList.remove('open');
+    document.removeEventListener('click', fueraMeses); document.removeEventListener('keydown', escMeses);
+    if (GS) gsap.to(pop, { opacity: 0, y: -6, scale: .97, duration: .16, ease: 'power1.in', onComplete: function () { pop.remove(); } }); else pop.remove();
+  }
+  function fueraMeses(e) { var mp = q('#mPick'); if (mp && !mp.contains(e.target)) cerrarMeses(); }
+  function escMeses(e) { if (e.key === 'Escape') cerrarMeses(); }
+  function toggleMeses() {
+    if (q('#mPick .mpick__pop')) { cerrarMeses(); return; }
+    MP_ANIO = CUR ? +CUR.slice(0, 4) : new Date().getFullYear();
+    var pop = el('<div class="mpick__pop" role="dialog" aria-label="Elegir mes"><div class="mpick__hd"><button type="button" class="mpick__yr" data-d="-1" aria-label="Año anterior">‹</button><b id="mpAnio"></b><button type="button" class="mpick__yr" data-d="1" aria-label="Año siguiente">›</button></div><div class="mpick__grid" id="mpGrid"></div><div class="mpick__ft"><i></i>con datos</div></div>');
+    q('#mPick').appendChild(pop); q('#mPick').classList.add('open'); q('#mPickBtn').setAttribute('aria-expanded', 'true');
+    qa('.mpick__yr', pop).forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); MP_ANIO += +b.dataset.d; pintarMeses(+b.dataset.d); }); });
+    pintarMeses(0);
+    if (GS) gsap.fromTo(pop, { opacity: 0, y: -8, scale: .96, transformOrigin: '50% 0%' }, { opacity: 1, y: 0, scale: 1, duration: .32, ease: 'back.out(1.6)' });
+    setTimeout(function () { document.addEventListener('click', fueraMeses); document.addEventListener('keydown', escMeses); }, 0);
+  }
+  function pintarMeses(dir) {
+    var grid = q('#mpGrid'); if (!grid) return;
+    var anios = MONTHS.map(function (m) { return +m.slice(0, 4); }), aMin = Math.min.apply(null, anios.concat([MP_ANIO])), aMax = Math.max.apply(null, anios.concat([MP_ANIO]));
+    q('#mpAnio').textContent = MP_ANIO;
+    qa('.mpick__yr').forEach(function (b) { b.disabled = (+b.dataset.d < 0 && MP_ANIO <= aMin) || (+b.dataset.d > 0 && MP_ANIO >= aMax); });
+    grid.innerHTML = MESES.map(function (n, i) {
+      var ym = MP_ANIO + '-' + pad(i + 1), has = MONTHS.indexOf(ym) >= 0;
+      return '<button type="button" class="mpick__m' + (has ? ' has' : '') + (ym === CUR ? ' on' : '') + '" data-ym="' + ym + '"' + (has ? '' : ' disabled') + '>' + n + '</button>';
+    }).join('');
+    qa('.mpick__m.has', grid).forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (b.dataset.ym === CUR) { cerrarMeses(); return; }
+        qa('.mpick__m', grid).forEach(function (x) { x.classList.toggle('on', x === b); });
+        if (GS) gsap.fromTo(b, { scale: .9 }, { scale: 1, duration: .35, ease: 'back.out(2.5)' });
+        var ym = b.dataset.ym, d = ym > CUR ? 1 : -1;
+        setTimeout(function () { cerrarMeses(); irMes(ym, d); }, 160);
+      });
+    });
+    if (GS) gsap.from(qa('.mpick__m', grid), { opacity: 0, x: dir ? dir * 10 : 0, y: dir ? 0 : 4, duration: .26, stagger: .018, ease: 'power2.out', clearProps: 'transform,opacity' });
   }
 
   /* ── Shell ── */
   function renderShell() {
     var st = q('#stage');
-    if (!MONTHS.length) {
-      st.innerHTML = '<div class="tbd-toolbar"><div class="tbd-title"><h2>Pedidos en tiempo y forma</h2><span class="sub">Todavía no hay datos cargados</span></div><span class="spacer"></span>' +
-        (isAdmin() ? '<button class="btn btn--primary btn--hero" id="btnActualizar">' + IC.upload + ' Actualizar base</button>' : '') + '</div>' +
-        '<div class="empty">' + IC.empty + '<h3>Todavía no hay una base cargada</h3><p>' + (isAdmin() ? 'Usá <b>Actualizar base</b> para subir el Excel de pedidos de SAP tal como sale.' : 'Pedile a un administrador que cargue el Excel de pedidos.') + '</p></div>';
-      var b = q('#btnActualizar'); if (b) b.addEventListener('click', function () { q('#fileBase').click(); });
+    if (!MONTHS.length && VIEW !== 'cargar') {
+      st.innerHTML = '<div class="tb3"><div class="tbd-title"><h2>Pedidos en tiempo y forma</h2><span class="sub">Todavía no hay datos cargados</span></div></div>' +
+        '<div class="empty">' + IC.empty + '<h3>Todavía no hay una base cargada</h3><p>' + (isAdmin() ? 'Entrá a <b>Actualizar base</b> (en la barra lateral) para subir el Excel de pedidos de SAP.' : 'Pedile a un administrador que cargue el Excel de pedidos.') + '</p>' +
+        (isAdmin() ? '<button class="btn btn--primary" type="button" id="btnIrCargar" style="margin-top:16px">' + IC.upload + ' Actualizar base</button>' : '') + '</div>';
+      var b = q('#btnIrCargar'); if (b) b.addEventListener('click', function () { ir('cargar'); });
       return;
     }
     st.innerHTML = toolbarHtml() + '<div class="ot" id="otBody"></div>';
     wireToolbar();
     if (GS) {
-      gsap.from('#stage .tbd-toolbar', { opacity: 0, y: -8, duration: .35, ease: 'power2.out', clearProps: 'transform,opacity' });
-      gsap.from('#scopeSeg .scopebtn', { opacity: 0, y: -10, scale: .9, duration: .42, stagger: .07, ease: 'back.out(1.8)', clearProps: 'transform,opacity', delay: .08 });
+      gsap.from('#stage .tb3 > *', { opacity: 0, y: -8, duration: .38, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' });
     }
     renderPagina(true);
   }
 
   function renderPagina(entrada) {
     var body = q('#otBody'); if (!body) return;
-    var scopeSlot = q('#scopeSlot'); if (scopeSlot) scopeSlot.style.display = VIEW === 'parametros' ? 'none' : '';
+    var sinFiltros = VIEW === 'parametros' || VIEW === 'cargar';
+    var scopeSlot = q('#scopeSlot'); if (scopeSlot) scopeSlot.style.visibility = sinFiltros ? 'hidden' : '';
+    var mp = q('#mPick'); if (mp) mp.style.display = sinFiltros ? 'none' : '';
     if (VIEW === 'resumen') renderResumen(body, entrada);
     else if (VIEW === 'detalle') renderDetalle(body, entrada);
     else if (VIEW === 'zonas') renderZonas(body, entrada);
     else if (VIEW === 'vendedores') renderVendedores(body, entrada);
     else if (VIEW === 'tiempos') renderTiempos(body, entrada);
     else if (VIEW === 'parametros') renderParametros(body, entrada);
+    else if (VIEW === 'cargar') renderCargar(body, entrada);
     else renderPronto(body);
   }
 
@@ -855,6 +913,67 @@
     });
   }
 
+  /* ════════════════════════════════════════════════════════════
+     ACTUALIZAR BASE — apartado propio (solo admin)
+     Arrastrar / elegir el Excel de SAP · historial de cargas.
+     ════════════════════════════════════════════════════════════ */
+  function renderCargar(body, entrada) {
+    q('#tbTitle').textContent = 'Actualizar base';
+    q('#tbSub').textContent = 'Subí el Excel de pedidos de SAP tal como sale';
+    if (!isAdmin()) { body.innerHTML = '<div class="ot-soon">' + IC.upload + '<h3>Solo administradores</h3><p>Pedile a un administrador que cargue el Excel.</p></div>'; return; }
+    var f2 = function (d) { return d ? d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '—'; };
+    var hist = IMPORTS.slice(0, 8).map(function (i) {
+      var d = new Date(i.cargado_en);
+      return '<div class="up-h"><div class="up-h__ico">' + IC.upload + '</div><div class="up-h__t"><b>' + esc(i.archivo || 'Excel') + '</b><small>' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + (i.cargado_por ? ' · ' + esc(i.cargado_por) : '') + '</small></div>' +
+        '<div class="up-h__p">' + f2(i.carga_desde) + ' → ' + f2(i.carga_hasta) + '</div><div class="up-h__n"><b>' + nf(i.pedidos) + '</b><small>' + (i.pedidos_nuevos ? nf(i.pedidos_nuevos) + ' nuevos' : 'sin nuevos') + '</small></div></div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="up-wrap">' +
+        '<label class="up-drop" id="upDrop" tabindex="0" role="button" aria-label="Elegir el Excel de SAP">' +
+          '<span class="up-drop__ico">' + IC.upload + '</span>' +
+          '<b>Arrastrá el Excel acá</b>' +
+          '<span>o tocá para elegirlo · .xlsx del reporte de pedidos de SAP</span>' +
+          '<span class="btn btn--primary up-drop__btn">Elegir archivo</span>' +
+        '</label>' +
+        '<div class="up-rules">' +
+          '<div><i>✓</i><span>Cada pedido y posición se guarda <b>una sola vez</b>: volver a subir un Excel actualiza, no duplica.</span></div>' +
+          '<div><i>✓</i><span>Si el Excel <b>ya estaba cargado</b>, te avisa antes de seguir.</span></div>' +
+          '<div><i>✓</i><span>Las <b>filas repetidas</b> dentro del Excel se toman una sola vez.</span></div>' +
+        '</div>' +
+        '<div class="ot-card up-hist"><div class="ot-card__h"><h3>Últimas cargas</h3><small>' + nf(IMPORTS.length) + ' en total</small></div>' + (hist || '<div class="ot-soon" style="padding:24px">Todavía no se cargó ningún Excel.</div>') + '</div>' +
+      '</div>';
+    var drop = q('#upDrop');
+    drop.addEventListener('click', function (e) { e.preventDefault(); q('#fileBase').click(); });
+    drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); q('#fileBase').click(); } });
+    ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
+    ['dragleave', 'dragend'].forEach(function (ev) { drop.addEventListener(ev, function () { drop.classList.remove('is-over'); }); });
+    drop.addEventListener('drop', function (e) {
+      e.preventDefault(); drop.classList.remove('is-over');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (!/\.xlsx?$/i.test(f.name)) { toast('Tiene que ser un Excel (.xlsx)', true); return; }
+      subirExcel(f);
+    });
+    if (GS && entrada !== false) {
+      gsap.from('#upDrop', { opacity: 0, y: 16, scale: .98, duration: .5, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('#upDrop .up-drop__ico', { scale: .6, rotate: -12, duration: .6, delay: .15, ease: 'back.out(2.2)', clearProps: 'transform' });
+      gsap.from('.up-rules > div', { opacity: 0, x: -8, duration: .3, stagger: .07, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from('.up-hist', { opacity: 0, y: 14, duration: .45, delay: .25, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('.up-h', { opacity: 0, y: 6, duration: .28, stagger: .04, delay: .35, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+  }
+
+  /* Al terminar de cargar: transición al Resumen */
+  function irAlResumen() {
+    VIEW = 'resumen'; setNav('resumen');
+    var st = q('#stage');
+    if (!GS) { renderShell(); return; }
+    gsap.to(st, { opacity: 0, y: 12, filter: 'blur(6px)', duration: .28, ease: 'power2.in', onComplete: function () {
+      renderShell();
+      gsap.fromTo(st, { opacity: 0, y: -14, filter: 'blur(6px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .55, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
+    } });
+  }
+
   /* ── Brecha a la meta (Resumen) ── */
   function faltanParaMeta(g, meta) {
     if (!g.evaluados) return null;
@@ -1205,6 +1324,19 @@
 
     return {
       ir: ir, mensaje: mensaje, paso: paso,
+      // Pregunta en la misma tarjeta (ej. "este Excel ya está cargado"). Devuelve true/false.
+      preguntar: function (titulo, texto, si, no) {
+        if (tw) tw.kill();
+        var tit = q('.ld-title', ov), viejo = tit.textContent;
+        tit.textContent = titulo; mensaje(texto);
+        var box = el('<div class="ld-ask"><button class="ld-btn" type="button" data-r="1">' + esc(si) + '</button><button class="ld-btn ld-btn--ghost" type="button" data-r="0">' + esc(no) + '</button></div>');
+        card.appendChild(box);
+        if (GS) { gsap.from(box.children, { opacity: 0, y: 8, duration: .3, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' }); gsap.fromTo(card, { x: -6 }, { x: 0, duration: .5, ease: 'elastic.out(1,.4)', clearProps: 'transform' }); }
+        return new Promise(function (res) {
+          qa('button', box).forEach(function (b) { b.addEventListener('click', function () { var r = b.dataset.r === '1'; box.remove(); tit.textContent = viejo; res(r); }); });
+        });
+      },
+      cerrar: function (cb) { cerrar(cb); },
       // espera "viva": el anillo sigue avanzando despacio mientras se trabaja
       gotear: function (hasta, seg) { ir(hasta, seg, 'power1.out'); },
       ok: function (filas, alCerrar) {
@@ -1222,7 +1354,7 @@
             gsap.from(qa('.row', sum), { opacity: 0, y: 8, duration: .32, stagger: .07, delay: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
             gsap.from(sum, { opacity: 0, duration: .3, delay: .25 });
           } else { stepsBox.remove(); card.appendChild(sum); }
-          botones('<button class="ld-btn" type="button">Ver el tablero actualizado</button>', function () { cerrar(alCerrar); });
+          botones('<button class="ld-btn" type="button">Ver el Resumen actualizado</button>', function () { cerrar(alCerrar); });
         }, 560);
       },
       fail: function (texto) {
@@ -1295,9 +1427,20 @@
       if (!res.ok) { ui.fail(res.error); return; }
       ui.paso(1, nf(res.meta.pedidos) + ' pedidos');
       ui.ir(26);
-      await espera(250);
+      // Validación: ¿este Excel ya se cargó? (mismo período, misma cantidad y todos los pedidos ya existen)
+      ui.mensaje('Comparando con lo ya cargado…');
+      var ya = await OtifImport.contarExistentes(adaptador(), res);
+      var previo = IMPORTS.filter(function (i) { return i.carga_desde === res.meta.carga_desde && i.carga_hasta === res.meta.carga_hasta && +i.pedidos === res.meta.pedidos; })[0];
+      if (ya === res.meta.pedidos && previo) {
+        var dp = new Date(previo.cargado_en);
+        var seguir = await ui.preguntar('Este Excel ya está cargado',
+          'Se cargó el ' + pad(dp.getDate()) + '/' + pad(dp.getMonth() + 1) + ' a las ' + pad(dp.getHours()) + ':' + pad(dp.getMinutes()) + (previo.cargado_por ? ' (' + previo.cargado_por + ')' : '') + '. Sus ' + nf(ya) + ' pedidos ya están en el tablero; no se va a duplicar nada.',
+          'Actualizar igual', 'Cancelar');
+        if (!seguir) { ui.cerrar(); return; }
+      }
+      await espera(200);
       ui.paso(2);
-      var out = await OtifImport.subir(adaptador(), res, { archivo: file.name, usuario: userName() }, function (p, t) {
+      var out = await OtifImport.subir(adaptador(), res, { archivo: file.name, usuario: userName(), ya: ya }, function (p, t) {
         ui.ir(26 + p * .66, .6);
         if (t) ui.mensaje(t);
       });
@@ -1312,7 +1455,7 @@
         ['Pedidos nuevos', nf(out.nuevos), true],
         ['Pedidos actualizados', nf(out.actualizados)],
         ['Período (fecha de carga)', f(res.meta.carga_desde) + ' → ' + f(res.meta.carga_hasta) + '/' + res.meta.carga_hasta.slice(0, 4)]
-      ], function () { renderShell(); });
+      ].concat(res.meta.repetidas ? [['Filas repetidas en el Excel (tomadas una vez)', nf(res.meta.repetidas)]] : []), irAlResumen);
     } catch (e) {
       console.error(e);
       ui.fail('Error al guardar: ' + (e && e.message ? e.message : e) + '. Probá de nuevo: lo que ya se guardó no se duplica.');
@@ -1321,6 +1464,7 @@
 
   /* ── Init ── */
   window.__initOtif = async function () {
+    var nc = q('#navCargar'); if (nc && !isAdmin()) nc.remove();
     qa('[data-nav]').forEach(function (b) { b.addEventListener('click', function () { ir(b.dataset.nav); }); });
     q('#fileBase').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) subirExcel(f); });
     if (!DB) { q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>Sin conexión</h3><p>No se pudo conectar con la base de datos.</p></div>'; return; }

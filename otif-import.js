@@ -67,7 +67,7 @@
     if (faltan.length) return { ok: false, error: 'No es el export de pedidos de SAP. Faltan las columnas: ' + faltan.join(', ') + '.' };
 
     var P = new Map(), E = new Map(), L = new Map(), M = new Map();
-    var desde = null, hasta = null, validas = 0;
+    var desde = null, hasta = null, validas = 0, repetidas = 0;
 
     filas.forEach(function (r) {
       var doc = txt(r['Doc.vtas.']);
@@ -127,6 +127,7 @@
       // ── Línea (pedido + posición)
       var pos = parseInt(num(r['Pos']), 10);
       var mat = txt(r['Material']);
+      if (L.has(doc + '|' + pos)) repetidas++;     // fila repetida en el Excel: se toma una sola vez
       L.set(doc + '|' + pos, {
         doc_vtas: doc, pos: pos, entrega: ent, material: mat, unidad: txt(r['Unidad']),
         cant_pedida: num(r['Ctd.ped.']), cant_entregada: num(r['Cant.Entreg.']), cant_facturada: num(r['Cant.Fact.']),
@@ -142,7 +143,7 @@
       ok: true,
       pedidos: Array.from(P.values()), entregas: entregas,
       lineas: Array.from(L.values()), materiales: Array.from(M.values()),
-      meta: { filas: validas, pedidos: P.size, entregas: E.size, lineas: L.size, materiales: M.size, carga_desde: desde, carga_hasta: hasta }
+      meta: { filas: validas, repetidas: repetidas, pedidos: P.size, entregas: E.size, lineas: L.size, materiales: M.size, carga_desde: desde, carga_hasta: hasta }
     };
   }
 
@@ -153,14 +154,18 @@
    *   db.upsert(table, rows, onConflict) → Promise
    * onProgress(pct, texto) opcional.
    */
+  // Cuántos pedidos del Excel ya están en la base (para avisar si se repite una carga)
+  async function contarExistentes(db, res) {
+    var ids = res.pedidos.map(function (p) { return p.doc_vtas; }), ya = 0;
+    for (var i = 0; i < ids.length; i += 500) ya += (await db.existentes('otif_pedidos', 'doc_vtas', ids.slice(i, i + 500))).length;
+    return ya;
+  }
+
   async function subir(db, res, info, onProgress) {
     var prog = onProgress || function () {};
     var LOTE = 500;
     prog(2, 'Revisando pedidos existentes…');
-    var ids = res.pedidos.map(function (p) { return p.doc_vtas; }), ya = 0;
-    for (var i = 0; i < ids.length; i += LOTE) {
-      ya += (await db.existentes('otif_pedidos', 'doc_vtas', ids.slice(i, i + LOTE))).length;
-    }
+    var ya = info.ya != null ? info.ya : await contarExistentes(db, res);
     var imp = await db.insertImport({
       archivo: info.archivo || null, cargado_por: info.usuario || null,
       filas: res.meta.filas, pedidos: res.meta.pedidos, entregas: res.meta.entregas,
@@ -186,7 +191,7 @@
     return { importacion_id: imp.id, nuevos: res.meta.pedidos - ya, actualizados: ya };
   }
 
-  var api = { parsear: parsear, subir: subir, ts: ts, REQUERIDAS: REQUERIDAS };
+  var api = { parsear: parsear, subir: subir, contarExistentes: contarExistentes, ts: ts, REQUERIDAS: REQUERIDAS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OtifImport = api;
 })(typeof window !== 'undefined' ? window : this);

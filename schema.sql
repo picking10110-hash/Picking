@@ -1,6 +1,7 @@
 -- ============================================================
 -- PRODUCTIVIDAD PICKING — Schema Supabase
--- Proyecto: picking10110-hash (yvwslygebxuiivlzscpq)
+-- Proyecto: lcc1alasdeposito-a11y (zglcxunmohgtnwhwuhoq), compartido con Items Borrados
+-- (migrado desde yvwslygebxuiivlzscpq el 2026-11-26)
 -- Ejecutar en Supabase Studio → SQL Editor
 -- Idempotente: se puede correr varias veces sin romper nada.
 -- ============================================================
@@ -72,7 +73,7 @@ create table if not exists public.premios_primero (
 );
 
 -- ── Trigger updated_at en preparadores ──────────────────────
-create or replace function public.set_updated_at()
+create or replace function public.picking_set_updated_at()
 returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
@@ -82,7 +83,7 @@ end $$;
 drop trigger if exists trg_preparadores_updated on public.preparadores;
 create trigger trg_preparadores_updated
   before update on public.preparadores
-  for each row execute function public.set_updated_at();
+  for each row execute function public.picking_set_updated_at();
 
 -- ============================================================
 -- RLS — Row Level Security

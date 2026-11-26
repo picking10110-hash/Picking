@@ -273,8 +273,8 @@
     var st = q('#stage');
     if (!MONTHS.length && VIEW !== 'cargar') {
       st.innerHTML = '<div class="tb3"><div class="tbd-title"><h2>Pedidos en tiempo y forma</h2><span class="sub">Todavía no hay datos cargados</span></div></div>' +
-        '<div class="empty">' + IC.empty + '<h3>Todavía no hay una base cargada</h3><p>' + (isAdmin() ? 'Entrá a <b>Actualizar base</b> (en la barra lateral) para subir el Excel de pedidos de SAP.' : 'Pedile a un administrador que cargue el Excel de pedidos.') + '</p>' +
-        (isAdmin() ? '<button class="btn btn--primary" type="button" id="btnIrCargar" style="margin-top:16px">' + IC.upload + ' Actualizar base</button>' : '') + '</div>';
+        '<div class="empty">' + IC.empty + '<h3>Todavía no hay una base cargada</h3><p>' + (isAdmin() ? 'Entrá a <b>Actualizar datos</b> (en la barra lateral) para subir el Excel de pedidos de SAP.' : 'Pedile a un administrador que cargue el Excel de pedidos.') + '</p>' +
+        (isAdmin() ? '<button class="btn btn--primary" type="button" id="btnIrCargar" style="margin-top:16px">' + IC.upload + ' Actualizar datos</button>' : '') + '</div>';
       var b = q('#btnIrCargar'); if (b) b.addEventListener('click', function () { ir('cargar'); });
       return;
     }
@@ -298,12 +298,13 @@
     else if (VIEW === 'tiempos') renderTiempos(body, entrada);
     else if (VIEW === 'parametros') renderParametros(body, entrada);
     else if (VIEW === 'cargar') renderCargar(body, entrada);
+    else if (VIEW === 'kpi') renderKpi(body, entrada);
     else renderPronto(body);
-    setTimeout(revelarAlBajar, 60);
+    setTimeout(function () { mejorarFiltros(body); revelarAlBajar(); }, 60);
   }
 
   function renderPronto(body) {
-    var nom = { tiempos: 'Tiempos del proceso', zonas: 'Zonas', vendedores: 'Vendedores y clientes', detalle: 'Detalle de pedidos', parametros: 'Plazos y feriados' }[VIEW] || '';
+    var nom = { tiempos: 'Tiempos de entrega', zonas: 'Zonas', vendedores: 'Vendedores y clientes', detalle: 'Detalle de pedidos', parametros: 'Plazos y calendario' }[VIEW] || '';
     q('#tbTitle').textContent = nom; q('#tbSub').textContent = '';
     body.innerHTML = '<div class="ot-soon">' + IC.soon + '<h3>' + esc(nom) + '</h3><p>Esta pantalla se arma después de aprobar el Resumen, con el mismo estilo.</p></div>';
     if (GS) gsap.from(body.firstChild, { opacity: 0, y: 12, duration: .4, ease: 'power2.out', clearProps: 'transform,opacity' });
@@ -338,7 +339,7 @@
     var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85;
     var scopeTxt = { tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE];
     q('#tbTitle').textContent = 'Pedidos en tiempo y forma';
-    q('#tbSub').textContent = 'OTIF por pedido · ' + mesLbl(CUR) + ' · ' + scopeTxt;
+    q('#tbSub').textContent = 'Cumplimiento de entregas · ' + mesLbl(CUR) + ' · ' + scopeTxt;
 
     // pedidos con chofer pero sin registro (etapa 04)
     var sinCerrar = evs.filter(function (o) { return o.estado === 'sin_registro'; });
@@ -377,7 +378,7 @@
     body.innerHTML =
       '<div class="ot-top">' +
         '<div class="ot-blue st-' + estadoMeta(g.pOtif, meta).c + '" id="cardOtif">' +
-          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + chipEstado(g.pOtif, meta) + gapHtml(g, meta) + '</div>' +
+          '<div class="ot-lbl">Nivel de cumplimiento · ' + esc(mesLbl(CUR)) + chipEstado(g.pOtif, meta) + gapHtml(g, meta) + '</div>' +
           '<div class="ot-hero__body">' +
             '<div class="ot-gauge"><svg viewBox="0 0 172 172"><circle class="bg" cx="86" cy="86" r="74"/><circle class="fg" id="gFg" cx="86" cy="86" r="74" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '"/>' +
               '<line class="mk" x1="' + mkX1.toFixed(1) + '" y1="' + mkY1.toFixed(1) + '" x2="' + mkX2.toFixed(1) + '" y2="' + mkY2.toFixed(1) + '"><title>Meta ' + pf(meta, 0) + '</title></line></svg>' +
@@ -389,7 +390,7 @@
           '</div>' +
           '<div class="ot-foot">' +
             '<div class="ot-st"><b id="sEv">0</b><span>Pedidos evaluados</span></div>' +
-            '<div class="ot-st"><b>' + jd(g.cicloMed) + '</b><span>Tiempo típico</span></div>' +
+            '<div class="ot-st"><b>' + jd(g.cicloMed) + '</b><span>Tiempo habitual</span></div>' +
             '<div class="ot-st wide"><b class="num">' + gs(g.monto) + '</b><span>Monto pedido</span></div>' +
             '<div class="ot-st"><b>' + nf(g.total) + '</b><span>Pedidos del mes</span></div>' +
           '</div>' +
@@ -403,31 +404,35 @@
       '</div>' +
 
       '<div class="ot-tiles">' +
-        tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', nf(g.ot) + ' de ' + nf(g.evaluados) + ' pedidos llegaron en plazo') +
-        tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', nf(g.inf) + ' de ' + nf(g.evaluados) + ' pedidos sin faltantes') +
-        tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', 'Salieron y falta registrar la entrega', 'tileSinCerrar', 'Ver lista') +
-        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', 'Nunca salieron del depósito') +
+        tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', nf(g.ot) + ' de ' + nf(g.evaluados) + ' pedidos llegaron en plazo', 'kpi-ot', 'Ver pedidos') +
+        tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', nf(g.inf) + ' de ' + nf(g.evaluados) + ' pedidos sin faltantes', 'kpi-inf', 'Ver pedidos') +
+        tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', 'Salieron y falta registrar la entrega', 'kpi-sc', 'Ver pedidos') +
+        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', 'Nunca salieron del depósito', 'kpi-sd', 'Ver pedidos') +
       '</div>' +
 
       '<div class="ot-grid2">' +
-        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>tiempo típico de cada etapa</small></div>' +
+        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se demora el pedido?</h3><small>tiempo habitual de cada etapa</small></div>' +
           '<div class="rt"><div class="rt-line"><span></span></div>' + TRAMOS.map(function (t) { var v = tm[t[0]], mx = t[0] === tMax; return '<div class="rt-n' + (mx ? ' is-max' : '') + '" title="' + esc(t[2]) + '"><div class="rt-i">' + STG_ICO[t[0]] + '</div><b>' + esc(t[1]) + '</b><span>' + jd(v) + '</span>' + (mx ? '<em>Cuello de botella</em>' : '') + '</div>'; }).join('') + '</div>' +
-          '<div class="ot-legend">1 día = una jornada laboral · ' + esc(horarioTxt()) + '</div>' +
+          '<div class="cfg-wrap">' + btnConfigHorario() + '</div>' +
         '</div>' +
-        '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>¿Por qué no se entregaron?</h3><small>motivos principales</small></div>' +
+        '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>Motivos de no entrega</h3><small>los más frecuentes</small></div>' +
           (motL.length ? '<div class="ot-bars ot-bars--mot">' + motL.slice(0, 5).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' pedidos', m.n / mx * 100, '#0B5F8D', nf(m.n), null, motivoIco(m.k)); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
           '<div class="ot-legend">Cantidad de artículos que no salieron, según el motivo cargado en SAP</div>' +
         '</div>' +
       '</div>';
 
-    var ts = q('#tileSinCerrar');
-    if (ts) { ts.addEventListener('click', abrirSinCerrar); ts.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSinCerrar(); } }); }
+    ['ot', 'inf', 'sc', 'sd'].forEach(function (k) {
+      var t = q('#kpi-' + k); if (!t) return;
+      t.addEventListener('click', function () { abrirKpi(k); });
+      t.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirKpi(k); } });
+    });
+    wireConfigHorario(body);
     animarResumen(g, pOtif, C, false, entrada);
     montarTendencia(meta);
   }
 
   function tile(color, lbl, valHtml, foot, id, accion) {
-    return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + ' →</span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
+    return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + '<i>' + SV('<path d="M5 12h14M13 6l6 6-6 6"/>') + '</i></span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
       (typeof foot === 'string' ? '<div class="ot-tile__s">' + esc(foot) + '</div></div>' : '<div class="ot-tile__f">' + foot.map(function (f) { return '<div' + (f[2] ? ' class="wide"' : '') + '><b' + (f[2] ? ' class="num"' : '') + ' title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>');
   }
   function barRow(name, sub, pct, color, valTxt, meta, ico) {
@@ -541,6 +546,7 @@
     }
     pintar('');
     var tmr; inp.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(function () { pintar(inp.value); }, 160); });
+    mejorarFiltros(bd);
     setTimeout(function () { inp.focus(); }, 350);
 
     q('[data-x]', bd).addEventListener('click', async function () {
@@ -612,9 +618,9 @@
     });
   }
   var TXT = {
-    dia: { tit: 'Tendencia diaria', uno: 'día', unos: 'días', prom: 'Promedio diario', mejor: 'Mejor día', peor: 'Peor día' },
-    semana: { tit: 'Tendencia semanal', uno: 'semana', unos: 'semanas', prom: 'Promedio semanal', mejor: 'Mejor semana', peor: 'Peor semana' },
-    mes: { tit: 'Tendencia mensual', uno: 'mes', unos: 'meses', prom: 'Promedio mensual', mejor: 'Mejor mes', peor: 'Peor mes' }
+    dia: { tit: 'Evolución diaria', uno: 'día', unos: 'días', prom: 'Promedio diario', mejor: 'Mejor día', peor: 'Peor día' },
+    semana: { tit: 'Evolución semanal', uno: 'semana', unos: 'semanas', prom: 'Promedio semanal', mejor: 'Mejor semana', peor: 'Peor semana' },
+    mes: { tit: 'Evolución mensual', uno: 'mes', unos: 'meses', prom: 'Promedio mensual', mejor: 'Mejor mes', peor: 'Peor mes' }
   };
   function moverPill(animar) {
     var seg = q('#trSeg'); if (!seg) return;
@@ -683,16 +689,17 @@
      ZONAS (minimalista) — Capital / Interior + departamentos ordenados por
      los pedidos que les faltan para llegar a la meta.
      ════════════════════════════════════════════════════════════ */
-  var ZN = { orden: 'faltan', abierto: null };
+  var ZN = { orden: 'faltan', abierto: null, lente: 'cumpl', sel: null };
   function renderZonas(body, entrada) {
     var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85, tot = CALC.resumen(evs);
-    q('#tbTitle').textContent = 'Zonas';
-    q('#tbSub').textContent = 'Cumplimiento por destino · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    q('#tbTitle').textContent = 'Cumplimiento por zona';
+    q('#tbSub').textContent = 'Entregas según destino · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
     var zonas = CALC.agrupar(evs, function (p) { return p.zona; }).filter(function (z) { return z.evaluados; }).sort(function (a, b) { return a.clave < b.clave ? -1 : 1; });
     var deps = CALC.agrupar(evs, function (p) { return p.departamento; }).filter(function (d) { return d.evaluados; });
     var zonaDe = {}; evs.forEach(function (o) { zonaDe[o.p.departamento] = o.p.zona; });
     deps.forEach(function (d) { d.faltan = faltanParaMeta(d, meta); d.zona = zonaDe[d.clave]; });
     var slaProm = function (lista) { var s = 0, n = 0; lista.forEach(function (o) { if (o.estado === 'evaluado') { s += o.sla; n++; } }); return n ? s / n : null; };
+    var mapApi = null;
 
     function zonaCard(z) {
       var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
@@ -702,20 +709,27 @@
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
         '<div class="ot-foot">' +
           '<div class="ot-st"><b>' + nf(z.evaluados) + '</b><span>Pedidos evaluados</span></div>' +
-          '<div class="ot-st"><b>' + tiempo(z.cicloMed) + '</b><span>Tiempo típico</span></div>' +
+          '<div class="ot-st"><b>' + tiempo(z.cicloMed) + '</b><span>Tiempo habitual</span></div>' +
           '<div class="ot-st"><b>' + plazo(slaProm(lista)) + '</b><span>Plazo</span></div>' +
         '</div></div>';
     }
     body.innerHTML =
-      '<div class="ot-top zn-top">' + zonas.map(zonaCard).join('') + '</div>' +
-      '<div class="zn-mid">' +
-      '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa</h3><small>tocá un departamento</small></div><div class="zn-map__box" id="znMapBox"></div><div class="zn-tip" id="znTip" hidden></div></div>' +
-      '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Departamentos</h3>' +
-        '<div class="zn-sort" id="znSort"><button type="button" data-o="faltan">Más lejos de la meta</button><button type="button" data-o="otif">Peor %</button></div></div>' +
-        '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
-        '<div id="znRows"></div>' +
-        '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span></div>' +
-      '</div></div>';
+      // Diseño en dos columnas: [Capital · Interior · ranking] | [mapa fijo a la derecha]
+      '<div class="zn-layout">' +
+        '<div class="zn-left">' +
+          '<div class="zn-stack">' + zonas.map(zonaCard).join('') + '</div>' +
+          '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Ranking por departamento</h3>' +
+            '<div class="zn-sort" id="znSort"><button type="button" data-o="faltan">Más lejos de la meta</button><button type="button" data-o="otif">Peor %</button></div></div>' +
+            '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
+            '<div id="znRows"></div>' +
+            '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="zn-right">' +
+          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
+            '<div class="zn-map__box" id="znMapBox"></div><div class="pm-scale" id="znMapLeg"></div><div class="md" id="znDet"></div></div>' +
+        '</div>' +
+      '</div>';
 
     function fila(d, sub) {
       var c = semColor(d.pOtif);
@@ -736,6 +750,8 @@
       qa('#znRows .zn-bar span').forEach(function (s, i) { if (GS && animar !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .8, delay: .1 + i * .03, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
       if (GS && animar !== false) gsap.from(qa('#znRows .zn-row'), { opacity: 0, x: -10, duration: .32, stagger: .03, ease: 'power2.out', clearProps: 'transform,opacity' });
       qa('#znRows .zn-row[data-dep]').forEach(function (r) {
+        r.addEventListener('mouseenter', function () { if (mapApi) mapApi.foco(r.dataset.dep); });
+        r.addEventListener('mouseleave', function () { if (mapApi) mapApi.foco(null); });
         var go = function () { toggleDep(r.parentNode, r.dataset.dep); };
         r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       });
@@ -764,9 +780,22 @@
         if (GS) gsap.to(b2, { height: 0, duration: .3, ease: 'power2.in', onComplete: function () { b2.innerHTML = ''; } }); else { b2.innerHTML = ''; b2.style.height = '0'; }
       } else { grp.classList.add('open'); ZN.abierto = dep; llenarSub(grp, dep, true); }
     }
-    qa('#znSort button').forEach(function (b) { b.addEventListener('click', function () { if (ZN.orden === b.dataset.o) return; ZN.orden = b.dataset.o; pintarFilas(true); }); });
+    qa('#znSort button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (ZN.orden === b.dataset.o) return;
+        ZN.orden = b.dataset.o;
+        var antes = {};
+        qa('#znRows .zn-grp').forEach(function (g) { antes[q('.zn-row', g).dataset.dep] = g.getBoundingClientRect().top; });
+        pintarFilas(false);
+        if (!GS) return;
+        qa('#znRows .zn-grp').forEach(function (g, i) {
+          var k = q('.zn-row', g).dataset.dep, dy = (antes[k] || 0) - g.getBoundingClientRect().top;
+          if (Math.abs(dy) > 1) gsap.from(g, { y: dy, duration: .6, delay: i * .012, ease: 'power3.inOut', clearProps: 'transform' });
+        });
+      });
+    });
     pintarFilas(entrada);
-    pintarMapa(deps, meta, entrada, function (dep) {
+    mapApi = pintarMapa(deps, meta, entrada, function (dep) {
       var r = qa('#znRows .zn-row[data-dep]').filter(function (x) { return x.dataset.dep === dep; })[0];
       if (!r) return;
       if (!r.parentNode.classList.contains('open')) toggleDep(r.parentNode, dep);
@@ -797,7 +826,7 @@
   function renderVendedores(body, entrada) {
     var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85;
     q('#tbTitle').textContent = 'Vendedores y clientes';
-    q('#tbSub').textContent = 'Cumplimiento por persona · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    q('#tbSub').textContent = 'Cumplimiento por cartera · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
     body.innerHTML =
       '<div class="ot-card vc-card">' +
         '<div class="vc-bar"><div class="zn-sort" id="vcTipo"><button type="button" data-t="vend">Vendedores</button><button type="button" data-t="cli">Clientes</button></div>' +
@@ -854,8 +883,8 @@
   function p90(a) { if (!a.length) return null; var b = a.slice().sort(function (x, y) { return x - y; }); return b[Math.min(b.length - 1, Math.floor(b.length * .9))]; }
   function renderTiempos(body, entrada) {
     var evs = EVS.filter(enScope), g = CALC.resumen(evs);
-    q('#tbTitle').textContent = 'Tiempos del proceso';
-    q('#tbSub').textContent = 'Horario laboral · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    q('#tbTitle').textContent = 'Tiempos de entrega';
+    q('#tbSub').textContent = 'Medido en horario laboral · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
     var filas = TRAMOS.map(function (t) { var a = g.tramos[t[0]] || []; return { t: t, med: g.tramosMed[t[0]], lento: p90(a) }; });
     var maxV = Math.max.apply(null, filas.map(function (f) { return f.lento || 0; })) || 1;
     var tMax = filas.reduce(function (m, f) { return f.med != null && (!m || f.med > m.med) ? f : m; }, null);
@@ -865,28 +894,48 @@
     var cnt = cubos.map(function () { return 0; });
     g.ciclos.forEach(function (j) { for (var i = 0; i < cubos.length; i++) if (cubos[i][1](j)) { cnt[i]++; break; } });
     var tot = g.ciclos.length || 1, maxC = Math.max.apply(null, cnt) || 1;
+    var lentos = p90(g.ciclos), slaN = 0, slaS = 0;
+    evs.forEach(function (o) { if (o.estado === 'evaluado') { slaS += o.sla; slaN++; } });
+    var slaProm = slaN ? slaS / slaN : null;
+    var escala = Math.max(slaProm || 0, g.cicloMed || 0) * 1.25 || 1;
     body.innerHTML =
+      '<div class="tp-page">' +
+      '<div class="ot-blue tp-hero" id="tpHero">' +
+        '<div class="tp-hero__main"><div class="ot-lbl">Velocidad de entrega · ' + esc(mesLbl(CUR)) + '</div>' +
+          '<div class="tp-hero__big"><small>La mitad de los pedidos llega en</small><b id="tpBig">' + tiempo(g.cicloMed) + '</b><small>o menos (horario laboral)</small></div></div>' +
+        '<div class="tp-hero__cmp">' +
+          '<div class="tp-cmp"><span>Tiempo habitual</span><div class="tp-cmp__bar"><i data-w="' + ((g.cicloMed || 0) / escala * 100).toFixed(1) + '"></i></div><b>' + tiempo(g.cicloMed) + '</b></div>' +
+          '<div class="tp-cmp is-sla"><span>Plazo promedio</span><div class="tp-cmp__bar"><i data-w="' + ((slaProm || 0) / escala * 100).toFixed(1) + '"></i></div><b>' + plazo(slaProm == null ? null : Math.round(slaProm * 10) / 10) + '</b></div>' +
+        '</div>' +
+        '<div class="ot-foot tp-hero__foot">' +
+          '<div class="ot-st"><b>' + nf(g.ciclos.length) + '</b><span>Pedidos entregados</span></div>' +
+          '<div class="ot-st"><b>' + tiempo(lentos) + '</b><span>1 de cada 10 tarda más de</span></div>' +
+          '<div class="ot-st"><b>' + pf(cnt[0] / tot * 100, 0) + '</b><span>Llega en menos de 1 día</span></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="ot-grid2 tp-grid">' +
-        '<div class="ot-card" id="tpEtapas"><div class="ot-card__h"><h3>Cada etapa</h3><small>típico · los más lentos (1 de cada 10)</small></div>' +
-          filas.map(function (f) {
+        '<div class="ot-card" id="tpEtapas"><div class="ot-card__h"><h3>Tiempo por etapa</h3><small>tiempo habitual · los más demorados (1 de cada 10)</small></div>' +
+          '<div class="tp-rows">' + filas.map(function (f) {
             var w1 = (f.med || 0) / maxV * 100, w2 = (f.lento || 0) / maxV * 100, max = f === tMax;
             return '<div class="tp-row' + (max ? ' is-max' : '') + '"><div class="tp-n"><span class="tp-ico">' + STG_ICO[f.t[0]] + '</span><span>' + esc(f.t[1]) + '<small>' + esc(f.t[2]) + '</small></span></div>' +
               '<div class="tp-bar"><span class="slow" data-w="' + w2.toFixed(1) + '"></span><span class="typ" data-w="' + w1.toFixed(1) + '" style="background:' + (max ? '#dc2626' : f.t[3]) + '"></span></div>' +
               '<div class="tp-v"><b>' + tiempo(f.med) + '</b><small>hasta ' + tiempo(f.lento, true) + '</small></div></div>';
-          }).join('') +
-          '<div class="ot-legend"><span><i style="background:#0B5F8D"></i>Tiempo típico</span><span><i style="background:#d6e4f2"></i>Los más lentos</span><span>· 1 día = jornada laboral (' + esc(horarioTxt()) + ')</span></div>' +
+          }).join('') + '</div>' +
+          '<div class="ot-legend"><span><i style="background:#0B5F8D"></i>Tiempo habitual</span><span><i style="background:#d6e4f2"></i>Los más demorados</span></div>' + '<div class="cfg-wrap">' + btnConfigHorario() + '</div>' +
         '</div>' +
-        '<div class="ot-card" id="tpDist"><div class="ot-card__h"><h3>¿Cuánto tardan en llegar?</h3><small>' + nf(g.ciclos.length) + ' pedidos entregados</small></div>' +
-          cubos.map(function (c, i) {
+        '<div class="ot-card" id="tpDist"><div class="ot-card__h"><h3>¿En cuánto tiempo llegan los pedidos?</h3><small>' + nf(g.ciclos.length) + ' pedidos entregados</small></div>' +
+          '<div class="tp-rows">' + cubos.map(function (c, i) {
             return '<div class="tp-col"><div class="tp-col__n">' + c[0] + '</div><div class="tp-col__bar"><span data-w="' + (cnt[i] / maxC * 100).toFixed(1) + '"></span></div><div class="tp-col__v"><b>' + pf(cnt[i] / tot * 100, 0) + '</b><small>' + nf(cnt[i]) + '</small></div></div>';
-          }).join('') +
-          '<div class="tp-tip">La mitad de los pedidos llega en <b>' + tiempo(g.cicloMed) + '</b> o menos.</div>' +
+          }).join('') + '</div>' +
+          '<div class="ot-legend">Según el tiempo desde la carga del pedido hasta la entrega (horario laboral)</div>' +
         '</div>' +
-      '</div>';
-    var bars = qa('#tpEtapas .tp-bar span, #tpDist .tp-col__bar span');
+      '</div></div>';
+    wireConfigHorario(body);
+    var bars = qa('#tpEtapas .tp-bar span, #tpDist .tp-col__bar span, #tpHero .tp-cmp__bar i');
     bars.forEach(function (s, i) { if (GS && entrada !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .1 + i * .04, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
     if (GS && entrada !== false) {
-      gsap.from('.tp-grid .ot-card', { opacity: 0, y: 16, duration: .45, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('#tpHero, .tp-grid .ot-card', { opacity: 0, y: 16, duration: .45, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('#tpBig', { opacity: 0, scale: .9, transformOrigin: '0% 50%', duration: .6, delay: .15, ease: 'back.out(1.8)', clearProps: 'transform,opacity' });
       gsap.from('.tp-row, .tp-col', { opacity: 0, x: -8, duration: .3, stagger: .04, delay: .1, ease: 'power2.out', clearProps: 'transform,opacity' });
     }
   }
@@ -899,8 +948,8 @@
     var adm = isAdmin(), c = JSON.parse(JSON.stringify(CFG || {}));
     c.sla_zona = c.sla_zona || {}; c.sla_departamento = c.sla_departamento || {}; c.feriados = c.feriados || [];
     c.calendario = c.calendario || { dias: [null, [435, 1020], [435, 1020], [435, 1020], [435, 1020], [435, 1020], [435, 690]] };
-    q('#tbTitle').textContent = 'Plazos y feriados';
-    q('#tbSub').textContent = adm ? 'Los cambios se aplican a todo el equipo' : 'Solo lectura · lo edita un administrador';
+    q('#tbTitle').textContent = 'Plazos y calendario';
+    q('#tbSub').textContent = adm ? 'Parámetros de medición · se aplican a todo el equipo' : 'Solo lectura · lo edita un administrador';
     var hm = function (m) { return m == null ? '' : pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
     var aMinHM = function (s) { var p = String(s || '').split(':'); return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null; };
     var dis = adm ? '' : ' disabled';
@@ -914,15 +963,15 @@
     }
     body.innerHTML =
       '<div class="pf-grid">' +
-        '<div class="ot-card"><div class="ot-card__h"><h3>Meta</h3></div>' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Meta de cumplimiento</h3></div>' +
           '<label class="pf-big"><input type="number" id="pfMeta" min="50" max="100" step="1" value="' + (+c.meta_otif || 85) + '"' + dis + '/><span>% de pedidos en tiempo y forma</span></label></div>' +
-        '<div class="ot-card"><div class="ot-card__h"><h3>Horario laboral</h3><small>define qué es "1 día"</small></div>' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Horario laboral</h3><small>base para contar los días</small></div>' +
           '<div class="pf-row"><span>Lunes a viernes</span><input type="time" id="pfLvI" value="' + hm(c.calendario.dias[1] && c.calendario.dias[1][0]) + '"' + dis + '/><i>a</i><input type="time" id="pfLvF" value="' + hm(c.calendario.dias[1] && c.calendario.dias[1][1]) + '"' + dis + '/></div>' +
           '<div class="pf-row"><span>Sábado</span><input type="time" id="pfSaI" value="' + hm(c.calendario.dias[6] && c.calendario.dias[6][0]) + '"' + dis + '/><i>a</i><input type="time" id="pfSaF" value="' + hm(c.calendario.dias[6] && c.calendario.dias[6][1]) + '"' + dis + '/></div></div>' +
-        '<div class="ot-card"><div class="ot-card__h"><h3>Plazo por zona</h3><small>días laborales</small></div>' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Plazo por zona</h3><small>en días hábiles</small></div>' +
           ['Capital', 'Interior'].map(function (z) { return '<div class="pf-row"><span>' + z + '</span><input type="number" min="0.5" step="0.5" data-zona="' + z + '" value="' + (c.sla_zona[z] || '') + '"' + dis + '/><i>días</i></div>'; }).join('') +
           '<div class="pf-note">Retira el cliente / salón (' + esc((c.condiciones_retiro || ['08', '09']).join(', ')) + '): el plazo termina en la factura.</div></div>' +
-        '<div class="ot-card pf-deps"><div class="ot-card__h"><h3>Plazo por departamento</h3><small>días laborales · tiene prioridad sobre la zona</small></div>' +
+        '<div class="ot-card pf-deps"><div class="ot-card__h"><h3>Plazo por departamento</h3><small>en días hábiles · tiene prioridad sobre la zona</small></div>' +
           '<div class="pf-depgrid">' + deps.map(function (d) { return '<div class="pf-row"><span>' + esc(d) + '</span><input type="number" min="0.5" step="0.5" data-dep="' + esc(d) + '" value="' + c.sla_departamento[d] + '"' + dis + '/><i>días</i></div>'; }).join('') + '</div></div>' +
         '<div class="ot-card pf-fers"><div class="ot-card__h"><h3>Feriados</h3><small>' + nf(c.feriados.length) + ' cargados · no cuentan como día laboral</small></div>' +
           (adm ? '<div class="pf-add"><input type="date" id="pfFerD"/><button class="btn btn--sm" type="button" id="pfFerAdd">Agregar</button></div>' : '') +
@@ -967,8 +1016,8 @@
      Arrastrar / elegir el Excel de SAP · historial de cargas.
      ════════════════════════════════════════════════════════════ */
   function renderCargar(body, entrada) {
-    q('#tbTitle').textContent = 'Actualizar base';
-    q('#tbSub').textContent = 'Subí el Excel de pedidos de SAP tal como sale';
+    q('#tbTitle').textContent = 'Actualizar datos';
+    q('#tbSub').textContent = 'Cargá el reporte de pedidos de SAP tal como se exporta';
     if (!isAdmin()) { body.innerHTML = '<div class="ot-soon">' + IC.upload + '<h3>Solo administradores</h3><p>Pedile a un administrador que cargue el Excel.</p></div>'; return; }
     var f2 = function (d) { return d ? d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '—'; };
     var hist = IMPORTS.slice(0, 8).map(function (i) {
@@ -989,7 +1038,7 @@
           '<div><i>✓</i><span>Si el Excel <b>ya estaba cargado</b>, te avisa antes de seguir.</span></div>' +
           '<div><i>✓</i><span>Las <b>filas repetidas</b> dentro del Excel se toman una sola vez.</span></div>' +
         '</div>' +
-        '<div class="ot-card up-hist"><div class="ot-card__h"><h3>Últimas cargas</h3><small>' + nf(IMPORTS.length) + ' en total</small></div>' + (hist || '<div class="ot-soon" style="padding:24px">Todavía no se cargó ningún Excel.</div>') + '</div>' +
+        '<div class="ot-card up-hist"><div class="ot-card__h"><h3>Historial de cargas</h3><small>' + nf(IMPORTS.length) + ' en total</small></div>' + (hist || '<div class="ot-soon" style="padding:24px">Todavía no se cargó ningún Excel.</div>') + '</div>' +
       '</div>';
     var drop = q('#upDrop');
     drop.addEventListener('click', function (e) { e.preventDefault(); q('#fileBase').click(); });
@@ -1038,37 +1087,288 @@
   }
   function pintarMapa(deps, meta, entrada, alTocar) {
     var box = q('#znMapBox'), M = window.PY_MAPA;
-    if (!box || !M) { var c = q('#znMap'); if (c) c.remove(); return; }
+    if (!box || !M) { var c0 = q('#znMap'); if (c0) c0.remove(); return null; }
     var by = {}; deps.forEach(function (d) { by[d.clave] = d; });
-    var asu = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0];
-    box.innerHTML = '<svg viewBox="0 0 ' + M.w + ' ' + M.h + '" role="img" aria-label="Mapa de cumplimiento por departamento">' +
-      M.deptos.map(function (d) {
-        var x = by[d.k], col = x ? mapColor(x.pOtif, meta) : '#e2e8f0';
-        return '<path class="pm-d' + (x ? ' has' : '') + '" data-k="' + esc(d.k) + '" data-n="' + esc(d.n) + '" d="' + d.d + '" fill="' + col + '"/>';
-      }).join('') +
-      (asu ? '<circle class="pm-asu' + (by.Asuncion ? ' has' : '') + '" data-k="Asuncion" data-n="Asunción" cx="' + asu.cx + '" cy="' + asu.cy + '" r="15" fill="' + (by.Asuncion ? mapColor(by.Asuncion.pOtif, meta) : '#e2e8f0') + '"/>' : '') +
-      '</svg>' +
-      '<div class="pm-scale"><span style="background:linear-gradient(90deg,' + [meta - 45, meta - 25, meta - 10, meta - 3, meta].map(function (v) { return mapColor(v, meta); }).join(',') + ')"></span><div><small>' + pf(meta - 45, 0) + ' o menos</small><small>Meta ' + pf(meta, 0) + '</small></div></div>';
-    var tip = q('#znTip'), card = q('#znMap');
-    function mostrar(e, el) {
-      var x = by[el.dataset.k], n = el.dataset.n;
-      var grupo = el.dataset.k === 'Chaco' ? ' <small>(Chaco)</small>' : '';
-      tip.innerHTML = '<b>' + esc(n) + grupo + '</b>' + (x ? '<span style="color:' + mapColor(x.pOtif, meta) + '">' + pf(x.pOtif) + '</span><small>' + nf(x.evaluados) + ' pedidos' + (x.faltan ? ' · faltan ' + nf(x.faltan) : ' · en meta') + '</small>' : '<small>Sin pedidos este mes</small>');
-      tip.hidden = false;
-      var r = card.getBoundingClientRect();
-      tip.style.left = Math.min(r.width - 190, Math.max(8, e.clientX - r.left + 14)) + 'px';
-      tip.style.top = (e.clientY - r.top + 14) + 'px';
-      qa('[data-k="' + el.dataset.k + '"]', box).forEach(function (p) { p.classList.add('hov'); });
+    var maxN = Math.max.apply(null, deps.map(function (d) { return d.evaluados; })) || 1;
+    function volColor(n) {
+      if (!n) return '#e2e8f0';
+      var t = Math.sqrt(n / maxN), a = [207, 226, 246], b = [11, 79, 138];
+      return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
     }
-    qa('.pm-d, .pm-asu', box).forEach(function (el) {
-      el.addEventListener('mousemove', function (e) { mostrar(e, el); });
-      el.addEventListener('mouseleave', function () { tip.hidden = true; qa('.hov', box).forEach(function (p) { p.classList.remove('hov'); }); });
-      if (by[el.dataset.k]) el.addEventListener('click', function () { alTocar(el.dataset.k); });
+    function colorDe(k) { var x = by[k]; if (!x) return '#e2e8f0'; return ZN.lente === 'vol' ? volColor(x.evaluados) : mapColor(x.pOtif, meta); }
+    function textoDe(k) { var x = by[k]; if (!x) return ''; return ZN.lente === 'vol' ? nf(x.evaluados) : Math.round(x.pOtif) + '%'; }
+    // Etiquetas: una por departamento con datos (el Chaco, una sola sobre Pdte. Hayes)
+    var etiquetas = [], vistos = {};
+    M.deptos.forEach(function (d) {
+      if (!by[d.k] || vistos[d.k]) return;
+      if (d.k === 'Chaco' && d.n !== 'Presidente Hayes') return;
+      vistos[d.k] = 1;
+      etiquetas.push({ k: d.k, x: d.k === 'Asuncion' ? d.cx - 30 : d.cx, y: d.k === 'Asuncion' ? d.cy - 26 : d.cy + 8, a: d.k === 'Asuncion' ? 'end' : 'middle' });
     });
-    if (GS && entrada !== false) {
-      gsap.from(qa('.pm-d', box), { opacity: 0, scale: .92, transformOrigin: '50% 50%', duration: .5, stagger: .035, ease: 'power3.out', clearProps: 'transform,opacity' });
-      gsap.from(qa('.pm-asu', box), { scale: 0, transformOrigin: '50% 50%', duration: .5, delay: .6, ease: 'back.out(2.6)', clearProps: 'transform' });
+    var asu = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0];
+    box.innerHTML = '<svg viewBox="-10 -10 ' + (M.w + 20) + ' ' + (M.h + 20) + '" role="img" aria-label="Mapa de cumplimiento por departamento">' +
+      '<defs><filter id="pmSh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0f172a" flood-opacity=".28"/></filter></defs>' +
+      '<g class="pm-g">' + M.deptos.map(function (d) {
+        return '<path class="pm-d' + (by[d.k] ? ' has' : '') + '" data-k="' + esc(d.k) + '" d="' + d.d + '" fill="#e2e8f0"/>';
+      }).join('') +
+      (asu ? '<circle class="pm-d pm-asu' + (by.Asuncion ? ' has' : '') + '" data-k="Asuncion" cx="' + asu.cx + '" cy="' + asu.cy + '" r="15" fill="#e2e8f0"/>' : '') + '</g>' +
+      '<g class="pm-l">' + etiquetas.map(function (e) { return '<text class="pm-t" data-k="' + esc(e.k) + '" x="' + e.x + '" y="' + e.y + '" text-anchor="' + e.a + '">' + textoDe(e.k) + '</text>'; }).join('') + '</g>' +
+      '</svg>';
+    var svg = q('svg', box), det = q('#znDet');
+    var orden = deps.slice().sort(function (a, b) { return b.faltan - a.faltan || b.evaluados - a.evaluados; });
+    var sel = ZN.sel && by[ZN.sel] ? ZN.sel : (orden[0] ? orden[0].clave : null);
+
+    function leyenda() {
+      var lg = q('#znMapLeg'); if (!lg) return;
+      lg.innerHTML = ZN.lente === 'vol'
+        ? '<span style="background:linear-gradient(90deg,' + volColor(1) + ',' + volColor(maxN) + ')"></span><div><small>Pocos pedidos</small><small>Muchos pedidos</small></div>'
+        : '<span style="background:linear-gradient(90deg,' + [meta - 45, meta - 25, meta - 10, meta - 3, meta].map(function (v) { return mapColor(v, meta); }).join(',') + ')"></span><div><small>' + pf(meta - 45, 0) + ' o menos</small><small>Meta ' + pf(meta, 0) + '</small></div>';
     }
+    function ficha(k, esSel) {
+      var x = by[k]; if (!det || !x) return;
+      var nombre = k === 'Chaco' ? 'Chaco' : (M.deptos.filter(function (d) { return d.k === k; })[0] || {}).n || k;
+      var col = mapColor(x.pOtif, meta), mayor = orden[0] && orden[0].clave === k;
+      det.innerHTML =
+        '<div class="md-n"><i style="background:' + col + '"></i><div><b>' + esc(nombre) + '</b><small>' + (esSel && mayor ? 'Donde más se puede mejorar' : esc(x.zona || '')) + '</small></div></div>' +
+        '<div class="md-k"><b style="color:' + col + '" id="mdPct">' + pf(x.pOtif) + '</b><small>en tiempo y forma</small></div>' +
+        '<div class="md-s"><b>' + nf(x.evaluados) + '</b><small>pedidos</small></div>' +
+        '<div class="md-s"><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'faltan p/ ' + pf(meta, 0) : 'en meta') + '</small></div>' +
+        '<div class="md-s"><b>' + tiempo(x.cicloMed, true) + '</b><small>tiempo habitual</small></div>';
+      if (GS) {
+        gsap.fromTo(det.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .28, stagger: .035, ease: 'power2.out', clearProps: 'transform,opacity' });
+        animCount(q('#mdPct'), x.pOtif, function (v) { return pf(v); }, .55);
+      }
+    }
+    function foco(k, apagar) {
+      svg.classList.toggle('foco', !!k && apagar !== false);
+      qa('.pm-d', svg).forEach(function (p) {
+        var on = p.dataset.k === k;
+        p.classList.toggle('on', on);
+        if (on) p.parentNode.appendChild(p);          // al frente, para que se vea el borde
+      });
+      qa('.pm-t', svg).forEach(function (t) { t.classList.toggle('on', t.dataset.k === k); });
+      qa('#znRows .zn-row[data-dep]').forEach(function (r) { r.classList.toggle('hl', r.dataset.dep === k); });
+    }
+    function volver() { foco(sel, false); ficha(sel, true); }   // seleccionado: solo borde, sin apagar al resto
+
+    qa('.pm-d', svg).forEach(function (el) {
+      var k = el.dataset.k;
+      el.addEventListener('mouseenter', function () { if (by[k]) { foco(k); ficha(k, false); } });
+      el.addEventListener('mouseleave', volver);
+      if (by[k]) el.addEventListener('click', function () {
+        sel = ZN.sel = k; volver();
+        if (GS) gsap.fromTo(qa('.pm-d[data-k="' + k + '"]', svg), { scale: 1 }, { scale: 1.035, transformOrigin: '50% 50%', duration: .16, yoyo: true, repeat: 1, ease: 'power1.inOut', clearProps: 'transform' });
+        alTocar(k);
+      });
+    });
+    // Lente: Cumplimiento / Volumen
+    qa('#znLente button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.l === (ZN.lente || 'cumpl'));
+      b.addEventListener('click', function () {
+        if ((ZN.lente || 'cumpl') === b.dataset.l) return;
+        ZN.lente = b.dataset.l;
+        qa('#znLente button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        qa('.pm-d', svg).forEach(function (p, i) { var c = colorDe(p.dataset.k); if (GS) gsap.to(p, { attr: { fill: c }, duration: .55, delay: i * .015, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
+        qa('.pm-t', svg).forEach(function (t) {
+          if (!GS) { t.textContent = textoDe(t.dataset.k); return; }
+          gsap.to(t, { opacity: 0, duration: .15, onComplete: function () { t.textContent = textoDe(t.dataset.k); gsap.to(t, { opacity: 1, duration: .25 }); } });
+        });
+        leyenda();
+      });
+    });
+    leyenda();
+
+    // Entrada: los departamentos se pintan del peor al mejor
+    var pathsPorK = {}; qa('.pm-d', svg).forEach(function (p) { (pathsPorK[p.dataset.k] = pathsPorK[p.dataset.k] || []).push(p); });
+    var orden2 = deps.slice().sort(function (a, b) { return a.pOtif - b.pOtif; }).map(function (d) { return d.clave; });
+    qa('.pm-d:not(.has)', svg).forEach(function (p) { p.setAttribute('fill', '#e2e8f0'); });
+    if (GS && entrada !== false) {
+      gsap.from(svg, { opacity: 0, scale: .96, transformOrigin: '50% 50%', duration: .5, ease: 'power2.out', clearProps: 'transform,opacity' });
+      orden2.forEach(function (k, i) { (pathsPorK[k] || []).forEach(function (p) { gsap.to(p, { attr: { fill: colorDe(k) }, duration: .45, delay: .25 + i * .07, ease: 'power2.out' }); }); });
+      gsap.from(qa('.pm-t', svg), { opacity: 0, y: 6, duration: .35, stagger: .03, delay: .35 + orden2.length * .07, ease: 'power2.out', clearProps: 'transform,opacity' });
+    } else {
+      qa('.pm-d', svg).forEach(function (p) { p.setAttribute('fill', colorDe(p.dataset.k)); });
+    }
+    setTimeout(volver, GS && entrada !== false ? 350 + orden2.length * 70 : 0);
+    return { foco: function (k) { if (k) { foco(k); ficha(k, false); } else volver(); } };
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     APARTADO DE CADA KPI — se entra desde el chip "Ver pedidos" de
+     las tarjetas del Resumen. Pestañas + buscador + lista + Volver.
+     ════════════════════════════════════════════════════════════ */
+  var KPI = { k: 'ot', tab: null, q: '', limit: 150 };
+  var KPIS = {
+    ot: { t: 'A tiempo', c: '#0B5F8D', ico: 'clock', d: 'Pedidos entregados dentro del plazo pactado',
+      val: function (g) { return pf(g.pOt); }, sub: function (g) { return nf(g.ot) + ' de ' + nf(g.evaluados) + ' pedidos'; },
+      tabs: [['si', 'A tiempo', function (o) { return o.estado === 'evaluado' && o.ot; }], ['no', 'Fuera de plazo', function (o) { return o.estado === 'evaluado' && !o.ot; }]] },
+    inf: { t: 'Completos', c: '#16a34a', ico: 'check', d: 'Pedidos entregados sin faltantes',
+      val: function (g) { return pf(g.pIn); }, sub: function (g) { return nf(g.inf) + ' de ' + nf(g.evaluados) + ' pedidos'; },
+      tabs: [['si', 'Completos', function (o) { return o.estado === 'evaluado' && o.inf; }], ['no', 'Con faltantes', function (o) { return o.estado === 'evaluado' && !o.inf; }]] },
+    sc: { t: 'Entregas sin cerrar', c: '#d97706', ico: 'truck', d: 'Salieron del depósito y falta registrar la entrega en SAP',
+      val: function (g) { return nf(g.sin_registro); }, sub: function (g) { return 'pedidos · ' + pf(g.total ? g.sin_registro / g.total * 100 : null) + ' del total'; },
+      tabs: [['todos', 'Todas', function (o) { return o.estado === 'sin_registro'; }], ['chofer', 'En chofer (04)', function (o) { return o.estado === 'sin_registro' && o.p.ult_etapa === 4; }], ['parcial', 'Entrega parcial', function (o) { return o.estado === 'sin_registro' && o.p.n_entregadas > 0; }]] },
+    sd: { t: 'Sin despachar', c: '#dc2626', ico: 'box', d: 'Pedidos que nunca salieron del depósito',
+      val: function (g) { return nf(g.sin_despacho); }, sub: function (g) { return 'pedidos · ' + pf(g.total ? g.sin_despacho / g.total * 100 : null) + ' del total'; },
+      tabs: [['todos', 'Todos', function (o) { return o.estado === 'sin_despacho'; }]] }
+  };
+  var KPI_ICO = {
+    clock: SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+    check: SV('<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>'),
+    truck: STG_ICO.tra,
+    box: SV('<path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M9 10l6 6M15 10l-6 6"/>')
+  };
+  var IC_BACK = SV('<path d="M15 18l-6-6 6-6"/>');
+
+  function abrirKpi(k) {
+    KPI.k = k; KPI.tab = null; KPI.q = ''; KPI.limit = 150;
+    var body = q('#otBody');
+    VIEW = 'kpi';
+    if (!GS || !body) { renderPagina(true); return; }
+    gsap.to(body, { opacity: 0, x: -28, duration: .22, ease: 'power2.in', onComplete: function () {
+      q('#stage').scrollTop = 0; renderPagina(true);
+      gsap.fromTo(body, { opacity: 0, x: 36 }, { opacity: 1, x: 0, duration: .42, ease: 'power3.out', clearProps: 'transform,opacity' });
+    } });
+  }
+  function volverDeKpi() {
+    var body = q('#otBody');
+    VIEW = 'resumen'; setNav('resumen');
+    if (!GS || !body) { renderPagina(true); return; }
+    gsap.to(body, { opacity: 0, x: 28, duration: .22, ease: 'power2.in', onComplete: function () {
+      q('#stage').scrollTop = 0; renderPagina(true);
+      gsap.fromTo(body, { opacity: 0, x: -36 }, { opacity: 1, x: 0, duration: .42, ease: 'power3.out', clearProps: 'transform,opacity' });
+    } });
+  }
+
+  function renderKpi(body, entrada) {
+    var def = KPIS[KPI.k] || KPIS.ot, evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85;
+    if (!KPI.tab) KPI.tab = def.tabs[def.tabs.length > 1 && (KPI.k === 'ot' || KPI.k === 'inf') ? 1 : 0][0];   // de entrada: lo que hay que mirar (fuera de plazo / con faltantes)
+    q('#tbTitle').textContent = def.t;
+    q('#tbSub').textContent = 'Pedidos del indicador · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    var conteo = def.tabs.map(function (t) { return evs.filter(t[2]).length; });
+    body.innerHTML =
+      '<div class="kp">' +
+        '<div class="kp-top"><button type="button" class="kp-back" id="kpBack">' + IC_BACK + '<span>Volver al resumen</span></button></div>' +
+        '<div class="kp-hero" style="--c:' + def.c + '">' +
+          '<div class="kp-hero__ico">' + KPI_ICO[def.ico] + '</div>' +
+          '<div class="kp-hero__t"><span>' + esc(def.t) + '</span><b id="kpVal">' + def.val(g) + '</b><small>' + esc(def.sub(g)) + '</small></div>' +
+          '<div class="kp-hero__d">' + esc(def.d) + '</div>' +
+        '</div>' +
+        '<div class="ot-card kp-card">' +
+          '<div class="kp-bar">' +
+            (def.tabs.length > 1 ? '<div class="zn-sort kp-tabs" id="kpTabs">' + def.tabs.map(function (t, i) { return '<button type="button" data-t="' + t[0] + '"' + (KPI.tab === t[0] ? ' class="on"' : '') + '>' + esc(t[1]) + '<em>' + nf(conteo[i]) + '</em></button>'; }).join('') + '</div>' : '') +
+            '<div class="ot-search kp-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="kpQ" placeholder="Buscar pedido, cliente o vendedor…" value="' + esc(KPI.q) + '"/></div>' +
+            '<button class="btn btn--sm btn--primary" type="button" id="kpExport">' + IC.upload.replace('M17 8l-5-5-5 5M12 3v12', 'M7 10l5 5 5-5M12 15V3') + ' Excel</button>' +
+          '</div>' +
+          '<div class="det-tblwrap kp-tbl" id="kpTabla"></div>' +
+        '</div>' +
+      '</div>';
+    function lista() {
+      var tab = def.tabs.filter(function (t) { return t[0] === KPI.tab; })[0] || def.tabs[0], tq = KPI.q.toLowerCase().trim();
+      return evs.filter(tab[2]).filter(function (o) { return !tq || [o.p.doc_vtas, o.p.cliente_nombre, o.p.vendedor_nombre, o.p.region_nombre].join(' ').toLowerCase().indexOf(tq) >= 0; })
+        .sort(function (a, b) { return (b.ciclo == null ? -1 : b.ciclo - b.sla) - (a.ciclo == null ? -1 : a.ciclo - a.sla) || (a.p.fecha_carga < b.p.fecha_carga ? -1 : 1); });
+    }
+    function pintar(animar) {
+      var f = lista(), vis = f.slice(0, KPI.limit);
+      EXPORT_DET = f;
+      q('#kpTabla').innerHTML = !f.length ? '<div class="ot-soon" style="padding:50px">No hay pedidos en esta pestaña.</div>' :
+        '<table class="ot-tbl det-tbl"><thead><tr><th>Pedido</th><th>Carga</th><th>Cliente</th><th>Vendedor</th><th>Destino</th><th class="r">Artículos</th><th class="r">Tiempo / plazo</th><th>Estado</th></tr></thead><tbody>' +
+        vis.map(function (o) {
+          var p = o.p, tarde = o.ciclo != null && o.ciclo > o.sla;
+          return '<tr data-doc="' + esc(p.doc_vtas) + '" tabindex="0"><td class="b">' + esc(p.doc_vtas) + '</td><td>' + fechaHora(p.fecha_carga) + '</td>' +
+            '<td class="cli" title="' + esc(p.cliente_nombre) + '">' + esc(p.cliente_nombre || p.cliente_cod || '—') + '</td><td class="ven">' + esc(p.vendedor_nombre || '—') + '</td>' +
+            '<td class="des">' + esc(p.region_nombre || p.departamento) + '<small>' + esc(p.departamento) + '</small></td>' +
+            '<td class="r' + (p.n_completas < p.n_lineas ? ' warnt' : '') + '">' + nf(p.n_completas) + '/' + nf(p.n_lineas) + '</td>' +
+            '<td class="r"><b class="' + (tarde ? 'badt' : '') + '">' + (o.ciclo == null ? '—' : tiempo(o.ciclo, true)) + '</b><small> de ' + plazo(o.sla) + '</small></td>' +
+            '<td>' + estadoChip(o) + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        (f.length > vis.length ? '<div class="det-more"><button class="btn btn--sm" type="button" id="kpMas">Mostrar más</button><span>' + nf(vis.length) + ' de ' + nf(f.length) + '</span></div>' : '<div class="det-more"><span>' + nf(f.length) + ' pedidos</span></div>');
+      qa('#kpTabla tbody tr').forEach(function (tr) {
+        var go = function () { var o = f.filter(function (x) { return x.p.doc_vtas === tr.dataset.doc; })[0]; if (o) abrirPedido(o); };
+        tr.addEventListener('click', go); tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      });
+      var m = q('#kpMas'); if (m) m.addEventListener('click', function () { KPI.limit += 150; pintar(false); });
+      if (GS && animar !== false) gsap.from(qa('#kpTabla tbody tr').slice(0, 20), { opacity: 0, y: 8, duration: .28, stagger: .02, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+    q('#kpBack').addEventListener('click', volverDeKpi);
+    qa('#kpTabs button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (KPI.tab === b.dataset.t) return;
+        KPI.tab = b.dataset.t; KPI.limit = 150;
+        qa('#kpTabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        if (GS) gsap.to('#kpTabla', { opacity: 0, y: 6, duration: .14, ease: 'power1.in', onComplete: function () { pintar(true); gsap.to('#kpTabla', { opacity: 1, y: 0, duration: .25, clearProps: 'transform,opacity' }); } });
+        else pintar(true);
+      });
+    });
+    var tmr; q('#kpQ').addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { KPI.q = e.target.value; KPI.limit = 150; pintar(false); }, 180); });
+    q('#kpExport').addEventListener('click', exportarDetalle);
+    pintar(entrada);
+    if (GS && entrada !== false) {
+      gsap.from('.kp-back', { opacity: 0, x: -12, duration: .35, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from('.kp-hero', { opacity: 0, y: 14, scale: .98, duration: .5, delay: .05, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('.kp-hero__ico', { scale: 0, rotate: -25, duration: .55, delay: .2, ease: 'back.out(2.4)', clearProps: 'transform' });
+      gsap.from('.kp-card', { opacity: 0, y: 16, duration: .45, delay: .12, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('#kpTabs button', { opacity: 0, y: -6, duration: .3, stagger: .05, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     MODAL "Configuración del horario" (reemplaza el texto
+     "1 día = jornada laboral…"). Admin edita; el resto solo ve.
+     ════════════════════════════════════════════════════════════ */
+  function btnConfigHorario() {
+    return '<button type="button" class="cfg-btn" data-cfg-horario>' + SV('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>') + '<span>Configuración</span><small>' + esc(horarioTxt()) + '</small></button>';
+  }
+  function wireConfigHorario(root) { qa('[data-cfg-horario]', root || document).forEach(function (b) { b.addEventListener('click', abrirConfigHorario); }); }
+  function abrirConfigHorario() {
+    var adm = isAdmin(), dias = (CFG.calendario && CFG.calendario.dias) || [], lv = dias[1] || [435, 1020], sa = dias[6];
+    var hm = function (m) { return m == null ? '' : pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+    var aMinHM = function (s) { var p = String(s || '').split(':'); return p.length === 2 && p[0] !== '' ? (+p[0]) * 60 + (+p[1]) : null; };
+    var dis = adm ? '' : ' disabled';
+    var bd = el('<div class="modal-bd open cfg-modal"><div class="modal-box">' +
+      '<div class="cfg-hd"><div class="cfg-hd__ico">' + SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>') + '</div><div><h3>Horario laboral</h3><p>Los tiempos se cuentan solo dentro de este horario. Una jornada completa equivale a <b>1 día</b>.</p></div>' +
+        '<button class="modal-x" type="button" aria-label="Cerrar"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>' +
+      '<div class="cfg-body">' +
+        '<div class="cfg-row"><div><b>Lunes a viernes</b><small>jornada principal</small></div><input type="time" id="cfgLvI" value="' + hm(lv[0]) + '"' + dis + '/><i>a</i><input type="time" id="cfgLvF" value="' + hm(lv[1]) + '"' + dis + '/></div>' +
+        '<div class="cfg-row"><div><b>Sábado</b><small>dejá vacío si no se trabaja</small></div><input type="time" id="cfgSaI" value="' + hm(sa && sa[0]) + '"' + dis + '/><i>a</i><input type="time" id="cfgSaF" value="' + hm(sa && sa[1]) + '"' + dis + '/></div>' +
+        '<div class="cfg-row cfg-row--muted"><div><b>Domingo y feriados</b><small>' + nf((CFG.feriados || []).length) + ' feriados cargados</small></div><span class="cfg-tag">No laborable</span></div>' +
+        (adm ? '' : '<div class="cfg-note">Solo un administrador puede modificar el horario.</div>') +
+      '</div>' +
+      '<div class="cfg-ft"><button class="btn" type="button" data-fer>Editar feriados</button><span></span>' +
+        (adm ? '<button class="btn" type="button" data-x>Cancelar</button><button class="btn btn--primary" type="button" data-ok>Guardar</button>' : '<button class="btn btn--primary" type="button" data-x>Entendido</button>') +
+      '</div></div></div>');
+    document.body.appendChild(bd);
+    var box = q('.modal-box', bd);
+    function cerrar(cb) {
+      if (!GS) { bd.remove(); if (cb) cb(); return; }
+      gsap.to(box, { opacity: 0, y: 14, scale: .96, duration: .2, ease: 'power2.in' });
+      gsap.to(bd, { opacity: 0, duration: .24, delay: .04, onComplete: function () { bd.remove(); if (cb) cb(); } });
+    }
+    if (GS) {
+      gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .22 });
+      gsap.fromTo(box, { opacity: 0, y: 24, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: .45, ease: 'back.out(1.6)', clearProps: 'transform,opacity' });
+      gsap.from(qa('.cfg-row', bd), { opacity: 0, x: -10, duration: .3, stagger: .06, delay: .15, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.cfg-hd__ico', bd), { scale: 0, rotate: -30, duration: .5, delay: .1, ease: 'back.out(2.4)', clearProps: 'transform' });
+    }
+    q('.modal-x', bd).addEventListener('click', function () { cerrar(); });
+    bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
+    qa('[data-x]', bd).forEach(function (b) { b.addEventListener('click', function () { cerrar(); }); });
+    q('[data-fer]', bd).addEventListener('click', function () { cerrar(function () { ir('parametros'); }); });
+    var ok = q('[data-ok]', bd);
+    if (ok) ok.addEventListener('click', async function () {
+      var a = [aMinHM(q('#cfgLvI', bd).value), aMinHM(q('#cfgLvF', bd).value)], s = [aMinHM(q('#cfgSaI', bd).value), aMinHM(q('#cfgSaF', bd).value)];
+      if (a[0] == null || a[1] == null || a[1] <= a[0]) { toast('Revisá el horario de lunes a viernes', true); return; }
+      var c = JSON.parse(JSON.stringify(CFG));
+      c.calendario = c.calendario || {};
+      c.calendario.dias = [null, a, a, a, a, a, (s[0] != null && s[1] != null && s[1] > s[0]) ? s : null];
+      ok.disabled = true; ok.textContent = 'Guardando…';
+      try {
+        var r = await DB.from('otif_config').update({ data: c, actualizado_en: new Date().toISOString(), actualizado_por: userName() }).eq('id', 1);
+        if (r.error) throw r.error;
+        await cargarBase(); await cargarMes();
+        cerrar(function () { toast('Horario guardado · tiempos recalculados'); renderShell(); });
+      } catch (e) { console.error(e); toast('No se pudo guardar', true); ok.disabled = false; ok.textContent = 'Guardar'; }
+    });
   }
 
   /* ── Brecha a la meta (Resumen) ── */
@@ -1145,7 +1445,7 @@
   function renderDetalle(body, entrada) {
     var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85;
     q('#tbTitle').textContent = 'Detalle de pedidos';
-    q('#tbSub').textContent = 'Pedido por pedido · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    q('#tbSub').textContent = 'Seguimiento pedido por pedido · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
     body.innerHTML =
       '<div class="det-filters" id="detFilters">' +
         '<div class="ot-search det-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="detQ" placeholder="Buscar pedido, cliente, vendedor o ciudad…" value="' + esc(DET.q) + '"/></div>' +
@@ -1168,7 +1468,7 @@
         kpi('En tiempo y forma', '<span data-p="' + (g.pOtif == null ? '' : g.pOtif) + '" style="color:' + semColor(g.pOtif) + '">—</span>', faltan == null ? '—' : faltan === 0 ? 'Meta ' + pf(meta, 0) + ' cumplida' : 'Faltan ' + nf(faltan) + ' para el ' + pf(meta, 0)) +
         kpi('A tiempo', '<span data-p="' + (g.pOt == null ? '' : g.pOt) + '">—</span>', nf(g.ot) + ' pedidos') +
         kpi('Completos', '<span data-p="' + (g.pIn == null ? '' : g.pIn) + '">—</span>', nf(g.inf) + ' pedidos') +
-        kpi('Tiempo típico', jd(g.cicloMed), 'carga → entrega · horario laboral');
+        kpi('Tiempo habitual', jd(g.cicloMed), 'carga → entrega · horario laboral');
       qa('#detKpis [data-n]').forEach(function (n) { animCount(n, +n.dataset.n, function (v) { return nf(v); }, .6); });
       qa('#detKpis [data-p]').forEach(function (n) { if (n.dataset.p === '') { n.textContent = '—'; return; } animCount(n, +n.dataset.p, function (v) { return pf(v); }, .7); });
       // orden
@@ -1212,7 +1512,7 @@
       q('#' + x[0]).addEventListener('change', function (e) { DET[x[1]] = e.target.value; DET.limit = 200; e.target.classList.toggle('on', !!e.target.value); pintar(); });
       if (DET[x[1]]) q('#' + x[0]).classList.add('on');
     });
-    q('#detLimpiar').addEventListener('click', function () { DET.q = DET.estado = DET.zona = DET.depto = DET.vend = DET.cond = ''; DET.limit = 200; renderDetalle(body, false); });
+    q('#detLimpiar').addEventListener('click', function () { DET.q = DET.estado = DET.zona = DET.depto = DET.vend = DET.cond = ''; DET.limit = 200; renderDetalle(body, false); mejorarFiltros(body); });
     q('#detExport').addEventListener('click', exportarDetalle);
     pintar();
     if (GS && entrada !== false) {
@@ -1330,6 +1630,117 @@
       gsap.fromTo(body, { opacity: 0, y: -10, filter: 'blur(5px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .42, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
     } });
   }
+
+  /* ── Filtros y buscadores con diseño unificado ──
+     · Opciones (.zn-sort): pastilla blanca que se desliza al elegir.
+     · Buscadores (.ot-search): botón × para borrar, con animación.
+     · Listas del Detalle: resaltado al cambiar y "Limpiar (n)". */
+  function moverSegPill(c, animar) {
+    if (!c) return;
+    var pill = q('.zn-sort__pill', c);
+    if (!pill) { c.insertAdjacentHTML('afterbegin', '<span class="zn-sort__pill"></span>'); pill = q('.zn-sort__pill', c); animar = false; }
+    var b = q('button.on', c);
+    if (!b) { pill.style.opacity = 0; return; }
+    var to = { x: b.offsetLeft - 3, width: b.offsetWidth, opacity: 1 };
+    if (GS && animar) gsap.to(pill, { x: to.x, width: to.width, opacity: 1, duration: .42, ease: 'back.out(1.5)' });
+    else { pill.style.transform = 'translateX(' + to.x + 'px)'; pill.style.width = to.width + 'px'; pill.style.opacity = 1; }
+  }
+  function mejorarFiltros(root) {
+    root = root || document;
+    qa('.zn-sort', root).forEach(function (c) { moverSegPill(c, false); });
+    qa('.ot-search', root).forEach(function (box) {
+      if (box.dataset.ok) return; box.dataset.ok = '1';
+      var inp = q('input', box); if (!inp) return;
+      var x = el('<button type="button" class="ot-search__x" aria-label="Borrar búsqueda" hidden>' + SV('<path d="M18 6L6 18M6 6l12 12"/>') + '</button>');
+      box.appendChild(x);
+      var sync = function () {
+        var tiene = !!inp.value;
+        if (tiene && x.hidden) { x.hidden = false; if (GS) gsap.fromTo(x, { scale: .4, opacity: 0 }, { scale: 1, opacity: 1, duration: .3, ease: 'back.out(2.6)' }); }
+        else if (!tiene && !x.hidden) { if (GS) gsap.to(x, { scale: .4, opacity: 0, duration: .15, onComplete: function () { x.hidden = true; } }); else x.hidden = true; }
+        box.classList.toggle('has', tiene);
+      };
+      inp.addEventListener('input', sync);
+      x.addEventListener('click', function () { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus(); if (GS) gsap.fromTo(box, { x: -4 }, { x: 0, duration: .4, ease: 'elastic.out(1,.4)', clearProps: 'transform' }); });
+      sync();
+    });
+    qa('.det-fld select', root).forEach(ddMejorar);
+    var df = q('#detFilters', root);
+    if (df) contarFiltros(df);
+  }
+  /* ── Desplegable con buscador (reemplaza visualmente al <select> nativo,
+        que sigue por detrás: los filtros existentes no cambian) ── */
+  function ddMejorar(sel) {
+    if (sel.dataset.dd) return; sel.dataset.dd = '1';
+    sel.classList.add('dd-native');
+    var btn = el('<button type="button" class="dd-btn" aria-haspopup="listbox"><span></span>' + SV('<path d="M6 9l6 6 6-6"/>') + '</button>');
+    sel.parentNode.insertBefore(btn, sel.nextSibling);
+    function txtSel() { var o = sel.options[sel.selectedIndex]; return o ? o.text.replace(/\s*\(\d[\d.]*\)$/, '') : 'Todos'; }
+    function sync() { q('span', btn).textContent = txtSel(); btn.classList.toggle('on', !!sel.value); btn.title = txtSel(); }
+    sync();
+    sel.addEventListener('change', sync);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var abierto = q('.dd-pop', sel.parentNode);
+      qa('.dd-pop').forEach(function (p) { p._cerrar && p._cerrar(); });
+      if (abierto) return;
+      var opts = Array.prototype.slice.call(sel.options).map(function (o) { var m = o.text.match(/\((\d[\d.]*)\)$/); return { v: o.value, t: o.text.replace(/\s*\(\d[\d.]*\)$/, ''), n: m ? m[1] : '' }; });
+      var conBuscar = opts.length > 6;
+      var pop = el('<div class="dd-pop" role="listbox">' + (conBuscar ? '<div class="dd-q">' + SV('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>') + '<input type="text" placeholder="Buscar…"/></div>' : '') + '<div class="dd-list"></div><div class="dd-empty" hidden>Sin resultados</div></div>');
+      sel.parentNode.appendChild(pop);
+      btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+      var list = q('.dd-list', pop), inp = q('input', pop), vacio = q('.dd-empty', pop);
+      function pintar(t) {
+        t = (t || '').toLowerCase().trim();
+        var vis = opts.filter(function (o) { return !t || o.t.toLowerCase().indexOf(t) >= 0; });
+        list.innerHTML = vis.map(function (o) { return '<button type="button" class="dd-o' + (o.v === sel.value ? ' on' : '') + '" data-v="' + esc(o.v) + '"><span>' + esc(o.t) + '</span>' + (o.n ? '<em>' + o.n + '</em>' : '') + '</button>'; }).join('');
+        vacio.hidden = vis.length > 0;
+        qa('.dd-o', list).forEach(function (b) {
+          b.addEventListener('click', function () {
+            sel.value = b.dataset.v; sel.dispatchEvent(new Event('change', { bubbles: true }));
+            cerrar();
+            if (GS) gsap.fromTo(btn, { scale: .95 }, { scale: 1, duration: .35, ease: 'back.out(2.4)', clearProps: 'transform' });
+          });
+        });
+      }
+      function cerrar() {
+        document.removeEventListener('click', fuera); document.removeEventListener('keydown', tecla);
+        btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
+        if (GS) gsap.to(pop, { opacity: 0, y: -6, scale: .98, duration: .14, ease: 'power1.in', onComplete: function () { pop.remove(); } }); else pop.remove();
+      }
+      function fuera(ev) { if (!pop.contains(ev.target) && ev.target !== btn) cerrar(); }
+      function tecla(ev) {
+        if (ev.key === 'Escape') cerrar();
+        if (ev.key === 'Enter' && inp && document.activeElement === inp) { var f = q('.dd-o', list); if (f) f.click(); }
+      }
+      pop._cerrar = cerrar;
+      pintar('');
+      if (inp) { inp.addEventListener('input', function () { pintar(inp.value); }); setTimeout(function () { inp.focus(); }, 30); }
+      if (GS) {
+        gsap.fromTo(pop, { opacity: 0, y: -8, scale: .97, transformOrigin: '50% 0%' }, { opacity: 1, y: 0, scale: 1, duration: .26, ease: 'back.out(1.6)' });
+        gsap.from(qa('.dd-o', list).slice(0, 12), { opacity: 0, x: -6, duration: .2, stagger: .015, ease: 'power2.out', clearProps: 'transform,opacity' });
+      }
+      var on = q('.dd-o.on', list); if (on) list.scrollTop = on.offsetTop - 40;
+      setTimeout(function () { document.addEventListener('click', fuera); document.addEventListener('keydown', tecla); }, 0);
+    });
+  }
+
+  function contarFiltros(df) {
+    var n = qa('select', df).filter(function (s2) { return s2.value; }).length + (q('#detQ', df) && q('#detQ', df).value ? 1 : 0);
+    var b = q('#detLimpiar', df); if (!b) return;
+    b.textContent = n ? 'Limpiar (' + n + ')' : 'Limpiar';
+    b.classList.toggle('has', !!n);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.zn-sort button');
+    if (b) setTimeout(function () { moverSegPill(b.parentNode, true); }, 0);
+  });
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest && e.target.closest('.det-fld select');
+    if (!sel) return;
+    var df = q('#detFilters'); if (df) contarFiltros(df);
+  });
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'detQ') { var df = q('#detFilters'); if (df) contarFiltros(df); } });
+  window.addEventListener('resize', function () { qa('.zn-sort').forEach(function (c) { moverSegPill(c, false); }); });
 
   /* Aparición al bajar: lo que está fuera de la vista se anima cuando llega */
   var _revealObs = null;

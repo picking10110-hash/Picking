@@ -1377,3 +1377,37 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 @media(max-width:820px){.vz-hd{grid-template-columns:auto 1fr auto}.vz-ks{grid-column:1/-1;grid-row:2}.vz-k:first-child{border-left:0;padding-left:0}}
 .zn-row.sub .zn-name--c small{display:block;margin-left:0;margin-top:1px}
 .zn-grp.open .zn-row.sub .zn-chev{transform:none}
+
+/* ===== Fluidez ===== */
+/* Modal de vendedores: sin desenfoque de fondo (caro), encabezado y buscador fijos */
+.vz-modal{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(8,24,44,.58)}
+.vz-modal .vz-hd,.vz-modal .vz-bar{flex:none}
+.vz-modal .vz-body{min-height:0}
+.vz-modal .modal-box{will-change:transform,opacity}
+/* Brillo de las tarjetas azules con transform (antes repintaba toda la tarjeta) */
+.ot-blue::before{inset:0 auto 0 0;width:55%;background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.10) 45%,rgba(255,255,255,.04) 55%,transparent 100%);background-size:auto;transform:translateX(-110%);animation:otSheen2 9s ease-in-out infinite;will-change:transform}
+@keyframes otSheen2{0%,70%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+/* Pulso del chip "Lejos de la meta" con transform */
+.st-meta.bad i{position:relative;animation:none}
+.st-meta.bad i::after{content:'';position:absolute;inset:0;border-radius:50%;background:currentColor;opacity:.5;animation:stPulse2 1.8s ease-out infinite}
+@keyframes stPulse2{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+/* El mapa y el ranking se pintan por separado */
+.zn-right .zn-map{contain:layout paint}
+.zn-left{contain:layout}
+@media (prefers-reduced-motion: reduce){.ot-blue::before,.st-meta.bad i::after{animation:none}}
+
+/* ===== Chips de estado y de brecha (sobre azul) ===== */
+.st-meta{height:28px;padding:0 6px 0 10px;gap:7px;border-radius:999px;background:#fff;font-size:12px;font-weight:800;letter-spacing:0;text-transform:none;box-shadow:0 6px 16px -6px rgba(0,0,0,.35)}
+.st-meta i{width:8px;height:8px;box-shadow:none;background:currentColor}
+.st-meta small{font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;line-height:1.2;color:#fff !important}
+.st-meta:not(:has(small)){padding-right:12px}
+.st-meta.ok{background:#fff;color:#15803D}
+.st-meta.warn{background:#fff;color:#B45309}
+.st-meta.bad{background:#fff;color:#B91C1C}
+.st-meta.na{background:rgba(255,255,255,.9);color:#475569}
+.st-meta.ok small{background:#16A34A}.st-meta.warn small{background:#D97706}.st-meta.bad small{background:#DC2626}.st-meta.na small{background:#64748B}
+.ot-lbl .meta.gap,.ot-lbl .meta.ok{height:28px;padding:0 12px 0 9px;gap:7px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.ot-lbl .meta.gap b{font-weight:800;font-family:Sora,Inter,sans-serif}
+.ot-lbl .meta svg{width:15px;height:15px;flex:none;opacity:.9}
+.ot-lbl .meta.ok{background:rgba(134,239,172,.18);border-color:rgba(134,239,172,.45);color:#DCFCE7}
+.st-meta,.ot-lbl .meta{white-space:nowrap;flex:none}

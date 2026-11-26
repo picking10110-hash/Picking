@@ -93,11 +93,13 @@
   // Estado respecto de la meta: en meta / cerca (hasta 10 pts abajo) / lejos
   function estadoMeta(p, meta) {
     if (p == null || isNaN(p)) return { c: 'na', t: 'Sin datos' };
-    if (p >= meta) return { c: 'ok', t: 'En meta' };
+    if (p >= meta) return { c: 'ok', t: 'Cumple la meta' };
     if (p >= meta - 10) return { c: 'warn', t: 'Cerca de la meta' };
-    return { c: 'bad', t: 'Lejos de la meta' };
+    return { c: 'bad', t: 'Por debajo de la meta' };
   }
-  function chipEstado(p, meta) { var e = estadoMeta(p, meta); return '<span class="st-meta ' + e.c + '"><i></i>' + e.t + ' · ' + pf(meta, 0) + '</span>'; }
+  function chipEstado(p, meta) { var e = estadoMeta(p, meta); return '<span class="st-meta ' + e.c + '"><i></i>' + e.t + ' <small>' + pf(meta, 0) + '</small></span>'; }
+  var IC_META = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>';
+  function chipFaltan(f, meta) { return f === 0 ? '<span class="meta ok">' + IC_META + 'Meta alcanzada</span>' : '<span class="meta gap">' + IC_META + '<b>' + nf(f) + '</b> pedidos para alcanzar el ' + pf(meta, 0) + '</span>'; }
 
   /* ── Estado ── */
   var DB = window.__otifDB;
@@ -705,8 +707,8 @@
       var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
       var cap = z.clave === 'Capital';
       return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + '">' +
-        '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(z.clave) + '</b></span><small class="zn-desc">' + (cap ? 'Asunción y Central' : 'Resto del país') + ' · ' + esc(mesLbl(CUR)) + '</small>' +
-          '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f === 0 ? '' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos</span>') + '</div></div>' +
+        '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(z.clave) + '</b></span>' +
+          '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f == null ? '' : chipFaltan(f, meta)) + '</div></div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
         '<div class="ot-foot">' +
@@ -750,8 +752,8 @@
     function pintarFilas(animar) {
       ordenar();
       q('#znRows').innerHTML = deps.map(function (d) { return '<div class="zn-grp' + (ZN.abierto === d.clave ? ' open' : '') + '">' + fila(d, false) + '<div class="zn-sub"></div></div>'; }).join('');
-      qa('#znRows .zn-bar span').forEach(function (s, i) { if (GS && animar !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .8, delay: .1 + i * .03, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
-      if (GS && animar !== false) gsap.from(qa('#znRows .zn-row'), { opacity: 0, x: -10, duration: .32, stagger: .03, ease: 'power2.out', clearProps: 'transform,opacity' });
+      crecer(qa('#znRows .zn-bar span'), { anim: animar !== false, delay: .1, stagger: .025 });
+      if (GS && animar !== false) gsap.from(qa('#znRows .zn-row').slice(0, 14), { opacity: 0, x: -10, duration: .32, stagger: .03, ease: 'power2.out', clearProps: 'transform,opacity' });
       qa('#znRows .zn-row[data-dep]').forEach(function (r) {
         r.addEventListener('mouseenter', function () { if (mapApi) mapApi.foco(r.dataset.dep); });
         r.addEventListener('mouseleave', function () { if (mapApi) mapApi.foco(null); });
@@ -804,21 +806,21 @@
       });
     });
     pintarFilas(entrada);
-    mapApi = pintarMapa(deps, meta, entrada, function (dep) {
+    requestAnimationFrame(function () { requestAnimationFrame(function () { if (!q('#znMapBox') || VIEW !== 'zonas') return; mapApi = pintarMapa(deps, meta, entrada, function (dep) {
       var r = qa('#znRows .zn-row[data-dep]').filter(function (x) { return x.dataset.dep === dep; })[0];
       if (!r) return;
       if (!r.parentNode.classList.contains('open')) toggleDep(r.parentNode, dep);
       var st = q('#stage'), top = r.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop - 90;
       if (GS) gsap.to(st, { scrollTop: top, duration: .6, ease: 'power2.inOut' }); else st.scrollTop = top;
       if (GS) gsap.fromTo(r, { backgroundColor: '#dbeafe' }, { backgroundColor: 'rgba(0,0,0,0)', duration: 1.4, delay: .4, ease: 'power1.out', clearProps: 'backgroundColor' });
-    });
+    }); }); });
 
     // animación de las tarjetas de zona
     qa('.zn-card').forEach(function (c, i) {
       var n = q('[data-p]', c), m = q('.zn-meter span', c);
       if (GS) gsap.from(q('.zn-ico', c), { scale: 0, rotate: -25, duration: .5, delay: .1 + i * .1, ease: 'back.out(2.4)', clearProps: 'transform' });
       animCount(n, parseFloat(n.dataset.p), function (v) { return pf(v); }, 1.1);
-      if (GS) gsap.fromTo(m, { width: '0%' }, { width: m.dataset.w + '%', duration: 1.1, delay: .15 + i * .1, ease: 'power3.out' }); else m.style.width = m.dataset.w + '%';
+      crecer([m], { dur: 1.1, delay: .15 + i * .1 });
     });
     if (GS && entrada !== false) {
       gsap.from('.zn-card', { opacity: 0, y: 18, duration: .5, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
@@ -1597,9 +1599,10 @@
           '<td><div class="vz-cell"><div class="vz-b"><i data-w="' + Math.min(100, v.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></i><em style="left:' + meta + '%"></em></div><span style="color:' + c + '">' + (v.evaluados ? pf(v.pOtif) : '—') + '</span></div></td>' +
           '<td class="r">' + (v.evaluados ? pf(v.pOt) : '—') + '</td><td class="r">' + (v.evaluados ? pf(v.pIn) : '—') + '</td></tr>';
       }).join('');
-      var bars = qa('.vz-b i', tb);
-      bars.forEach(function (b, i) { if (GS && animar !== false) gsap.fromTo(b, { width: '0%' }, { width: b.dataset.w + '%', duration: .8, delay: .25 + Math.min(i, 30) * .015, ease: 'power3.out' }); else b.style.width = b.dataset.w + '%'; });
-      if (GS && animar !== false) gsap.from(qa('tr', tb).slice(0, 25), { opacity: 0, x: -14, duration: .35, stagger: .035, delay: .18, ease: 'power2.out', clearProps: 'transform,opacity' });
+      var bars = qa('.vz-b i', tb), vis = bars.slice(0, 24);
+      crecer(bars.slice(24), { anim: false });
+      crecer(vis, { anim: animar !== false, delay: .3, stagger: .012 });
+      if (GS && animar !== false) gsap.from(qa('tr', tb).slice(0, 12), { opacity: 0, y: 8, duration: .32, stagger: .03, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
       qa('tr[data-v]', tb).forEach(function (tr) {
         var go = function () {
           cerrar(function () {
@@ -1611,15 +1614,11 @@
       });
     }
     function cerrar(cb) {
-      document.removeEventListener('keydown', esc_);
       if (!GS) { bd.remove(); if (cb) cb(); return; }
       gsap.to(box, { opacity: 0, y: 16, scale: .96, duration: .2, ease: 'power2.in' });
       gsap.to(bd, { opacity: 0, duration: .24, delay: .04, onComplete: function () { bd.remove(); if (cb) cb(); } });
     }
-    function esc_(e) { if (e.key === 'Escape') cerrar(); }
-    document.addEventListener('keydown', esc_);
-    q('.vz-x', bd).addEventListener('click', function () { cerrar(); });
-    bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
+    q('.vz-x', bd).addEventListener('click', function () { cerrar(); });   // solo se sale con la X
     var tmr; q('.vz-q input', bd).addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { VQ = e.target.value; pintar(false); }, 150); });
     pintar(true);
     if (GS) {
@@ -1632,6 +1631,13 @@
     mejorarFiltros(bd);
   }
 
+  function crecer(els, o) {
+    o = o || {}; els = [].slice.call(els || []); if (!els.length) return;
+    els.forEach(function (b) { b.style.width = b.dataset.w + '%'; });
+    if (!GS || o.anim === false) return;
+    gsap.fromTo(els, { scaleX: 0 }, { scaleX: 1, transformOrigin: '0% 50%', duration: o.dur || .8, delay: o.delay || 0, stagger: o.stagger || 0, ease: 'power3.out', clearProps: 'transform', overwrite: true });
+  }
+
   /* ── Brecha a la meta (Resumen) ── */
   function faltanParaMeta(g, meta) {
     if (!g.evaluados) return null;
@@ -1640,7 +1646,7 @@
   function gapHtml(g, meta) {
     var f = faltanParaMeta(g, meta);
     if (f == null) return '';
-    return f === 0 ? '<span class="meta ok">✓ Meta cumplida</span>' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos para el ' + pf(meta, 0) + '</span>';
+    return chipFaltan(f, meta);
   }
 
   /* ════════════════════════════════════════════════════════════
@@ -2062,7 +2068,7 @@
         if (!en.isIntersecting) return;
         _revealObs.unobserve(en.target);
         gsap.to(en.target, { opacity: 1, y: 0, duration: .6, ease: 'power3.out', clearProps: 'transform,opacity' });
-        qa('[data-w]', en.target).forEach(function (b, i) { gsap.fromTo(b, { width: '0%' }, { width: b.dataset.w + '%', duration: .8, delay: .1 + i * .03, ease: 'power3.out' }); });
+        crecer(qa('[data-w]', en.target), { delay: .1, stagger: .03 });
       });
     }, { root: st, threshold: .12 });
     els.forEach(function (e) { gsap.killTweensOf(e); gsap.set(e, { opacity: 0, y: 28 }); _revealObs.observe(e); });

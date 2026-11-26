@@ -98,7 +98,7 @@
     return { c: 'bad', t: 'Por debajo de la meta' };
   }
   function chipEstado(p, meta) { var e = estadoMeta(p, meta); return '<span class="st-meta ' + e.c + '"><i></i>' + e.t + ' <small>' + pf(meta, 0) + '</small></span>'; }
-  var IC_META = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>';
+  var IC_META = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
   function chipFaltan(f, meta) { return f === 0 ? '<span class="meta ok">' + IC_META + 'Meta alcanzada</span>' : '<span class="meta gap">' + IC_META + '<b>' + nf(f) + '</b> pedidos para alcanzar el ' + pf(meta, 0) + '</span>'; }
 
   /* ── Estado ── */
@@ -767,7 +767,7 @@
         .filter(function (c) { return c.evaluados; }).sort(function (a, b) { return b.evaluados - a.evaluados; });
       subs.forEach(function (c) { c.faltan = faltanParaMeta(c, meta); });
       var box = q('.zn-sub', grp), evDep = evs.filter(function (o) { return o.p.departamento === dep; });
-      box.innerHTML = '<div class="zn-subh"><span>Ciudades de <b>' + esc(dep) + '</b> · ' + nf(subs.length) + '</span><button type="button" class="zn-vbtn">' + SV('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>') + 'Vendedores de ' + esc(dep) + '</button></div>' +
+      box.innerHTML = '<div class="zn-subh"><span>Ciudades de <b>' + esc(dep) + '</b> · ' + nf(subs.length) + '</span><button type="button" class="zn-vbtn">' + SV('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>') + 'Vendedores de ' + esc(dep) + '<em class="zn-vbtn__n">' + nf(new Set(evDep.map(function (o) { return o.p.vendedor_nombre || o.p.vendedor_cod; }).filter(Boolean)).size) + '</em></button></div>' +
         subs.map(function (c) { return fila(c, true); }).join('');
       q('.zn-vbtn', box).addEventListener('click', function (e) { e.stopPropagation(); abrirVendedores(dep, 'Departamento · ' + (zonaDe[dep] || ''), evDep, { dep: dep }); });
       qa('.zn-row[data-city]', box).forEach(function (r) {
@@ -1289,8 +1289,9 @@
       tSalir = setTimeout(function () { actual = null; volver(); if (GS) gsap.to(tip, { opacity: 0, duration: .15, onComplete: function () { tip.hidden = true; } }); else tip.hidden = true; }, 120);
     }
     box.addEventListener('mousemove', function (e) {
-      var r = card.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
-      x = Math.min(x, r.width - 170);
+      var r = card.getBoundingClientRect(), tw = tip.offsetWidth || 180, th = tip.offsetHeight || 80, cx = e.clientX - r.left, cy = e.clientY - r.top;
+      var x = cx + 16 + tw > r.width - 8 ? cx - tw - 16 : cx + 16, y = cy + 16 + th > r.height - 8 ? cy - th - 16 : cy + 16;
+      x = Math.max(8, x); y = Math.max(8, y);
       x = Math.round(x); y = Math.round(y); if (tipX) { tipX(x); tipY(y); } else { tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
     });
     qa('.pm-d', svg).forEach(function (el2) {
@@ -1680,11 +1681,11 @@
     var t = DET.q.toLowerCase().trim();
     return evs.filter(function (o) {
       var p = o.p;
-      if (DET.estado && estadoDe(o) !== DET.estado) return false;
-      if (DET.zona && p.zona !== DET.zona) return false;
-      if (DET.depto && p.departamento !== DET.depto) return false;
-      if (DET.vend && p.vendedor_nombre !== DET.vend) return false;
-      if (DET.cond && p.cond_exp !== DET.cond) return false;
+      if (DET.estado && !coincide(DET.estado, estadoDe(o))) return false;
+      if (DET.zona && !coincide(DET.zona, p.zona)) return false;
+      if (DET.depto && !coincide(DET.depto, p.departamento)) return false;
+      if (DET.vend && !coincide(DET.vend, p.vendedor_nombre)) return false;
+      if (DET.cond && !coincide(DET.cond, p.cond_exp)) return false;
       if (t && [p.doc_vtas, p.cliente_nombre, p.cliente_cod, p.vendedor_nombre, p.region_nombre].join(' ').toLowerCase().indexOf(t) < 0) return false;
       return true;
     });
@@ -1695,17 +1696,26 @@
     cliente: function (o) { return (o.p.cliente_nombre || '').toLowerCase(); },
     vendedor: function (o) { return (o.p.vendedor_nombre || '').toLowerCase(); },
     destino: function (o) { return (o.p.departamento || '') + (o.p.region_nombre || ''); },
-    ciclo: function (o) { return o.ciclo == null ? -1 : o.ciclo - o.sla; },
+    ciclo: function (o) { return o.ciclo == null ? Infinity : o.ciclo; },      // tiempo real (sin dato, al final)
+    plazo: function (o) { return o.sla == null ? Infinity : o.sla; },
+    alm: function (o) { return o.p.almacen || ''; },
+    entregas: function (o) { return (o.p.n_entregas || 0) * 1000 + (o.p.n_entregadas || 0); },
+    articulos: function (o) { return (o.p.n_lineas || 0) * 1000 + (o.p.n_completas || 0); },
     estado: function (o) { return ESTADOS.map(function (x) { return x[0]; }).indexOf(estadoDe(o)); }
   };
   function opciones(evs, fn, fmt) {
     var m = new Map();
     evs.forEach(function (o) { var v = fn(o.p); if (v) m.set(v, (m.get(v) || 0) + 1); });
-    return Array.from(m.entries()).sort(function (a, b) { return String(a[0]).localeCompare(String(b[0]), 'es'); })
+    return Array.from(m.entries()).sort(function (a, b) { return b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es'); })
       .map(function (e) { return [e[0], (fmt ? fmt(e[0]) : e[0]) + ' (' + nf(e[1]) + ')']; });
   }
+  // Varios valores en un mismo filtro se guardan unidos por MSEP
+  var MSEP = '||';
+  function coincide(filtro, v) { if (!filtro) return true; return filtro.indexOf(MSEP) < 0 ? filtro === v : filtro.split(MSEP).indexOf(v) >= 0; }
+  function valorFiltro(sel) { return sel._multi && sel._multi.length ? sel._multi.join(MSEP) : sel.value; }
   function selectHtml(id, lbl, opts, val) {
-    return '<label class="det-fld"><span>' + esc(lbl) + '</span><select id="' + id + '"><option value="">Todos</option>' +
+    var multi = val && val.indexOf(MSEP) >= 0;
+    return '<label class="det-fld"><span>' + esc(lbl) + '</span><select id="' + id + '" data-lbl="' + esc(lbl) + '"' + (multi ? ' data-multi="' + esc(val) + '"' : '') + '><option value="">Todos</option>' +
       opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
   }
 
@@ -1716,7 +1726,7 @@
     body.innerHTML =
       '<div class="det-filters" id="detFilters">' +
         '<div class="ot-search det-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="detQ" placeholder="Buscar pedido, cliente, vendedor o ciudad…" value="' + esc(DET.q) + '"/></div>' +
-        selectHtml('detEstado', 'Estado', ESTADOS.map(function (e) { return [e[0], e[1]]; }), DET.estado) +
+        selectHtml('detEstado', 'Estado', (function () { var c = {}; evs.forEach(function (o) { var k = estadoDe(o); c[k] = (c[k] || 0) + 1; }); return ESTADOS.filter(function (e) { return c[e[0]]; }).sort(function (a, b) { return c[b[0]] - c[a[0]]; }).map(function (e) { return [e[0], e[1] + ' (' + nf(c[e[0]]) + ')']; }); })(), DET.estado) +
         selectHtml('detZona', 'Zona', opciones(evs, function (p) { return p.zona; }), DET.zona) +
         selectHtml('detDepto', 'Departamento', opciones(evs, function (p) { return p.departamento; }), DET.depto) +
         selectHtml('detVend', 'Vendedor', opciones(evs, function (p) { return p.vendedor_nombre; }), DET.vend) +
@@ -1734,7 +1744,7 @@
       var est = estadoMeta(g.pOtif, meta);
       q('#detKpis').innerHTML =
         kpi('box', 'Pedidos', '<span data-n="' + g.total + '">0</span>', nf(g.evaluados) + ' evaluados', null) +
-        kpi('check', 'En tiempo y forma', '<span data-p="' + (g.pOtif == null ? '' : g.pOtif) + '">—</span>', faltan == null ? '—' : '<em class="st-meta ' + est.c + '"><i></i>' + (faltan === 0 ? 'Meta ' + pf(meta, 0) + ' cumplida' : 'Faltan ' + nf(faltan) + ' para el ' + pf(meta, 0)) + '</em>', g.pOtif, true) +
+        kpi('check', 'En tiempo y forma', '<span data-p="' + (g.pOtif == null ? '' : g.pOtif) + '">—</span>', faltan == null ? '—' : '<em class="st-meta ' + est.c + '"><i></i>' + (faltan === 0 ? 'Meta ' + pf(meta, 0) + ' cumplida' : nf(faltan) + ' para el ' + pf(meta, 0)) + '</em>', g.pOtif, true) +
         kpi('clock', 'A tiempo', '<span data-p="' + (g.pOt == null ? '' : g.pOt) + '">—</span>', nf(g.ot) + ' pedidos', g.pOt) +
         kpi('ok', 'Completos', '<span data-p="' + (g.pIn == null ? '' : g.pIn) + '">—</span>', nf(g.inf) + ' pedidos', g.pIn) +
         kpi('time', 'Tiempo habitual', jd(g.cicloMed), 'carga → entrega', null);
@@ -1744,12 +1754,14 @@
       qa('#detKpis [data-p]').forEach(function (n) { if (n.dataset.p === '') { n.textContent = '—'; return; } animCount(n, +n.dataset.p, function (v) { return pf(v); }, .7); });
       // orden
       var key = ORDEN[DET.sort] || ORDEN.fecha;
-      f.sort(function (a, b) { var x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * DET.dir; });
-      var th = function (k, t, cls) { return '<th class="sortable' + (cls ? ' ' + cls : '') + (DET.sort === k ? ' on' : '') + '" data-k="' + k + '">' + t + (DET.sort === k ? (DET.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; };
+      f.sort(function (a, b) { var x = key(a), y = key(b); if (x === Infinity || y === Infinity) return x === y ? 0 : x === Infinity ? 1 : -1; return (x < y ? -1 : x > y ? 1 : 0) * DET.dir; });   // sin dato, siempre al final
+      var flechas = function (k) { return '<i class="srt' + (DET.sort === k ? (DET.dir > 0 ? ' asc' : ' desc') : '') + '"><b></b><b></b></i>'; };
+      var th = function (k, t, cls) { return '<th class="sortable' + (cls ? ' ' + cls : '') + (DET.sort === k ? ' on' : '') + '" data-k="' + k + '"><span class="srt-k">' + t + flechas(k) + '</span></th>'; };
+      var thDoble = '<th class="r srt-2"><span class="srt-k' + (DET.sort === 'ciclo' ? ' on' : '') + '" data-k="ciclo" title="Ordenar por tiempo">Tiempo' + flechas('ciclo') + '</span><em>/</em><span class="srt-k' + (DET.sort === 'plazo' ? ' on' : '') + '" data-k="plazo" title="Ordenar por plazo">Plazo' + flechas('plazo') + '</span></th>';
       var vis = f.slice(0, DET.limit);
       q('#detTabla').innerHTML = !f.length ? '<div class="ot-soon" style="padding:50px">No hay pedidos con estos filtros.</div>' :
         '<table class="ot-tbl det-tbl"><thead><tr>' + th('pedido', 'Pedido') + th('fecha', 'Carga') + th('cliente', 'Cliente') + th('vendedor', 'Vendedor') + th('destino', 'Destino') +
-          '<th>Alm.</th><th class="r">Entregas</th><th class="r">Artículos</th>' + th('ciclo', 'Tiempo / plazo', 'r') + th('estado', 'Estado') + '</tr></thead><tbody>' +
+          th('alm', 'Alm.') + th('entregas', 'Entregas', 'r') + th('articulos', 'Artículos', 'r') + thDoble + th('estado', 'Estado') + '</tr></thead><tbody>' +
         vis.map(function (o) {
           var p = o.p, tarde = o.ciclo != null && o.ciclo > o.sla;
           return '<tr data-doc="' + esc(p.doc_vtas) + '" tabindex="0"><td class="b">' + esc(p.doc_vtas) + '</td><td>' + fechaHora(p.fecha_carga) + '</td>' +
@@ -1763,8 +1775,9 @@
             '<td>' + estadoChip(o) + '</td></tr>';
         }).join('') + '</tbody></table>' +
         (f.length > vis.length ? '<div class="det-more"><button class="btn btn--sm" type="button" id="detMas">Mostrar 200 más</button><span>Mostrando ' + nf(vis.length) + ' de ' + nf(f.length) + '</span></div>' : '<div class="det-more"><span>' + nf(f.length) + ' pedidos</span></div>');
-      qa('#detTabla th.sortable').forEach(function (h) {
-        h.addEventListener('click', function () { var k = h.dataset.k; if (DET.sort === k) DET.dir = -DET.dir; else { DET.sort = k; DET.dir = k === 'ciclo' || k === 'estado' ? -1 : 1; } pintar(false); });
+      qa('#detTabla [data-k]').forEach(function (h) {
+        h.addEventListener('click', function (e) { e.stopPropagation(); var k = h.dataset.k; if (DET.sort === k) DET.dir = -DET.dir; else { DET.sort = k; DET.dir = 1; } pintar(false);
+          var nuevo = q('#detTabla [data-k="' + k + '"] .srt'); if (GS && nuevo) gsap.fromTo(nuevo, { scale: .6 }, { scale: 1, duration: .3, ease: 'back.out(2.6)', clearProps: 'transform' }); });
       });
       qa('#detTabla tbody tr').forEach(function (tr) {
         var go = function () { var o = f.filter(function (x) { return x.p.doc_vtas === tr.dataset.doc; })[0]; if (o) abrirPedido(o); };
@@ -1784,9 +1797,10 @@
     };
     // ico, etiqueta, valor, pie (texto o html), % para la barrita (null = sin barra), destacado
     function kpi(ico, l, v, pie, pct, dest) {
-      return '<div class="det-kpi' + (dest ? ' dest' : '') + '"><div class="dk-h"><i class="dk-ico">' + DK_ICO[ico] + '</i><span>' + esc(l) + '</span></div><b>' + v + '</b>' +
+      var chipArriba = dest && String(pie).indexOf('<em') === 0;
+      return '<div class="det-kpi' + (dest ? ' dest' : '') + '"><div class="dk-h"><i class="dk-ico">' + DK_ICO[ico] + '</i><span>' + esc(l) + '</span>' + (chipArriba ? pie : '') + '</div><b>' + v + '</b>' +
         (pct != null ? '<div class="dk-bar"><i data-w="' + Math.max(0, Math.min(100, pct)).toFixed(1) + '"></i>' + (dest ? '<em style="left:' + meta + '%"></em>' : '') + '</div>' : '') +
-        '<small>' + (String(pie).indexOf('<em') === 0 ? pie : esc(pie)) + '</small></div>';
+        (chipArriba ? '' : '<small>' + (String(pie).indexOf('<em') === 0 ? pie : esc(pie)) + '</small>') + '</div>';
     }
     // Chips de filtros activos (cada uno se quita con su ×)
     var CHIP_DEF = [['q', 'Buscar', '#detQ'], ['estado', 'Estado', '#detEstado'], ['zona', 'Zona', '#detZona'], ['depto', 'Departamento', '#detDepto'], ['vend', 'Vendedor', '#detVend'], ['cond', 'Condición', '#detCond']];
@@ -1796,7 +1810,10 @@
       var previos = qa('.dc', box).map(function (x) { return x.dataset.k; });
       box.innerHTML = act.length ? act.map(function (c) {
         var el2 = q(c[2]), txt = DET[c[0]];
-        if (el2 && el2.tagName === 'SELECT') { var o = el2.options[el2.selectedIndex]; txt = o ? o.text.replace(/\s*\(\d[\d.]*\)$/, '') : txt; }
+        if (el2 && el2.tagName === 'SELECT') {
+          var nombres = String(DET[c[0]]).split(MSEP).map(function (v) { var o = Array.prototype.filter.call(el2.options, function (x) { return x.value === v; })[0]; return o ? o.text.replace(/\s*\(\d[\d.]*\)$/, '') : v; });
+          txt = nombres.length > 2 ? nombres.slice(0, 2).join(', ') + ' +' + (nombres.length - 2) : nombres.join(', ');
+        }
         return '<span class="dc" data-k="' + c[0] + '"><b>' + c[1] + ':</b> ' + esc(c[0] === 'q' ? '“' + txt + '”' : txt) + '<button type="button" aria-label="Quitar filtro">' + SV('<path d="M18 6L6 18M6 6l12 12"/>') + '</button></span>';
       }).join('') + (act.length > 1 ? '<button type="button" class="dc-all">Limpiar todo</button>' : '') : '';
       box.classList.toggle('on', act.length > 0);
@@ -1806,7 +1823,7 @@
           var k = b.parentNode.dataset.k, c = CHIP_DEF.filter(function (x) { return x[0] === k; })[0], inp = q(c[2]);
           var quitar = function () {
             if (!inp) return;
-            inp.value = '';
+            inp.value = ''; inp._multi = null;
             inp.dispatchEvent(new Event(inp.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
             if (k === 'q') { DET.q = ''; DET.limit = 200; pintar(); }
           };
@@ -1819,7 +1836,7 @@
     var tmr;
     q('#detQ').addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { DET.q = e.target.value; DET.limit = 200; pintar(); }, 180); });
     [['detEstado', 'estado'], ['detZona', 'zona'], ['detDepto', 'depto'], ['detVend', 'vend'], ['detCond', 'cond']].forEach(function (x) {
-      q('#' + x[0]).addEventListener('change', function (e) { DET[x[1]] = e.target.value; DET.limit = 200; e.target.classList.toggle('on', !!e.target.value); pintar(); });
+      q('#' + x[0]).addEventListener('change', function (e) { DET[x[1]] = valorFiltro(e.target); DET.limit = 200; e.target.classList.toggle('on', !!DET[x[1]]); pintar(); });
       if (DET[x[1]]) q('#' + x[0]).classList.add('on');
     });
     q('#detLimpiar').addEventListener('click', function () { DET.q = DET.estado = DET.zona = DET.depto = DET.vend = DET.cond = ''; DET.limit = 200; renderDetalle(body, false); mejorarFiltros(body); });
@@ -1878,15 +1895,15 @@
     var dw = q('.dw', bd);
     function cerrar() {
       if (!GS) { bd.remove(); return; }
-      gsap.to(dw, { x: 60, opacity: 0, duration: .28, ease: 'power3.in' });
-      gsap.to(bd, { opacity: 0, duration: .3, delay: .08, onComplete: function () { bd.remove(); } });
+      gsap.to(dw, { x: 40, opacity: 0, scale: .985, duration: .22, ease: 'power2.in', overwrite: true });
+      gsap.to(bd, { opacity: 0, duration: .24, ease: 'power1.in', onComplete: function () { bd.remove(); } });
     }
     q('.modal-x', bd).addEventListener('click', cerrar);
     bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
     document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', k); } });
     if (GS) {
-      gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .25 });
-      gsap.fromTo(dw, { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: .55, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .22, ease: 'power1.out' });
+      gsap.fromTo(dw, { x: 48, opacity: 0, scale: .985 }, { x: 0, opacity: 1, scale: 1, duration: .45, ease: 'expo.out', clearProps: 'transform,opacity' });
       gsap.from(qa('.dw-kpis > div', bd), { opacity: 0, y: 8, duration: .35, stagger: .06, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
       gsap.from(qa('.dw-card', bd), { opacity: 0, y: 14, duration: .4, stagger: .08, delay: .3, ease: 'power3.out', clearProps: 'transform,opacity' });
       gsap.from(qa('.dw-top > *', bd), { opacity: 0, y: 6, duration: .3, stagger: .05, delay: .25, ease: 'power2.out', clearProps: 'transform,opacity' });
@@ -1909,23 +1926,32 @@
       var maxOf = function (k) { var v = ents.map(function (e) { return e[k]; }).filter(Boolean).sort(); return v.length === ents.length && v.length ? v[v.length - 1] : null; };
       var hitos = [['Pedido cargado', p.fecha_carga], ['Entrega creada', minOf('ts_creacion')], ['Control', minOf('ts_control')], ['Empaque', minOf('ts_empaque')], ['Factura', minOf('ts_factura')], ['Sale en transporte', minOf('ts_transporte')], ['Entregado al cliente', maxOf('ts_entrega')]];
       var prev = null;
-      q('#dwTl', bd).innerHTML = hitos.map(function (h) {
+      var TL_ICO = [STG_ICO.lib, STG_ICO.pre, SV('<path d="M9 11l2.5 2.5L16 9"/><rect x="4" y="4" width="16" height="16" rx="3"/>'), SV('<path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8L12 12.5 20.5 8M8 5.8l8.5 4.6"/>'), STG_ICO.fac, STG_ICO.tra, SV('<path d="M20 6L9 17l-5-5"/>')];
+      var ultimo = -1; hitos.forEach(function (h, i) { if (h[1]) ultimo = i; });
+      var el2 = q('#dwTl', bd); el2.className = 'tl2';
+      el2.innerHTML = hitos.map(function (h, i) {
         var dlt = '';
         if (h[1] && prev) { var j = CALC.jornadas(CALC.aMin(prev), CALC.aMin(h[1])); dlt = '<span class="tl-d">+' + tiempo(j, true) + '</span>'; }
         if (h[1]) prev = h[1];
-        return '<div class="tl-it' + (h[1] ? ' on' : '') + '"><i></i><div class="tl-t">' + esc(h[0]) + '</div><div class="tl-w">' + (h[1] ? fechaHora(h[1]) : 'Pendiente') + '</div>' + dlt + '</div>';
+        var est = h[1] ? (i === hitos.length - 1 ? ' on fin' : ' on') : (i < ultimo ? ' skip' : '');
+        var sub = h[1] ? fechaHora(h[1]) : i < ultimo ? 'Sin registro en SAP' : 'Pendiente';
+        return '<div class="tl2-it' + est + (i < ultimo ? ' pasa' : '') + '"><div class="tl2-ic">' + TL_ICO[i] + '</div><div class="tl2-tx"><b>' + esc(h[0]) + '</b><small>' + sub + '</small></div>' + dlt + '</div>';
       }).join('');
       q('#dwEnt', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Entrega</th><th>Alm.</th><th>Etapa</th><th>Chofer</th><th>Entregado</th></tr></thead><tbody>' +
         ents.map(function (e) { return '<tr><td class="b">' + esc(e.entrega) + '</td><td>' + esc(e.almacen || '—') + '</td><td>' + etapaChip(e) + '</td><td>' + esc(e.usuario_transp || '—') + '</td><td>' + fechaHora(e.ts_entrega) + '</td></tr>'; }).join('') +
         (ents.length ? '' : '<tr><td colspan="5" class="mute">Ninguna entrega: el pedido no se despachó.</td></tr>') + '</tbody></table>';
-      q('#dwLin', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Pos</th><th>Artículo</th><th class="r">Pedido</th><th class="r">Fact.</th><th></th></tr></thead><tbody>' +
+      q('#dwLin', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Pos</th><th>Artículo</th><th class="r">Pedido</th><th class="r">Fact.</th><th class="c">Entregado</th></tr></thead><tbody>' +
         lins.map(function (l) {
           var ok = l.entrega && l.cant_facturada >= l.cant_pedida;
           return '<tr><td>' + l.pos + '</td><td class="art" title="' + esc(desc.get(l.material) || '') + '"><b>' + esc(desc.get(l.material) || l.material) + '</b><small>' + esc(l.material) + (!l.entrega ? ' · ' + esc(motivoTxt(l.motivo_rechazo)) : '') + '</small></td>' +
-            '<td class="r">' + nf(l.cant_pedida, l.cant_pedida % 1 ? 2 : 0) + '</td><td class="r">' + nf(l.cant_facturada, l.cant_facturada % 1 ? 2 : 0) + '</td><td>' + (ok ? '<span class="st-dot ok" title="Completo"></span>' : '<span class="st-dot bad" title="Faltante"></span>') + '</td></tr>';
+            '<td class="r">' + nf(l.cant_pedida, l.cant_pedida % 1 ? 2 : 0) + '</td><td class="r">' + nf(l.cant_facturada, l.cant_facturada % 1 ? 2 : 0) + '</td><td class="c">' + (ok
+              ? '<span class="ent-ok" title="Entregado completo">' + SV('<path d="M20 6L9 17l-5-5"/>') + '</span>'
+              : '<span class="ent-no" title="' + (l.cant_facturada > 0 ? 'Entrega parcial' : 'No entregado') + '">' + SV('<path d="M18 6L6 18M6 6l12 12"/>') + '</span>' + (l.cant_facturada > 0 ? '<small class="ent-f">faltan ' + nf(l.cant_pedida - l.cant_facturada, (l.cant_pedida - l.cant_facturada) % 1 ? 2 : 0) + '</small>' : '')) + '</td></tr>';
         }).join('') + '</tbody></table>';
       if (GS) {
-        gsap.from(qa('.tl-it', bd), { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' });
+        gsap.from(qa('.tl2-it', bd), { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' });
+        gsap.from(qa('.tl2-it.on .tl2-ic', bd), { scale: .4, duration: .45, stagger: .06, delay: .1, ease: 'back.out(2.2)', clearProps: 'transform' });
+        gsap.from(qa('.ent-ok, .ent-no', bd).slice(0, 40), { scale: 0, duration: .35, stagger: .02, delay: .35, ease: 'back.out(2.4)', clearProps: 'transform' });
         gsap.from(qa('#dwEnt tbody tr, #dwLin tbody tr', bd).slice(0, 30), { opacity: 0, y: 6, duration: .28, stagger: .02, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
       }
     } catch (err) { console.error(err); q('#dwTl', bd).innerHTML = '<div class="ot-soon" style="padding:20px">No se pudo traer el detalle.</div>'; }
@@ -1994,60 +2020,84 @@
   function ddMejorar(sel) {
     if (sel.dataset.dd) return; sel.dataset.dd = '1';
     sel.classList.add('dd-native');
-    var btn = el('<button type="button" class="dd-btn" aria-haspopup="listbox"><span></span>' + SV('<path d="M6 9l6 6 6-6"/>') + '</button>');
+    if (sel.dataset.multi) sel._multi = sel.dataset.multi.split(MSEP);
+    var lbl = sel.dataset.lbl || '';
+    var btn = el('<button type="button" class="dd-btn" aria-haspopup="listbox"><span></span><em class="dd-n" hidden></em>' + SV('<path d="M6 9l6 6 6-6"/>') + '</button>');
     sel.parentNode.insertBefore(btn, sel.nextSibling);
-    function txtSel() { var o = sel.options[sel.selectedIndex]; return o ? o.text.replace(/\s*\(\d[\d.]*\)$/, '') : 'Todos'; }
-    function sync() { q('span', btn).textContent = txtSel(); btn.classList.toggle('on', !!sel.value); btn.title = txtSel(); }
+    var OPTS = Array.prototype.slice.call(sel.options).filter(function (o) { return o.value; }).map(function (o) { var m = o.text.match(/\((\d[\d.]*)\)$/); return { v: o.value, t: o.text.replace(/\s*\(\d[\d.]*\)$/, ''), n: m ? m[1] : '' }; });
+    function elegidos() { var v = valorFiltro(sel); return v ? v.split(MSEP) : []; }
+    function nombre(v) { var o = OPTS.filter(function (x) { return x.v === v; })[0]; return o ? o.t : v; }
+    function sync() {
+      var e = elegidos(), sp = q('span', btn), n = q('.dd-n', btn);
+      sp.textContent = !e.length ? 'Todos' : nombre(e[0]);
+      n.hidden = e.length < 2; n.textContent = '+' + (e.length - 1);
+      btn.classList.toggle('on', e.length > 0);
+      btn.title = e.length ? e.map(nombre).join(', ') : 'Todos';
+    }
+    function aplicar(lista) {
+      sel._multi = lista.length > 1 ? lista.slice() : null;
+      sel.value = lista.length === 1 ? lista[0] : '';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     sync();
     sel.addEventListener('change', sync);
     btn.addEventListener('click', function (e) {
-      e.stopPropagation();
+      e.stopPropagation(); e.preventDefault();
       var abierto = q('.dd-pop', sel.parentNode);
       qa('.dd-pop').forEach(function (p) { p._cerrar && p._cerrar(); });
       if (abierto) return;
-      var opts = Array.prototype.slice.call(sel.options).map(function (o) { var m = o.text.match(/\((\d[\d.]*)\)$/); return { v: o.value, t: o.text.replace(/\s*\(\d[\d.]*\)$/, ''), n: m ? m[1] : '' }; });
-      var conBuscar = opts.length > 6;
-      var pop = el('<div class="dd-pop" role="listbox">' + (conBuscar ? '<div class="dd-q">' + SV('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>') + '<input type="text" placeholder="Buscar…"/></div>' : '') + '<div class="dd-list"></div><div class="dd-empty" hidden>Sin resultados</div></div>');
+      var conBuscar = OPTS.length > 6;
+      var pop = el('<div class="dd-pop dd-pop--m" role="listbox" aria-multiselectable="true">' +
+        '<div class="dd-hd"><b>' + esc(lbl) + '</b><span class="dd-cnt"></span></div>' +
+        (conBuscar ? '<div class="dd-q">' + SV('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>') + '<input type="text" placeholder="Buscar ' + esc(lbl.toLowerCase()) + '…"/></div>' : '') +
+        '<div class="dd-list"></div><div class="dd-empty" hidden>Sin resultados</div>' +
+        '<div class="dd-ft"><button type="button" class="dd-clr">Limpiar</button><button type="button" class="dd-ok">Listo</button></div></div>');
       sel.parentNode.appendChild(pop);
+      pop.addEventListener('click', function (ev) { ev.stopPropagation(); ev.preventDefault(); });   // que el <label> no reenvíe clics
       btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
-      var list = q('.dd-list', pop), inp = q('input', pop), vacio = q('.dd-empty', pop);
+      var list = q('.dd-list', pop), inp = q('input', pop), vacio = q('.dd-empty', pop), cnt = q('.dd-cnt', pop);
+      function contar() { var n = elegidos().length; cnt.textContent = n ? n + (n === 1 ? ' elegido' : ' elegidos') : 'Todos'; cnt.classList.toggle('on', n > 0); }
       function pintar(t) {
         t = (t || '').toLowerCase().trim();
-        var vis = opts.filter(function (o) { return !t || o.t.toLowerCase().indexOf(t) >= 0; });
-        list.innerHTML = vis.map(function (o) { return '<button type="button" class="dd-o' + (o.v === sel.value ? ' on' : '') + '" data-v="' + esc(o.v) + '"><span>' + esc(o.t) + '</span>' + (o.n ? '<em>' + o.n + '</em>' : '') + '</button>'; }).join('');
+        var sel2 = elegidos(), vis = OPTS.filter(function (o) { return !t || o.t.toLowerCase().indexOf(t) >= 0; });
+        list.innerHTML = vis.map(function (o) { var on = sel2.indexOf(o.v) >= 0; return '<button type="button" class="dd-o' + (on ? ' on' : '') + '" data-v="' + esc(o.v) + '" role="option" aria-selected="' + on + '"><i class="dd-ck">' + SV('<path d="M20 6L9 17l-5-5"/>') + '</i><span>' + esc(o.t) + '</span>' + (o.n ? '<em>' + o.n + '</em>' : '') + '</button>'; }).join('');
         vacio.hidden = vis.length > 0;
-        qa('.dd-o', list).forEach(function (b) {
-          b.addEventListener('click', function () {
-            sel.value = b.dataset.v; sel.dispatchEvent(new Event('change', { bubbles: true }));
-            cerrar();
-            if (GS) gsap.fromTo(btn, { scale: .95 }, { scale: 1, duration: .35, ease: 'back.out(2.4)', clearProps: 'transform' });
+        qa('.dd-o', list).forEach(function (b2) {
+          b2.addEventListener('click', function () {
+            var l = elegidos(), i = l.indexOf(b2.dataset.v);
+            if (i >= 0) l.splice(i, 1); else l.push(b2.dataset.v);
+            b2.classList.toggle('on', i < 0); b2.setAttribute('aria-selected', i < 0);
+            if (GS) gsap.fromTo(q('.dd-ck', b2), { scale: .5 }, { scale: 1, duration: .3, ease: 'back.out(3)', clearProps: 'transform' });
+            aplicar(l); contar();
           });
         });
       }
       function cerrar() {
         document.removeEventListener('click', fuera); document.removeEventListener('keydown', tecla);
         btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
+        pop._cerrar = null;
         if (GS) gsap.to(pop, { opacity: 0, y: -6, scale: .98, duration: .14, ease: 'power1.in', onComplete: function () { pop.remove(); } }); else pop.remove();
       }
-      function fuera(ev) { if (!pop.contains(ev.target) && ev.target !== btn) cerrar(); }
+      function fuera(ev) { if (!pop.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) cerrar(); }
       function tecla(ev) {
         if (ev.key === 'Escape') cerrar();
-        if (ev.key === 'Enter' && inp && document.activeElement === inp) { var f = q('.dd-o', list); if (f) f.click(); }
+        if (ev.key === 'Enter' && inp && document.activeElement === inp) { var f2 = q('.dd-o', list); if (f2) f2.click(); }
       }
+      q('.dd-clr', pop).addEventListener('click', function () { aplicar([]); pintar(inp ? inp.value : ''); contar(); });
+      q('.dd-ok', pop).addEventListener('click', cerrar);
       pop._cerrar = cerrar;
-      pintar('');
+      pintar(''); contar();
       if (inp) { inp.addEventListener('input', function () { pintar(inp.value); }); setTimeout(function () { inp.focus(); }, 30); }
       if (GS) {
-        gsap.fromTo(pop, { opacity: 0, y: -8, scale: .97, transformOrigin: '50% 0%' }, { opacity: 1, y: 0, scale: 1, duration: .26, ease: 'back.out(1.6)' });
+        gsap.fromTo(pop, { opacity: 0, y: -8, scale: .97, transformOrigin: '50% 0%' }, { opacity: 1, y: 0, scale: 1, duration: .26, ease: 'back.out(1.6)', clearProps: 'transform' });
         gsap.from(qa('.dd-o', list).slice(0, 12), { opacity: 0, x: -6, duration: .2, stagger: .015, ease: 'power2.out', clearProps: 'transform,opacity' });
       }
-      var on = q('.dd-o.on', list); if (on) list.scrollTop = on.offsetTop - 40;
       setTimeout(function () { document.addEventListener('click', fuera); document.addEventListener('keydown', tecla); }, 0);
     });
   }
 
   function contarFiltros(df) {
-    var n = qa('select', df).filter(function (s2) { return s2.value; }).length + (q('#detQ', df) && q('#detQ', df).value ? 1 : 0);
+    var n = qa('select', df).filter(function (s2) { return valorFiltro(s2); }).length + (q('#detQ', df) && q('#detQ', df).value ? 1 : 0);
     var b = q('#detLimpiar', df); if (!b) return;
     b.textContent = n ? 'Limpiar (' + n + ')' : 'Limpiar';
     b.classList.toggle('has', !!n);

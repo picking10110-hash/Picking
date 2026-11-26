@@ -728,9 +728,9 @@
     }
     body.innerHTML =
       // Diseño en dos columnas: [Capital · Interior · ranking] | [mapa fijo a la derecha]
-      '<div class="zn-stack zn-stack--top zn-stack--col">' + zonas.map(zonaCard).join('') + '</div>' +
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
+          '<div class="zn-stack zn-stack--top zn-stack--col">' + zonas.map(zonaCard).join('') + '</div>' +
           '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Ranking por departamento</h3>' +
             '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Más pedidos faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor cumplimiento</button></div></div></div>' +
             '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +

@@ -1734,3 +1734,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .zn-stack--top.zn-stack--col .zn-chips .st-meta small{display:none}
 @media(max-width:1500px){.zn-stack--top.zn-stack--col .zn-card{grid-template-columns:auto 1fr auto;grid-template-areas:"top top foot" "big meter meter";row-gap:8px}}
 .zn-subh{justify-content:flex-start;gap:12px}.zn-subh .zn-vbtn{order:-1}
+
+/* ===== Tarjetas en la mitad izquierda; mapa a toda la altura a la derecha ===== */
+.zn-left .zn-stack--top.zn-stack--col{margin-bottom:12px;flex:none}
+.zn-left .zn-stack--top.zn-stack--col .zn-card{grid-template-columns:auto 1fr auto;grid-template-areas:"top top foot" "big meter meter";row-gap:8px;column-gap:18px;padding:12px 18px}
+.zn-left .zn-stack--top.zn-stack--col .zn-big{font-size:28px}
+.zn-left .zn-stack--top.zn-stack--col .zn-meter{margin:0 0 12px}
+.zn-left .zn-stack--top.zn-stack--col .ot-st{padding:0 12px}
+.zn-left .zn-stack--top.zn-stack--col .ot-st b{font-size:14px}
+.zn-left .zn-stack--top.zn-stack--col .zn-tag{height:28px}
+.zn-left .zn-stack--top.zn-stack--col .zn-tag b{font-size:13px}
+.zn-left .zn-stack--top.zn-stack--col .zn-chips .st-meta,.zn-left .zn-stack--top.zn-stack--col .zn-chips .meta{height:22px;font-size:11px}
+@media(max-width:1500px){.zn-left .zn-stack--top.zn-stack--col .zn-card{grid-template-columns:auto 1fr;grid-template-areas:"top top" "foot foot" "big meter"}.zn-left .zn-stack--top.zn-stack--col .ot-foot{justify-self:start}.zn-left .zn-stack--top.zn-stack--col .ot-st:first-child{padding-left:0;border-left:0}}

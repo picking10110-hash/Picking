@@ -705,7 +705,7 @@
       var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
       var cap = z.clave === 'Capital';
       return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + '">' +
-        '<div class="zn-top"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><div class="zn-name"><b>' + esc(z.clave) + '</b><small>' + (cap ? 'Asunción y Central' : 'Resto del país') + ' · ' + esc(mesLbl(CUR)) + '</small></div>' +
+        '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(z.clave) + '</b></span><small class="zn-desc">' + (cap ? 'Asunción y Central' : 'Resto del país') + ' · ' + esc(mesLbl(CUR)) + '</small>' +
           '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f === 0 ? '' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos</span>') + '</div></div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
@@ -735,11 +735,12 @@
 
     function fila(d, sub) {
       var c = semColor(d.pOtif);
-      return '<div class="zn-row' + (sub ? ' sub' : '') + '"' + (sub ? '' : ' data-dep="' + esc(d.clave) + '" role="button" tabindex="0"') + '>' +
-        '<div class="zn-name">' + esc(d.clave) + '<small>' + nf(d.evaluados) + ' pedidos</small>' + '</div>' +
+      return '<div class="zn-row' + (sub ? ' sub' : '') + '"' + (sub ? ' data-city="' + esc(d.clave) + '" role="button" tabindex="0" title="Ver quiénes vendieron en ' + esc(tCase(d.clave)) + '"' : ' data-dep="' + esc(d.clave) + '" role="button" tabindex="0"') + '>' +
+        (sub ? '<div class="zn-name zn-name--c"><i class="zn-cico">' + SV('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.2"/>') + '</i><span>' + esc(tCase(d.clave)) + '<small>' + nf(d.evaluados) + ' pedidos</small></span></div>'
+             : '<div class="zn-name zn-name--d"><i class="zn-dico">' + SV('<path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>') + '</i><span>' + esc(d.clave) + '<small>' + nf(d.evaluados) + ' pedidos</small></span></div>') +
         '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, d.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(d.pOtif) + '</b></div>' +
         '<div class="r">' + (d.faltan === 0 ? '<span class="st-chip ok">En meta</span>' : nf(d.faltan)) + '</div>' +
-        '<div class="zn-chev">' + (sub ? '' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
+        '<div class="zn-chev">' + (sub ? '<span class="zn-vgo">' + SV('<path d="M9 6l6 6-6 6"/>') + '</span>' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
     }
     function ordenar() {
       var k = ZN.orden;
@@ -763,8 +764,14 @@
       var subs = CALC.agrupar(evs.filter(function (o) { return o.p.departamento === dep; }), function (p) { return p.region_nombre || p.region_cod || '—'; })
         .filter(function (c) { return c.evaluados; }).sort(function (a, b) { return b.evaluados - a.evaluados; });
       subs.forEach(function (c) { c.faltan = faltanParaMeta(c, meta); });
-      var box = q('.zn-sub', grp);
-      box.innerHTML = subs.map(function (c) { return fila(c, true); }).join('');
+      var box = q('.zn-sub', grp), evDep = evs.filter(function (o) { return o.p.departamento === dep; });
+      box.innerHTML = '<div class="zn-subh"><span>Ciudades de <b>' + esc(dep) + '</b> · ' + nf(subs.length) + '</span><button type="button" class="zn-vbtn">' + SV('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>') + 'Vendedores de ' + esc(dep) + '</button></div>' +
+        subs.map(function (c) { return fila(c, true); }).join('');
+      q('.zn-vbtn', box).addEventListener('click', function (e) { e.stopPropagation(); abrirVendedores(dep, 'Departamento · ' + (zonaDe[dep] || ''), evDep, { dep: dep }); });
+      qa('.zn-row[data-city]', box).forEach(function (r) {
+        var go = function () { var c = r.dataset.city; abrirVendedores(tCase(c), dep + ' · ' + (zonaDe[dep] || ''), evDep.filter(function (o) { return (o.p.region_nombre || o.p.region_cod || '—') === c; }), { dep: dep, city: c }); };
+        r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
       qa('.zn-bar span', box).forEach(function (s) { s.style.width = s.dataset.w + '%'; });
       if (!GS || animar === false) { box.style.height = 'auto'; return; }
       gsap.fromTo(box, { height: 0 }, { height: 'auto', duration: .45, ease: 'power3.out' });
@@ -1263,7 +1270,7 @@
 
     var card = q('#znMap'), tip = el('<div class="pm-tip" hidden><b></b><span></span><em class="st-meta"></em></div>');
     card.appendChild(tip);
-    var tipX = GS ? gsap.quickTo(tip, 'x', { duration: .25, ease: 'power3.out' }) : null, tipY = GS ? gsap.quickTo(tip, 'y', { duration: .25, ease: 'power3.out' }) : null;
+    var tipX = GS ? gsap.quickTo(tip, 'left', { duration: .25, ease: 'power3.out', modifiers: { left: function (v) { return Math.round(parseFloat(v)) + 'px'; } } }) : null, tipY = GS ? gsap.quickTo(tip, 'top', { duration: .25, ease: 'power3.out', modifiers: { top: function (v) { return Math.round(parseFloat(v)) + 'px'; } } }) : null;
     var tSalir = null, actual = null;
     function entrar(k) {
       clearTimeout(tSalir);
@@ -1273,7 +1280,7 @@
       q('b', tip).textContent = nombre;
       q('span', tip).textContent = ZN.lente === 'vol' ? nf(x.evaluados) + ' pedidos' : pf(x.pOtif);
       var stT = estadoMeta(x.pOtif, meta), emT = q('em', tip); emT.className = 'st-meta ' + stT.c; emT.innerHTML = '<i></i>' + (ZN.lente === 'vol' ? pf(x.pOtif) + ' a tiempo y completo' : stT.t);
-      if (tip.hidden) { tip.hidden = false; if (GS) gsap.fromTo(tip, { opacity: 0, scale: .9 }, { opacity: 1, scale: 1, duration: .18, ease: 'power2.out' }); }
+      if (tip.hidden) { tip.hidden = false; if (GS) gsap.fromTo(tip, { opacity: 0, scale: .92 }, { opacity: 1, scale: 1, duration: .18, ease: 'power2.out', clearProps: 'transform' }); }
     }
     function salir() {
       clearTimeout(tSalir);
@@ -1282,7 +1289,7 @@
     box.addEventListener('mousemove', function (e) {
       var r = card.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
       x = Math.min(x, r.width - 170);
-      if (tipX) { tipX(x); tipY(y); } else { tip.style.transform = 'translate(' + x + 'px,' + y + 'px)'; }
+      x = Math.round(x); y = Math.round(y); if (tipX) { tipX(x); tipY(y); } else { tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
     });
     qa('.pm-d', svg).forEach(function (el2) {
       var k = el2.dataset.k;
@@ -1548,6 +1555,81 @@
         cerrar(function () { toast('Horario guardado · tiempos recalculados'); renderShell(); });
       } catch (e) { console.error(e); toast('No se pudo guardar', true); ok.disabled = false; ok.textContent = 'Guardar'; }
     });
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     MODAL "¿Quiénes vendieron aquí?" — vendedores de un departamento
+     o ciudad, con participación y % en tiempo y forma.
+     ════════════════════════════════════════════════════════════ */
+  function tCase(s) { return String(s == null ? '' : s).toLowerCase().replace(/(^|[\s\-.(\/])([a-záéíóúñü])/g, function (m, a, b) { return a + b.toUpperCase(); }); }
+  function iniciales(n) { var p = String(n || '?').replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ ]/g, ' ').split(/\s+/).filter(Boolean); return ((p[0] || '?')[0] + ((p[1] || '')[0] || '')).toUpperCase(); }
+  function abrirVendedores(tit, sub, lista, filtro) {
+    var meta = +CFG.meta_otif || 85, g = CALC.resumen(lista), VQ = '';
+    var vs = CALC.agrupar(lista, function (p) { return p.vendedor_nombre || p.vendedor_cod; }).filter(function (v) { return v.total; })
+      .sort(function (a, b) { return b.total - a.total || (b.pOtif || 0) - (a.pOtif || 0); });
+    var est = estadoMeta(g.pOtif, meta), X = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+    var bd = el('<div class="modal-bd open vz-modal"><div class="modal-box">' +
+      '<div class="vz-hd">' +
+        '<div class="vz-ico">' + SV(filtro.city ? '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.2"/>' : '<path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>') + '</div>' +
+        '<div class="vz-t"><span>¿Quiénes vendieron en…?</span><h3>' + esc(tit) + '</h3><small>' + esc(sub) + ' · ' + esc(mesLbl(CUR)) + '</small></div>' +
+        '<div class="vz-ks">' +
+          '<div class="vz-k"><b id="vzP">' + pf(g.pOtif) + '</b><span>en tiempo y forma</span><em class="st-meta ' + est.c + '"><i></i>' + esc(est.t) + '</em></div>' +
+          '<div class="vz-k"><b>' + nf(g.total) + '</b><span>pedidos</span></div>' +
+          '<div class="vz-k"><b>' + nf(vs.length) + '</b><span>vendedores</span></div>' +
+        '</div>' +
+        '<button class="modal-x vz-x" type="button" aria-label="Cerrar">' + X + '</button>' +
+      '</div>' +
+      '<div class="vz-bar"><div class="ot-search vz-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Buscar vendedor…"/></div>' +
+        '<span class="vz-hint">' + SV('<path d="M9 6l6 6-6 6"/>') + 'Tocá un vendedor para ver sus pedidos</span></div>' +
+      '<div class="vz-body"><table class="ot-tbl vz-tbl"><thead><tr><th class="c">#</th><th>Vendedor</th><th class="r">Pedidos</th><th>Participación</th><th>En tiempo y forma</th><th class="r">A tiempo</th><th class="r">Completos</th></tr></thead><tbody></tbody></table></div>' +
+    '</div></div>');
+    document.body.appendChild(bd);
+    var box = q('.modal-box', bd), tb = q('tbody', bd);
+    function pintar(animar) {
+      var tq = VQ.toLowerCase().trim(), f = vs.filter(function (v) { return !tq || String(v.clave).toLowerCase().indexOf(tq) >= 0; });
+      tb.innerHTML = !f.length ? '<tr><td colspan="7" class="vz-empty">Ningún vendedor coincide con la búsqueda.</td></tr>' : f.map(function (v) {
+        var rk = vs.indexOf(v) + 1, part = g.total ? v.total / g.total * 100 : 0, c = semColor(v.pOtif);
+        return '<tr data-v="' + esc(v.clave) + '" tabindex="0">' +
+          '<td class="c"><span class="vz-rk' + (rk <= 3 ? ' top' : '') + '">' + rk + '</span></td>' +
+          '<td><div class="vz-v"><span class="vz-av">' + esc(iniciales(v.clave)) + '</span><b>' + esc(v.clave) + '</b></div></td>' +
+          '<td class="r b">' + nf(v.total) + '</td>' +
+          '<td><div class="vz-cell"><div class="vz-b"><i class="part" data-w="' + part.toFixed(1) + '"></i></div><span>' + pf(part) + '</span></div></td>' +
+          '<td><div class="vz-cell"><div class="vz-b"><i data-w="' + Math.min(100, v.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></i><em style="left:' + meta + '%"></em></div><span style="color:' + c + '">' + (v.evaluados ? pf(v.pOtif) : '—') + '</span></div></td>' +
+          '<td class="r">' + (v.evaluados ? pf(v.pOt) : '—') + '</td><td class="r">' + (v.evaluados ? pf(v.pIn) : '—') + '</td></tr>';
+      }).join('');
+      var bars = qa('.vz-b i', tb);
+      bars.forEach(function (b, i) { if (GS && animar !== false) gsap.fromTo(b, { width: '0%' }, { width: b.dataset.w + '%', duration: .8, delay: .25 + Math.min(i, 30) * .015, ease: 'power3.out' }); else b.style.width = b.dataset.w + '%'; });
+      if (GS && animar !== false) gsap.from(qa('tr', tb).slice(0, 25), { opacity: 0, x: -14, duration: .35, stagger: .035, delay: .18, ease: 'power2.out', clearProps: 'transform,opacity' });
+      qa('tr[data-v]', tb).forEach(function (tr) {
+        var go = function () {
+          cerrar(function () {
+            DET.q = filtro.city || ''; DET.estado = ''; DET.zona = ''; DET.cond = ''; DET.depto = filtro.dep || ''; DET.vend = tr.dataset.v; DET.limit = 200;
+            ir('detalle');
+          });
+        };
+        tr.addEventListener('click', go); tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      });
+    }
+    function cerrar(cb) {
+      document.removeEventListener('keydown', esc_);
+      if (!GS) { bd.remove(); if (cb) cb(); return; }
+      gsap.to(box, { opacity: 0, y: 16, scale: .96, duration: .2, ease: 'power2.in' });
+      gsap.to(bd, { opacity: 0, duration: .24, delay: .04, onComplete: function () { bd.remove(); if (cb) cb(); } });
+    }
+    function esc_(e) { if (e.key === 'Escape') cerrar(); }
+    document.addEventListener('keydown', esc_);
+    q('.vz-x', bd).addEventListener('click', function () { cerrar(); });
+    bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
+    var tmr; q('.vz-q input', bd).addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { VQ = e.target.value; pintar(false); }, 150); });
+    pintar(true);
+    if (GS) {
+      gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .22 });
+      gsap.fromTo(box, { opacity: 0, y: 26, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: .48, ease: 'back.out(1.5)', clearProps: 'transform,opacity' });
+      gsap.from(q('.vz-ico', bd), { scale: 0, rotate: -25, duration: .5, delay: .12, ease: 'back.out(2.4)', clearProps: 'transform' });
+      gsap.from(qa('.vz-k', bd), { opacity: 0, y: 8, duration: .32, stagger: .06, delay: .16, ease: 'power2.out', clearProps: 'transform,opacity' });
+      if (g.pOtif != null) animCount(q('#vzP', bd), g.pOtif, function (v) { return pf(v); }, .8);
+    }
+    mejorarFiltros(bd);
   }
 
   /* ── Brecha a la meta (Resumen) ── */

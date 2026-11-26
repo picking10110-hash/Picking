@@ -1856,21 +1856,29 @@
   async function abrirPedido(o) {
     var p = o.p;
     var bd = el('<div class="dw-bd"><aside class="dw" role="dialog" aria-label="Pedido ' + esc(p.doc_vtas) + '">' +
-      '<div class="dw-hd"><div><div class="dw-k">Pedido</div><h3>' + esc(p.doc_vtas) + '</h3><div class="dw-cli">' + esc(p.cliente_nombre || p.cliente_cod || '') + '</div></div>' +
+      '<div class="dw-hd"><div class="dw-hd__t"><div class="dw-k">Pedido</div><h3>' + esc(p.doc_vtas) + '</h3><div class="dw-cli">' + esc(p.cliente_nombre || p.cliente_cod || '') + '</div></div>' +
+        '<div class="dw-kpis">' +
+          '<div><span>Tiempo total</span><b class="' + (o.ciclo == null ? '' : o.ot ? 'ok' : 'bad') + '">' + (o.ciclo == null ? '—' : tiempo(o.ciclo, true)) + '</b></div>' +
+          '<div><span>Plazo</span><b>' + plazo(o.sla) + '</b></div>' +
+          '<div><span>Artículos</span><b>' + nf(p.n_completas) + '/' + nf(p.n_lineas) + '</b></div>' +
+          '<div><span>Monto</span><b>' + gs(p.monto_pedido) + '</b></div>' +
+        '</div>' +
         '<button class="modal-x" type="button" aria-label="Cerrar"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>' +
       '<div class="dw-body"><div class="dw-top">' + estadoChip(o) +
-        '<span class="dw-tag">' + esc(p.region_nombre || p.departamento) + ' · ' + esc(p.zona) + '</span><span class="dw-tag">' + esc(p.vendedor_nombre || '') + '</span><span class="dw-tag">Cond. ' + esc(p.cond_exp || '—') + ' · ' + esc(COND_TXT[p.cond_exp] || '') + '</span></div>' +
+        '<span class="dw-tag">' + SV('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.2"/>') + esc(tCase(p.region_nombre || p.departamento)) + ' · ' + esc(p.zona) + '</span>' +
+        '<span class="dw-tag">' + SV('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.7 3.6-5.6 7-5.6s6.2 1.9 7 5.6"/>') + esc(p.vendedor_nombre || '—') + '</span>' +
+        '<span class="dw-tag">' + STG_ICO.tra + 'Cond. ' + esc(p.cond_exp || '—') + ' · ' + esc(COND_TXT[p.cond_exp] || '') + '</span></div>' +
         (o.ciclo != null ? '<div class="dw-plazo"><div class="dw-plazo__hd"><span>Ciclo carga → ' + (o.retiro ? 'factura (retira el cliente)' : 'entrega') + '</span><b class="' + (o.ot ? 'okt' : 'badt') + '">' + tiempo(o.ciclo) + '</b></div>' +
           '<div class="dw-plazo__bar"><span style="background:' + (o.ot ? '#16a34a' : '#dc2626') + '" data-w="' + Math.min(100, o.ciclo / Math.max(o.sla * 1.6, o.ciclo) * 100).toFixed(1) + '"></span><em style="left:' + (o.sla / Math.max(o.sla * 1.6, o.ciclo) * 100).toFixed(1) + '%"><i>Plazo ' + plazo(o.sla) + '</i></em></div></div>' : '') +
-        '<div class="dw-sec">Línea de tiempo</div><div class="tl" id="dwTl"><div class="ot-loading" style="padding:24px"><div class="ot-loading__ring"></div></div></div>' +
-        '<div class="dw-sec">Entregas</div><div id="dwEnt"></div>' +
-        '<div class="dw-sec">Artículos</div><div id="dwLin"></div>' +
+        '<section class="dw-card"><div class="dw-sec">' + SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>') + 'Línea de tiempo</div><div class="tl" id="dwTl"><div class="ot-loading" style="padding:24px"><div class="ot-loading__ring"></div></div></div></section>' +
+        '<section class="dw-card"><div class="dw-sec">' + STG_ICO.tra + 'Entregas</div><div id="dwEnt"></div></section>' +
+        '<section class="dw-card"><div class="dw-sec">' + STG_ICO.pre + 'Artículos</div><div id="dwLin"></div></section>' +
       '</div></aside></div>');
     document.body.appendChild(bd);
     var dw = q('.dw', bd);
     function cerrar() {
       if (!GS) { bd.remove(); return; }
-      gsap.to(dw, { xPercent: 104, duration: .32, ease: 'power3.in' });
+      gsap.to(dw, { x: 60, opacity: 0, duration: .28, ease: 'power3.in' });
       gsap.to(bd, { opacity: 0, duration: .3, delay: .08, onComplete: function () { bd.remove(); } });
     }
     q('.modal-x', bd).addEventListener('click', cerrar);
@@ -1878,7 +1886,9 @@
     document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', k); } });
     if (GS) {
       gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .25 });
-      gsap.fromTo(dw, { xPercent: 104 }, { xPercent: 0, duration: .5, ease: 'power3.out' });
+      gsap.fromTo(dw, { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: .55, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(qa('.dw-kpis > div', bd), { opacity: 0, y: 8, duration: .35, stagger: .06, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from(qa('.dw-card', bd), { opacity: 0, y: 14, duration: .4, stagger: .08, delay: .3, ease: 'power3.out', clearProps: 'transform,opacity' });
       gsap.from(qa('.dw-top > *', bd), { opacity: 0, y: 6, duration: .3, stagger: .05, delay: .25, ease: 'power2.out', clearProps: 'transform,opacity' });
       var pb = q('.dw-plazo__bar span', bd); if (pb) gsap.fromTo(pb, { width: '0%' }, { width: pb.dataset.w + '%', duration: .9, delay: .35, ease: 'power3.out' });
     } else { var pb2 = q('.dw-plazo__bar span', bd); if (pb2) pb2.style.width = pb2.dataset.w + '%'; }

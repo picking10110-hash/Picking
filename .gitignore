@@ -12,3 +12,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Tablero OTIF viejo (trae datos de clientes embebidos) — NO subir
+Tablero_OTIF*.html

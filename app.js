@@ -1,1991 +1,709 @@
-// ==========================================
-// PRESETS Y CONFIGURACIÓN INICIAL
-// ==========================================
-const PRESET_AVATARS = {
-  avatar1: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%230e7cc2'/><stop offset='100%25' stop-color='%230B5F8D'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a1)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/><circle cx='100' cy='72' r='26' fill='none' stroke='%23fff' stroke-width='1' opacity='.3'/></svg>`,
-  avatar2: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a2' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23536680'/><stop offset='100%25' stop-color='%23334155'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a2)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/><circle cx='100' cy='72' r='26' fill='none' stroke='%23fff' stroke-width='1' opacity='.3'/></svg>`,
-  avatar3: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a3' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%23283548'/><stop offset='100%25' stop-color='%230f172a'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a3)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/><circle cx='100' cy='72' r='26' fill='none' stroke='%23fff' stroke-width='1' opacity='.3'/></svg>`,
-  avatar4: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='a4' x1='0' y1='0' x2='0' y2='1'><stop offset='0%25' stop-color='%234d94f8'/><stop offset='100%25' stop-color='%232563EB'/></linearGradient></defs><rect width='200' height='200' fill='url(%23a4)'/><circle cx='100' cy='72' r='32' fill='%23fff' opacity='.95'/><ellipse cx='100' cy='158' rx='48' ry='36' fill='%23fff' opacity='.90'/><circle cx='100' cy='72' r='26' fill='none' stroke='%23fff' stroke-width='1' opacity='.3'/></svg>`
-};
+/* ============================================================
+ * app.js — Pedidos en tiempo y forma (OTIF) · ALAS
+ * ------------------------------------------------------------
+ * Shell del ecosistema + pantalla Resumen (estilo Facturación /
+ * Estadísticas de Flete) con animaciones GSAP.
+ * Datos: vista otif_v_pedidos (1 fila por pedido) + config.
+ * Carga: el admin sube el Excel de SAP tal cual (otif-import.js).
+ * ============================================================ */
+(function () {
+  'use strict';
 
-const MOCK_DATA = [
-  { id: "p1", name: "Sofía Rodríguez", score: 254, deletedScore: 18, avatarType: "preset", avatarValue: "avatar1" },
-  { id: "p2", name: "Juan Pérez", score: 232, deletedScore: 35, avatarType: "preset", avatarValue: "avatar4" },
-  { id: "p3", name: "Pedro Gómez", score: 215, deletedScore: 12, avatarType: "preset", avatarValue: "avatar2" },
-  { id: "p4", name: "Laura Beltrán", score: 188, deletedScore: 28, avatarType: "preset", avatarValue: "avatar3" },
-  { id: "p5", name: "Carlos Mendoza", score: 165, deletedScore: 8, avatarType: "preset", avatarValue: "avatar2" },
-  { id: "p6", name: "Miguel Ángel", score: 142, deletedScore: 22, avatarType: "preset", avatarValue: "avatar1" }
-];
+  /* ── Helpers ── */
+  function q(s, r) { return (r || document).querySelector(s); }
+  function qa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  var nf = function (n, d) { return (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
+  var pf = function (n, d) { return (n == null || isNaN(n)) ? '—' : nf(n, d == null ? 1 : d) + '%'; };
+  var gs = function (n) { var a = Math.abs(n || 0); if (a >= 1e9) return 'Gs. ' + nf(n / 1e9, 2) + ' MM'; if (a >= 1e6) return 'Gs. ' + nf(n / 1e6, 1) + ' M'; return 'Gs. ' + nf(n); };
+  var jd = function (n) { return n == null ? '—' : nf(n, 2) + ' j'; };
+  var MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  var GS = !!window.gsap;
 
-// ── CATEGORÍAS DE PREPARADORES ──────────────────────────────
-const CATEGORIAS = ['PLENO', 'JUNIOR', 'APRENDIZ', 'EMPAQUE'];
-const CATEGORIA_INFO = {
-  PLENO: {
-    label: 'Pleno', color: '#dc2626', soft: 'rgba(220,38,38,0.1)',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
-  },
-  JUNIOR: {
-    label: 'Junior', color: '#ca8a04', soft: 'rgba(202,138,4,0.12)',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
-  },
-  APRENDIZ: {
-    label: 'Aprendiz', color: '#16a34a', soft: 'rgba(22,163,74,0.1)',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>'
-  },
-  EMPAQUE: {
-    label: 'Empaque', color: '#64748b', soft: 'rgba(100,116,139,0.12)',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'
+  function animCount(node, to, fmtFn, dur) {
+    if (!node) return;
+    if (!GS || to == null || isNaN(to)) { node.textContent = fmtFn(to); return; }
+    if (node._ct) node._ct.kill();
+    var o = { v: 0 };
+    node._ct = gsap.to(o, { v: to, duration: dur || 1, ease: 'power2.out', onUpdate: function () { node.textContent = fmtFn(o.v); }, onComplete: function () { node.textContent = fmtFn(to); } });
   }
-};
-// Caja de leche (premio)
-const MILK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l1.5-4h7L17 8v12H7z"/><path d="M7 8h10M10 4v4M14 4v4"/><line x1="10" y1="13" x2="14" y2="13"/></svg>';
-// Medalla 1º lugar — cinta azul + disco dorado
-const MEDAL_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M15.5 12.6L17.6 22 12 18.7 6.4 22l2.1-9.4" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="12" cy="8.3" r="6.3" fill="#fbbf24" stroke="#d97706" stroke-width="1.4"/><path d="M12 5.4l.93 1.88 2.07.3-1.5 1.46.35 2.06L12 10.18l-1.85.97.35-2.06-1.5-1.46 2.07-.3z" fill="#fffbeb"/></svg>';
-// Check simple (110%) y doble check (1º a 100%)
-const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12.5 9.5 18 20 6.5"/></svg>';
-const DCHECK_ICON = '<svg viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12.5 7 17.5 16 7"/><polyline points="11 17.5 12.5 19 23 6.5"/></svg>';
-function pickerCategoria(p) {
-  var c = p && p.categoria;
-  return CATEGORIA_INFO[c] ? c : 'JUNIOR';
-}
-
-let pickers = [];
-let deletedPickers = [];
-let selectedAvatarType = "preset";
-let selectedAvatarValue = "avatar1";
-let statsOldValues = { leader: "", average: 0, total: 0 };
-let ratePerItem = 1.50;
-let targetGoal = 200;
-
-// ==========================================
-// SSO + ROLES
-// ==========================================
-window._alasIsAdmin = false;
-window._alasCanEdit = false;
-
-function waitForAlasAuth(maxMs) {
-  maxMs = maxMs || 8000;
-  return new Promise(function (resolve) {
-    var start = Date.now();
-    function check() {
-      if (window.__alasAuthReady !== undefined) {
-        window.__alasAuthReady.then(function () {
-          var c = window.AlasAuthClient;
-          resolve((c && c.isAuthenticated) ? c.user : null);
-        });
-      } else if (Date.now() - start > maxMs) {
-        resolve(null);
-      } else {
-        setTimeout(check, 50);
-      }
-    }
-    check();
-  });
-}
-
-function applyRoleRestrictions() {
-  var role = window._alasRole || 'operador';
-  // Admin, supervisor y operador pueden configurar (editar perfiles, metas, categorías).
-  window._alasCanEdit = (role === 'admin' || role === 'supervisor' || role === 'operador');
-
-  var btnAdmin = document.getElementById('btn-admin-panel');
-  var roleBadge = document.getElementById('admin-role-badge');
-
-  if (!window._alasCanEdit) {
-    if (btnAdmin) {
-      btnAdmin.textContent = 'Ver Ranking';
-      btnAdmin.title = 'Solo visualización — no tienes permisos de edición';
-    }
+  function toast(msg, err) {
+    var t = el('<div class="toast ' + (err ? 'toast--err' : '') + '">' + esc(msg) + '</div>');
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 3000);
   }
 
-  // El badge "Solo lectura" sólo aparece para roles que NO pueden editar.
-  if (roleBadge && !window._alasCanEdit) {
-    roleBadge.textContent = 'Solo lectura';
-    roleBadge.style.display = 'inline-block';
-  }
-}
-
-function lockAdminForm() {
-  if (window._alasCanEdit) return;
-
-  var form = document.getElementById('picker-form');
-  if (form) form.style.display = 'none';
-
-  var goalSection = document.querySelector('.drawer-section-title');
-  if (goalSection && goalSection.textContent.includes('Parámetros')) {
-    goalSection.style.display = 'none';
-    var goalGroup = goalSection.nextElementSibling;
-    if (goalGroup) goalGroup.style.display = 'none';
-  }
-
-  var resetBtn = document.querySelector('.drawer-footer .btn-danger');
-  if (resetBtn) resetBtn.style.display = 'none';
-
-  var manageSection = document.getElementById('manage-list-container');
-  if (manageSection) {
-    var notice = document.createElement('div');
-    notice.className = 'admin-readonly-notice';
-    notice.textContent = 'Vista de solo lectura — contacta a un administrador para editar';
-    manageSection.parentNode.insertBefore(notice, manageSection);
-  }
-}
-
-// ==========================================
-// INICIALIZACIÓN
-// ==========================================
-document.addEventListener("DOMContentLoaded", function () {
-  // La ENTRADA la dispara el script inline de index.html (init + enterProject juntos,
-  // igual que CajaVenta) para garantizar el orden: ocultar → animar.
-
-  // Botón "Volver al Menú" — salida con la misma transición que el resto
-  var btnBack = document.getElementById('btnBack');
-  if (btnBack) btnBack.addEventListener('click', function (e) {
-    e.preventDefault();
-    var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
-    if (window.ALASTransition) window.ALASTransition.exitToLauncher(url);
-    else window.location.replace(url);
-  });
-
-  window.addEventListener("hashchange", handleRouting);
-
-  // El resto (SSO + datos + render) corre en paralelo a la animación de entrada
-  initApp();
-});
-
-async function initApp() {
-  // Patrón estándar del ecosistema (igual que Flete / CajaVenta / ItemsBorrados):
-  // espera el SSO real; si no hay sesión, redirige al Launcher.
-  var ssoUser = await waitForAlasAuth();
-  var isBypass = new URLSearchParams(window.location.search).has('bypass_auth');
-  if (isBypass && !ssoUser) {
-    ssoUser = { name: 'Desarrollador Local', role: 'admin', email: 'dev@alas.com' };
-  }
-  if (!ssoUser) {
-    var url = (window.ALAS_SSO_CONFIG || {}).launcherUrl || 'https://launcher-tawny.vercel.app';
-    window.location.replace(url);
-    return;
-  }
-
-  window._alasSSOReady = true;
-  window._alasRole = ssoUser.role || 'operador';
-  window._alasIsAdmin = (ssoUser.role === 'admin');
-
-  var nameEl = document.getElementById('ssoUserName');
-  var chipEl = document.getElementById('ssoUserChip');
-  if (nameEl) nameEl.textContent = ssoUser.name || ssoUser.email || 'Usuario';
-  if (chipEl) chipEl.style.display = '';
-
-  applyRoleRestrictions();
-  lockAdminForm();
-
-  await loadData();
-  await refreshPrimeros();
-
-  handleRouting();
-  if (typeof refreshPeriodoSelector === 'function') refreshPeriodoSelector();
-  if (typeof refreshUpdateChip === 'function') refreshUpdateChip();
-}
-
-function handleRouting() {
-  const hash = window.location.hash;
-  if (hash === "#tv" || hash === "tv") {
-    setTVModeState(true);
-  } else {
-    setTVModeState(false);
-  }
-}
-
-// ==========================================
-// DATOS
-// ==========================================
-let currentPeriodo = null;
-let _primerosByCat = {}; // { categoria: {preparador_codigo, preparador_nombre, meta_pct} } — 1º en llegar al 100%
-
-async function loadData() {
-  // 1. Intentar roster real desde Supabase
-  if (window.PickingAPI && PickingAPI.isReady()) {
-    try {
-      const reps = await PickingAPI.getPreparadores();
-      if (reps && reps.length) {
-        pickers = reps.map(function (r) {
-          return {
-            id:           r.codigo,
-            codigo:       r.codigo,
-            name:         r.nombre,
-            score:        0,
-            deletedScore: 0,
-            items:        0,
-            monto:        0,
-            avatarType:   r.avatar_type,
-            avatarValue:  r.avatar_value,
-            metaItemsMes: r.meta_items_mes,
-            metaMontoMes: r.meta_monto_mes,
-            categoria:    r.categoria || 'JUNIOR'
-          };
-        });
-        deletedPickers = [];
-        window._pickingFromDB = true;
-
-        // Cargar productividad del último período disponible
-        const periodos = await PickingAPI.getPeriodos();
-        if (periodos && periodos.length) {
-          currentPeriodo = periodos[0];
-          await mergeProductividad(currentPeriodo);
-        }
-        return;
-      }
-    } catch (e) {
-      console.warn('[Picking] loadData → fallback localStorage:', e.message);
-    }
-  }
-
-  // 2. Fallback: localStorage / mock
-  window._pickingFromDB = false;
-  loadDataLocal();
-}
-
-function fmtPeriodoLabel(periodo) {
-  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  var parts = String(periodo || '').split('-');
-  if (parts.length === 2) {
-    var m = parseInt(parts[1], 10);
-    if (m >= 1 && m <= 12) return meses[m - 1] + ' ' + parts[0];
-  }
-  return periodo || '';
-}
-
-let _periodos = [];      // períodos disponibles (desc)
-let _periodoTodo = false; // modo "Todo" (todos los meses sumados)
-
-function fmtFechaHora(iso) {
-  var d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  var p2 = function (n) { return String(n).padStart(2, '0'); };
-  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + '  ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
-}
-
-async function refreshUpdateChip() {
-  var chip = document.getElementById('update-chip');
-  if (!chip) return;
-  if (!window.PickingAPI || !PickingAPI.isReady()) { chip.style.display = 'none'; return; }
-
-  var ultima = await PickingAPI.getUltimaImportacion();
-  if (!ultima || !ultima.fecha_carga) { chip.style.display = 'none'; return; }
-
-  var dateEl = document.getElementById('update-chip-date');
-  if (dateEl) dateEl.textContent = fmtFechaHora(ultima.fecha_carga);
-  chip.style.display = 'flex';
-}
-
-async function refreshPeriodoSelector() {
-  var navs = document.querySelectorAll('.periodo-nav');
-  if (!navs.length) return;
-  if (!window.PickingAPI || !PickingAPI.isReady()) {
-    navs.forEach(function (n) { n.style.display = 'none'; });
-    return;
-  }
-
-  _periodos = (await PickingAPI.getPeriodos()) || [];
-  if (!_periodos.length) {
-    navs.forEach(function (n) { n.style.display = 'none'; });
-    return;
-  }
-
-  if (!currentPeriodo || _periodos.indexOf(currentPeriodo) === -1) {
-    currentPeriodo = _periodos[0];
-  }
-  navs.forEach(function (n) { n.style.display = 'flex'; });
-  updatePeriodoUI();
-}
-
-function updatePeriodoUI() {
-  var idx = _periodos.indexOf(currentPeriodo);
-
-  document.querySelectorAll('.periodo-nav').forEach(function (nav) {
-    var label = nav.querySelector('.periodo-label');
-    var prev = nav.querySelector('.periodo-prev');
-    var next = nav.querySelector('.periodo-next');
-    var todo = nav.querySelector('.periodo-todo');
-
-    if (_periodoTodo) {
-      if (label) label.textContent = 'Todos los meses';
-      if (prev) prev.disabled = true;
-      if (next) next.disabled = true;
-      if (todo) todo.classList.add('is-active');
-      return;
-    }
-
-    if (todo) todo.classList.remove('is-active');
-    if (label) label.textContent = fmtPeriodoLabel(currentPeriodo);
-    // _periodos en orden descendente (más nuevo primero)
-    if (next) next.disabled = (idx <= 0);
-    if (prev) prev.disabled = (idx >= _periodos.length - 1);
-  });
-}
-
-window.changePeriodo = async function (delta) {
-  if (_periodoTodo) return;
-  var idx = _periodos.indexOf(currentPeriodo);
-  // delta -1 = mes anterior (más viejo, idx+1) ; delta +1 = mes siguiente (más nuevo, idx-1)
-  var newIdx = idx - delta;
-  if (newIdx < 0 || newIdx >= _periodos.length) return;
-  currentPeriodo = _periodos[newIdx];
-  await mergeProductividad(currentPeriodo);
-  await refreshPrimeros();
-  updatePeriodoUI();
-  renderLeaderboard(true);
-  if (typeof renderResumen === 'function') renderResumen();
-  if (typeof renderPremios === 'function') renderPremios();
-};
-
-window.togglePeriodoTodo = async function () {
-  _periodoTodo = !_periodoTodo;
-  if (_periodoTodo) {
-    await mergeProductividadTodo();
-  } else {
-    await mergeProductividad(currentPeriodo);
-  }
-  await refreshPrimeros();
-  updatePeriodoUI();
-  renderLeaderboard(true);
-  if (typeof renderResumen === 'function') renderResumen();
-  if (typeof renderPremios === 'function') renderPremios();
-};
-
-// Fuente ÚNICA del "1º en llegar al 100%" por categoría (compartida por podio y Premios).
-// Trae los bloqueados de la nube y, si no hay pero el líder ya está ≥100%, lo fija y persiste.
-async function refreshPrimeros() {
-  _primerosByCat = {};
-  if (_periodoTodo || !currentPeriodo || !window.PickingAPI || !PickingAPI.isReady()) return _primerosByCat;
-
-  var rows = await PickingAPI.getPremiosPrimero(currentPeriodo);
-  var byCat = {};
-  (rows || []).forEach(function (r) { byCat[r.categoria] = r; });
-
-  CATEGORIAS.forEach(function (cat) {
-    var grupo = pickers
-      .filter(function (p) { return pickerCategoria(p) === cat; })
-      .map(function (p) { return { p: p, pct: getMetaPercent(p), items: pickerItems(p) }; })
-      .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
-
-    var primero = byCat[cat];
-    // Si el bloqueado ya no está en la categoría (reasignado), se ignora
-    if (primero && !grupo.some(function (x) { return x.p.codigo === primero.preparador_codigo; })) primero = null;
-
-    // Lazy: si no hay bloqueado pero el líder ya está ≥100%, ese es el 1º (y se persiste)
-    if (!primero && grupo.length && grupo[0].pct >= 100) {
-      var top = grupo[0];
-      primero = { preparador_codigo: top.p.codigo, preparador_nombre: top.p.name, meta_pct: top.pct };
-      PickingAPI.setPrimero(currentPeriodo, { categoria: cat, code: top.p.codigo, name: top.p.name, metaPct: top.pct });
-    }
-
-    if (primero) _primerosByCat[cat] = primero;
-  });
-
-  return _primerosByCat;
-}
-window.refreshPrimeros = refreshPrimeros;
-
-// ==========================================
-// PREMIOS — Carrera de metas (caja de leche)
-// ==========================================
-async function renderPremios() {
-  var container = document.getElementById('premios-body');
-  if (!container) return;
-
-  // Ganadores bloqueados (1º a 100%) — fuente única compartida con el podio
-  var primeroByCat = await refreshPrimeros();
-
-  var html = '';
-  if (_periodoTodo) {
-    html += `<div class="premios-note">Los premios se calculan por mes. Elegí un mes en el navegador de arriba.</div>`;
-  }
-
-  // Banner: qué se premia (claro)
-  html += `<div class="premio-intro">
-    <div class="premio-intro-milk">${MILK_ICON}</div>
-    <div class="premio-intro-text">
-      <strong class="premio-intro-title">Premio: una caja de leche</strong>
-      <div class="premio-intro-rules">
-        <span class="premio-rule"><span class="caja-check caja-check--blue">${CHECK_ICON}</span><span>Al <b>1º</b> en llegar al <b>100%</b> de su meta <em>(uno por categoría)</em></span></span>
-        <span class="premio-rule"><span class="caja-check caja-check--green">${CHECK_ICON}</span><span>A <b>todos</b> los que lleguen al <b>110%</b> de su meta</span></span>
-      </div>
-    </div>
-  </div>`;
-
-  CATEGORIAS.forEach(function (cat) {
-    var info = CATEGORIA_INFO[cat];
-    var grupo = pickers
-      .filter(function (p) { return pickerCategoria(p) === cat; })
-      .map(function (p) { return { p: p, pct: getMetaPercent(p), items: pickerItems(p) }; })
-      .sort(function (a, b) { return b.pct - a.pct || b.items - a.items; });
-
-    var primero = primeroByCat[cat] || null;
-    var primeroCode = primero ? primero.preparador_codigo : null;
-    var club110 = grupo.filter(function (x) { return x.pct >= 110; });
-    var totalCajas = (primero ? 1 : 0) + club110.length;
-
-    html += `<section class="premio-cat" style="--cat:${info.color};--cat-soft:${info.soft}">
-      <div class="premio-cat-head">
-        <span class="cat-header__icon">${info.icon}</span>
-        <span class="premio-cat-title">${info.label}</span>
-        <span class="premio-cat-cajas">${MILK_ICON}<b>${totalCajas}</b> caja${totalCajas !== 1 ? 's' : ''}</span>
-      </div>
-      <div class="premio-race">`;
-    if (!grupo.length) {
-      html += `<div class="cat-empty">Sin preparadores</div>`;
-    } else {
-      grupo.forEach(function (x, i) {
-        var p = x.p, pct = x.pct;
-        var barW = Math.max(0, Math.min(pct, 110)) / 110 * 100;
-        var cls = pct >= 110 ? 'is-110' : pct >= 100 ? 'is-100' : pct >= 80 ? 'is-mid' : 'is-low';
-        var isPrimero = p.codigo && p.codigo === primeroCode;
-        var is110 = pct >= 110;
-        var imgSrc = p.avatarType === 'preset' ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
-        var cajasRow = (isPrimero ? 1 : 0) + (is110 ? 1 : 0);
-        var wins = '';
-        if (cajasRow > 0) wins += `<span class="caja-win caja-win--count">${MILK_ICON}<span>${cajasRow} caja${cajasRow !== 1 ? 's' : ''}</span></span>`;
-        if (isPrimero) wins += `<span class="caja-win caja-win--blue">${CHECK_ICON}<span>1º a 100%</span></span>`;
-        if (is110) wins += `<span class="caja-win caja-win--green">${CHECK_ICON}<span>110%</span></span>`;
-        html += `<div class="premio-row ${cls}${isPrimero ? ' is-first' : ''}">
-          <span class="premio-row-pos">${i + 1}</span>
-          <img class="premio-row-img" src="${imgSrc}" alt="">
-          <div class="premio-row-main">
-            <div class="premio-row-top">
-              <span class="premio-row-name" title="${p.name}">${p.name}</span>
-              <span class="premio-row-pct">${pct}%</span>
-            </div>
-            <div class="premio-row-bar"><div class="premio-row-fill" style="width:${barW}%"></div></div>
-            ${wins ? `<div class="premio-wins">${wins}</div>` : ''}
-          </div>
-        </div>`;
-      });
-    }
-    html += `</div></section>`;
-  });
-
-  container.innerHTML = html;
-}
-window.renderPremios = renderPremios;
-
-async function mergeProductividadTodo() {
-  if (!window.PickingAPI || !PickingAPI.isReady()) return;
-  const rows = await PickingAPI.getProductividad(null); // todos los períodos
-  if (!rows) return;
-  const sums = {};
-  rows.forEach(function (r) {
-    const c = r.preparador_codigo;
-    if (!sums[c]) sums[c] = { items: 0, unidades: 0, monto: 0 };
-    // "Ítems Preparados" = suma de Cont.Art (columna items); líneas WMS = referencia
-    sums[c].items += Number(r.items) || 0;
-    sums[c].unidades += Number(r.lineas) || 0;
-    sums[c].monto += Number(r.monto) || 0;
-  });
-  pickers.forEach(function (p) {
-    const s = sums[p.codigo];
-    if (s) {
-      p.items = s.items;
-      p.unidades = s.unidades;
-      p.monto = s.monto;
-      p.score = p.items;
-    } else {
-      p.items = 0; p.unidades = 0; p.monto = 0; p.score = 0;
-    }
-  });
-}
-
-async function mergeProductividad(periodo) {
-  if (!window.PickingAPI || !PickingAPI.isReady()) return;
-  const rows = await PickingAPI.getProductividad(periodo);
-  if (!rows) return;
-  const byCode = {};
-  rows.forEach(function (r) { byCode[r.preparador_codigo] = r; });
-  pickers.forEach(function (p) {
-    const r = byCode[p.codigo];
-    if (r) {
-      // "Ítems Preparados" = suma de Cont.Art (columna items); líneas WMS = referencia
-      p.items = Number(r.items) || 0;
-      p.unidades = Number(r.lineas) || 0;
-      p.monto = Number(r.monto) || 0;
-      p.score = p.items;
-    } else {
-      p.items = 0; p.unidades = 0; p.monto = 0; p.score = 0;
-    }
-  });
-}
-
-function loadDataLocal() {
-  const storedActive = localStorage.getItem("picking_pickers");
-  if (storedActive) {
-    try {
-      pickers = JSON.parse(storedActive).map(p => ({
-        ...p,
-        deletedScore: p.deletedScore !== undefined ? parseInt(p.deletedScore, 10) : 0
-      }));
-    } catch (e) {
-      pickers = [...MOCK_DATA];
-    }
-  } else {
-    pickers = [...MOCK_DATA];
-    saveData();
-  }
-
-  if (pickers.length >= 3 && pickers.every(p => !p.deletedScore)) {
-    pickers[0].deletedScore = 18;
-    pickers[1].deletedScore = 35;
-    pickers[2].deletedScore = 12;
-    saveData();
-  }
-
-  const storedDeleted = localStorage.getItem("picking_deleted_pickers");
-  if (storedDeleted) {
-    try {
-      deletedPickers = JSON.parse(storedDeleted).map(p => ({
-        ...p,
-        deletedScore: p.deletedScore !== undefined ? parseInt(p.deletedScore, 10) : 0
-      }));
-    } catch (e) {
-      deletedPickers = [];
-    }
-  } else {
-    deletedPickers = [];
-  }
-
-  const storedGoal = localStorage.getItem("picking_target_goal");
-  if (storedGoal) {
-    const parsed = parseInt(storedGoal, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      targetGoal = parsed;
-    }
-  }
-}
-
-function saveData() {
-  localStorage.setItem("picking_pickers", JSON.stringify(pickers));
-  localStorage.setItem("picking_deleted_pickers", JSON.stringify(deletedPickers));
-  localStorage.setItem("picking_target_goal", targetGoal.toString());
-}
-
-function updatePickersListAndTrends(newList) {
-  const storedActive = localStorage.getItem("picking_pickers");
-  let oldRankMap = {};
-  if (storedActive) {
-    try {
-      const oldSorted = JSON.parse(storedActive).sort((a, b) => b.score - a.score);
-      oldSorted.forEach((p, idx) => {
-        oldRankMap[p.id] = idx + 1;
-      });
-    } catch (e) {}
-  }
-
-  newList.sort((a, b) => b.score - a.score);
-
-  newList.forEach((picker, idx) => {
-    const currentRank = idx + 1;
-    const oldRank = oldRankMap[picker.id];
-    picker.prevRank = oldRank !== undefined ? oldRank : currentRank;
-  });
-
-  pickers = newList;
-  saveData();
-}
-
-function getRemainingPickers() {
-  const categoriesList = ["PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE"];
-  var remaining = [];
-  
-  categoriesList.forEach(function (cat) {
-    var catPickers = pickers
-      .filter(function (p) { return pickerCategoria(p) === cat; })
-      .sort(function (a, b) { return b.score - a.score; });
-      
-    catPickers.forEach(function (p, idx) {
-      if (idx >= 3) {
-        remaining.push(Object.assign({}, p, { catRank: idx + 1 }));
-      }
-    });
-  });
-  
-  remaining.sort(function (a, b) { return b.score - a.score; });
-  return remaining;
-}
-
-// ==========================================
-// RENDERIZADO Y ANIMACIONES
-// ==========================================
-function renderLeaderboard(isInitial = false) {
-  stopRestTicker();
-  const goalInput = document.getElementById("plant-goal-input");
-  if (goalInput) goalInput.value = targetGoal;
-
-  pickers.sort((a, b) => b.score - a.score);
-  updateStatsCards();
-
-  const container = document.getElementById("pillars-container");
-  if (!container) return;
-
-  if (pickers.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state" style="text-align: center; padding: 60px; color: var(--text-muted); background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color);">
-        <p style="font-weight: 500; font-size: 1.1rem; color: var(--text-main);">No hay preparadores activos.</p>
-        <p style="font-size: 0.85rem; margin-top: 6px;">Usa el botón de Administración para agregar uno nuevo o restaurarlos.</p>
-      </div>
-    `;
-    return;
-  }
-
-  // Roster real pero sin datos del mes
-  if (window._pickingFromDB && pickers.every(function (p) { return !p.items; })) {
-    container.innerHTML = `
-      <div class="empty-state" style="margin:auto; text-align: center; padding: 48px 60px; color: var(--text-muted); background: #ffffff; border-radius: 16px; border: 1px solid var(--border-color); max-width: 420px;">
-        <svg width="40" height="40" fill="none" stroke="#cbd5e1" stroke-width="1.5" viewBox="0 0 24 24" style="margin: 0 auto 16px; display: block;">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
-        <p style="font-weight: 600; font-size: 1rem; color: var(--text-main);">Sin datos de productividad</p>
-      </div>
-    `;
-    return;
-  }
-
-  // 1 columna por categoría — TOP 3 de cada una (pilares 3D)
-  let html = "";
-
-  // Agregar pestañas de navegación para el podio
-  html += `
-    <div class="podium-tabs-nav">
-      <button class="tab-btn tab-btn--star ${window._activeCategory === 'destacados' ? 'active' : ''}" onclick="setPodiumActiveCategory('destacados')">★ Destacados</button>
-      <button class="tab-btn ${window._activeCategory === 'all' ? 'active' : ''}" onclick="setPodiumActiveCategory('all')">Todos</button>
-      <button class="tab-btn ${window._activeCategory === 'PLENO' ? 'active' : ''}" onclick="setPodiumActiveCategory('PLENO')">Pleno</button>
-      <button class="tab-btn ${window._activeCategory === 'JUNIOR' ? 'active' : ''}" onclick="setPodiumActiveCategory('JUNIOR')">Junior</button>
-      <button class="tab-btn ${window._activeCategory === 'APRENDIZ' ? 'active' : ''}" onclick="setPodiumActiveCategory('APRENDIZ')">Aprendiz</button>
-      <button class="tab-btn ${window._activeCategory === 'EMPAQUE' ? 'active' : ''}" onclick="setPodiumActiveCategory('EMPAQUE')">Empaque</button>
-      <button class="tab-btn ${window._activeCategory === 'rest' ? 'active' : ''}" onclick="setPodiumActiveCategory('rest')">Posiciones</button>
-      <button class="tab-btn autoplay-btn ${window._podiumAutoplay ? 'playing' : ''}" onclick="togglePodiumAutoplay()" title="Auto-ciclo">
-        <span class="icon">${window._podiumAutoplay ? '⏸' : '▶'}</span> Auto-ciclo
-        ${window._podiumAutoplay ? '<span class="autoplay-indicator"><span class="autoplay-progress"></span></span>' : ''}
-      </button>
-    </div>
-  `;
-
-  if (window._activeCategory === "destacados") {
-    // Destacados del Mes: el 1º en llegar al 100% de cada categoría
-    var destacados = [];
-    CATEGORIAS.forEach(function (cat) {
-      var pr = _primerosByCat[cat];
-      if (!pr) return;
-      var picker = pickers.find(function (p) { return p.codigo === pr.preparador_codigo; });
-      if (picker) destacados.push({ picker: picker, cat: cat });
-    });
-
-    html += `<div class="destacados-wrap">
-      <div class="destacados-head">
-        <span class="destacados-kicker">Reconocimientos</span>
-        <h2 class="destacados-title">Destacados del Mes</h2>
-        <p class="destacados-sub">Los primeros en llegar al 100% de su meta</p>
-      </div>`;
-
-    if (!destacados.length) {
-      html += `<div class="destacados-empty">
-        <div class="destacados-empty-badge"><img src="primer-lugar.png" alt=""></div>
-        <p>Todavía nadie llegó al 100% de su meta este mes.</p>
-        <span>Cuando alguien lo logre, aparecerá destacado aquí.</span>
-      </div></div>`;
-    } else {
-      var maxItemsDest = Math.max.apply(null, destacados.map(function (d) { return pickerItems(d.picker); }).concat([1]));
-      html += `<div class="cat-podium-row destacados-grid">`;
-      destacados.forEach(function (d) {
-        html += pillarCardHTML(d.picker, 1, maxItemsDest, 1, isInitial, {
-          award: true,
-          roleLabel: CATEGORIA_INFO[d.cat].label
-        });
-      });
-      html += `</div></div>`;
-    }
-
-    container.innerHTML = html;
-    const cardsD = container.querySelectorAll(".pillar-card");
-    playPodiumIntro(container, cardsD, isInitial);
-  } else if (window._activeCategory === "rest") {
-    var remaining = getRemainingPickers();
-    // En Modo TV: lista grande de a 3 que baja sola (ticker)
-    if (document.body.classList.contains('tv-mode')) {
-      html += buildRestTV(remaining);
-      container.innerHTML = html;
-      if (window.gsap) gsap.fromTo(container.querySelectorAll('.tvrank-row'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, ease: 'power2.out' });
-      startRestTicker();
-      return;
-    }
-    html += `
-      <div class="cat-podium cat-podium--full-width" style="--cat: #0B5F8D; --cat-soft: rgba(11, 95, 141, 0.08); width: 100%;">
-        <div class="cat-header cat-header--podium">
-          <span class="cat-header__kicker">Ranking</span>
-          <span class="cat-header__title">Posiciones</span>
-        </div>
-        <div class="remaining-table-card">
-          <table class="remaining-table">
-            <thead>
-              <tr>
-                <th style="width: 80px; text-align: center;">Puesto</th>
-                <th>Preparador</th>
-                <th style="width: 140px; text-align: center;">Categoría</th>
-                <th style="text-align: right; width: 180px;">Monto</th>
-                <th style="text-align: right; width: 120px;">Items</th>
-                <th style="text-align: right; width: 200px;">Meta Mensual</th>
-              </tr>
-            </thead>
-            <tbody>
-    `;
-
-    if (remaining.length === 0) {
-      html += `
-        <tr>
-          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
-            Todo el equipo se encuentra actualmente en el Podio (Top 3 de cada categoría).
-          </td>
-        </tr>
-      `;
-    } else {
-      remaining.forEach(function(p) {
-        var moneyVal = pickerMonto(p);
-        var totalItems = pickerItems(p);
-        var goalPercent = getMetaPercent(p);
-        var catInfo = CATEGORIA_INFO[pickerCategoria(p)];
-        var imgSrc = p.avatarType === "preset"
-          ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1)
-          : p.avatarValue;
-
-        html += `
-          <tr>
-            <td class="col-rank">#${p.catRank}</td>
-            <td class="col-name">
-              <img src="${imgSrc}" class="table-avatar" alt="${p.name}">
-              <span class="name-text">${p.name}</span>
-            </td>
-            <td class="col-cat" style="text-align: center;">
-              <span class="cat-pill" style="--cat-color: ${catInfo.color}; --cat-bg: ${catInfo.soft};">${catInfo.label}</span>
-            </td>
-            <td class="col-monto">Gs. ${moneyVal.toLocaleString('es-PY')}</td>
-            <td class="col-items">${totalItems.toLocaleString()}</td>
-            <td class="col-meta">
-              <div class="table-meta-cell">
-                <span class="pct-text">${goalPercent}%</span>
-                <div class="table-bar-track">
-                  <div class="table-bar-fill" style="width: ${Math.min(goalPercent, 100)}%; background: ${goalPercent >= 100 ? '#10b981' : '#f59e0b'};"></div>
-                </div>
-              </div>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    html += `
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-    
-    container.innerHTML = html;
-
-    // Animación suave de entrada de filas
-    gsap.fromTo(container.querySelectorAll(".remaining-table tbody tr"),
-      { opacity: 0, y: 15 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.04, ease: "power2.out" }
-    );
-  } else {
-    CATEGORIAS.forEach(function (cat) {
-      if (window._activeCategory !== "all" && window._activeCategory !== cat) {
-        return;
-      }
-      var info = CATEGORIA_INFO[cat];
-      var grupo = pickers
-        .filter(function (p) { return pickerCategoria(p) === cat; })
-        .sort(function (a, b) { return b.score - a.score; })
-        .slice(0, 3);
-
-      html += `<div class="cat-podium" style="--cat:${info.color};--cat-soft:${info.soft}">
-        <div class="cat-header cat-header--podium">
-          <span class="cat-header__kicker">Categoría</span>
-          <span class="cat-header__title">${info.label}</span>
-        </div>`;
-
-      if (!grupo.length) {
-        html += `<div class="cat-podium-empty">Sin preparadores en esta categoría</div></div>`;
-        return;
-      }
-
-      // Escala relativa al líder de ESTA categoría
-      var maxItemsCat = Math.max.apply(null, grupo.map(pickerItems).concat([1]));
-      var maxMontoCat = Math.max.apply(null, grupo.map(pickerMonto).concat([1]));
-
-      // Galardón: el 1º en llegar al 100% de esta categoría (no necesariamente el rank-1 por score)
-      var primeroCode = (_primerosByCat[cat] || {}).preparador_codigo || null;
-
-      html += `<div class="cat-podium-row">`;
-      grupo.forEach(function (picker, index) {
-        var isPrimero = !!(picker.codigo && picker.codigo === primeroCode);
-        html += pillarCardHTML(picker, index + 1, maxItemsCat, maxMontoCat, isInitial, { award: isPrimero });
-      });
-      html += `</div></div>`;
-    });
-
-    container.innerHTML = html;
-
-    const cards = container.querySelectorAll(".pillar-card");
-    playPodiumIntro(container, cards, isInitial);
-  }
-}
-
-// Intro orquestada del podio: una sola timeline fluida y encadenada.
-// isInitial = entrada dramática al abrir; cambios de pestaña = versión ágil.
-function playPodiumIntro(container, cards, isInitial) {
-  if (!window.gsap || !cards.length) {
-    animateBarsAndNumbers(container);
-    startPodiumFloat(container);
-    return;
-  }
-
-  var avatars = container.querySelectorAll(".pod-avatar");
-  var awards  = container.querySelectorAll(".pod-award");
-  // Contenido interno en orden del DOM (cascada por card, no por tipo)
-  var content = container.querySelectorAll(".pod-meta-pill, .pod-name, .pod-role, .pod-items");
-
-  // Frenar cualquier float previo para no acumular tweens
-  gsap.killTweensOf(avatars);
-
-  // s = factor de velocidad (1 = entrada al abrir; 0.7 = ágil al cambiar)
-  var s = isInitial ? 1 : 0.7;
-
-  // 1) Estado inicial INMEDIATO (mismo tick) → evita flash de contenido completo
-  gsap.set(cards,   { opacity: 0, y: 30 * s, scale: 0.97, willChange: "transform,opacity" });
-  gsap.set(avatars, { opacity: 0, scale: 0.78 });
-  gsap.set(awards,  { opacity: 0, scale: 0, y: 5, transformOrigin: "50% 100%" });
-  gsap.set(content, { opacity: 0, y: 8 });
-
-  // 2) Arrancar la timeline recién cuando el layout/paint terminó (2 frames),
-  //    así no compite con la decodificación de imágenes y no se "traba".
-  var start = function () {
-    var tl = gsap.timeline({
-      defaults: { ease: "power2.out" },
-      onComplete: function () {
-        gsap.set(cards, { clearProps: "willChange" });
-        startPodiumFloat(container);
-      }
-    });
-
-    tl.to(cards,   { opacity: 1, y: 0, scale: 1, duration: 0.42 * s, stagger: 0.06 * s })
-      .to(avatars, { opacity: 1, scale: 1, duration: 0.4, stagger: 0.06 * s, ease: "back.out(1.5)" }, "-=" + (0.26 * s))
-      .to(content, { opacity: 1, y: 0, duration: 0.32, stagger: 0.03 }, "-=0.2")
-      .to(awards,  { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(2.2)" }, "-=0.3")
-      // Contador + barras + gauge arrancan casi enseguida (sensación ágil)
-      .call(function () { animateBarsAndNumbers(container); }, null, "-=0.26");
+  var IC = {
+    upload: '<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+    refresh: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>',
+    grid: '<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>',
+    deposito: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9.5l7-4 7 4V21"/><path d="M9 21v-6h6v6"/><path d="M9 11.5h6"/></svg>',
+    fabrica: '<svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V11l5 3V11l5 3V8l5 3v10"/><path d="M8 21v-4h3v4"/></svg>',
+    empty: '<svg fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 4-6"/></svg>',
+    soon: '<svg fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    clock: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>'
   };
 
-  requestAnimationFrame(function () { requestAnimationFrame(start); });
-}
+  /* ── Estado ── */
+  var DB = window.__otifDB;
+  var CFG = null, CALC = null, IMPORTS = [], MONTHS = [], CUR = null;
+  var ROWS = [], EVS = [], MOTIVOS = [], SIN_CERRAR = [];
+  var SCOPE = 'tot', VIEW = 'resumen';
+  var TRAMOS = [
+    ['lib', 'Liberación del pedido', 'carga → entrega creada', '#9FC9EC'],
+    ['pre', 'Preparación', 'entrega creada → control', '#5FA3DD'],
+    ['fac', 'Facturación', 'control → factura', '#2F7FC6'],
+    ['tra', 'Espera de transporte', 'factura → asignación de transporte', '#0B5F8D'],
+    ['rep', 'Reparto', 'transporte → entrega al cliente', '#0A4578']
+  ];
 
-// Flotación continua suave del retrato (antigravedad)
-function startPodiumFloat(container) {
-  if (!window.gsap) return;
-  var avatars = container.querySelectorAll(".pod-avatar");
-  if (!avatars.length) return;
-  gsap.to(avatars, {
-    y: -9, duration: 2.8, repeat: -1, yoyo: true, ease: "sine.inOut",
-    stagger: { each: 0.5, from: "center" }
-  });
-}
-
-// Función de bucle de flotación continua 3D (Antigravitacional)
-
-
-function pillarCardHTML(picker, rank, maxItemsPodium, maxMontoPodium, isInitial, opts) {
-  opts = opts || {};
-  var imgSrc = picker.avatarType === "preset"
-    ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-    : picker.avatarValue;
-
-  var percentOfGoal = getMetaPercent(picker);
-  var totalItems = pickerItems(picker);
-  var itemsPercent = (totalItems / maxItemsPodium) * 100;
-
-  var metaClass = percentOfGoal >= 100 ? "meta-success" : "meta-base";
-  var pickerMetaItems = getPickerMeta(picker).metaItemsMes;
-  var roleLbl = opts.roleLabel || (rank + "º lugar");
-  // El galardón lo controla quien llama (1º en llegar al 100%); sin opción, no se muestra
-  var showAward = !!opts.award;
-  var award = showAward ? '<div class="pod-award"><img src="primer-lugar.png" alt="1er lugar" decoding="async"></div>' : '';
-
-  return `
-    <div class="pillar-card podium-card rank-${rank}" data-id="${picker.id}" data-meta-items="${pickerMetaItems}" data-max-items="${maxItemsPodium}">
-      ${award}
-      <div class="pod-avatar ${metaClass}" style="--pct:0">
-        <div class="pod-gauge"></div>
-        <div class="pod-photo"><img src="${imgSrc}" alt="${picker.name}" decoding="async"></div>
-        <div class="pod-meta-pill"><span class="meta-val">0%</span></div>
-      </div>
-
-      <div class="pod-name" title="${picker.name}">${picker.name}</div>
-      <div class="pod-role">${roleLbl}</div>
-
-      <div class="pod-items">
-        <div class="pod-items-head">
-          <span class="pod-items-lbl">Ítems preparados</span>
-          <span class="pod-items-num items-val" data-target="${totalItems}" data-current="0">0</span>
-        </div>
-        <div class="pod-bar"><div class="pod-bar-fill fill-items" style="width:0%"></div></div>
-      </div>
-    </div>
-  `;
-}
-
-function animateBarsAndNumbers(container) {
-  const cards = container.querySelectorAll(".pillar-card");
-
-  cards.forEach((card, i) => {
-    const fillItems = card.querySelector(".fill-items");
-    const metaVal = card.querySelector(".meta-val");
-    const itemsVal = card.querySelector(".items-val");
-    const avatar = card.querySelector(".pod-avatar");
-    if (!itemsVal) return;
-
-    const targetItems = parseInt(itemsVal.dataset.target, 10) || 0;
-    const currentItems = parseInt(itemsVal.dataset.current || "0", 10);
-    const maxItems = parseFloat(card.dataset.maxItems) || 1;
-    const cardMetaItems = parseInt(card.dataset.metaItems, 10) || 1;
-
-    const targetPct = cardMetaItems > 0 ? Math.round((targetItems / cardMetaItems) * 100) : 0;
-    const delay = i * 0.05;
-
-    // 1) Número de Ítems: barra suave (cada frame), número con throttle por entero
-    let lastRounded = -1;
-    const animObj = { items: currentItems };
-    gsap.to(animObj, {
-      items: targetItems, duration: 1.15, ease: "power2.out", delay: delay,
-      onUpdate: () => {
-        const val = animObj.items;
-        if (fillItems) fillItems.style.width = Math.min((val / maxItems) * 100, 100) + "%";
-        const rounded = Math.round(val);
-        if (rounded !== lastRounded) {
-          lastRounded = rounded;
-          itemsVal.dataset.current = rounded.toString();
-          itemsVal.innerText = rounded.toLocaleString('es-PY');
-        }
-      },
-      onComplete: () => {
-        itemsVal.innerText = targetItems.toLocaleString('es-PY');
-        if (fillItems) fillItems.style.width = Math.min((targetItems / maxItems) * 100, 100) + "%";
-      }
-    });
-
-    // 2) Aro de meta (gauge): llenado FLUIDO con su propia tween (decimales) + %
-    const gaugeObj = { pct: 0 };
-    gsap.to(gaugeObj, {
-      pct: targetPct, duration: 1.35, ease: "power3.out", delay: delay,
-      onUpdate: () => {
-        const v = Math.min(gaugeObj.pct, 100);
-        if (avatar) avatar.style.setProperty("--pct", v.toFixed(2));
-        if (metaVal) metaVal.innerText = Math.round(gaugeObj.pct) + "%";
-      },
-      onComplete: () => {
-        if (avatar) avatar.style.setProperty("--pct", Math.min(targetPct, 100).toFixed(2));
-        if (metaVal) metaVal.innerText = targetPct + "%";
-        // Pulso sutil al completar el aro (más vivo)
-        if (avatar && window.gsap) {
-          gsap.fromTo(avatar, { scale: 1 }, { scale: 1.03, duration: 0.16, yoyo: true, repeat: 1, ease: "power1.inOut" });
-        }
-      }
-    });
-  });
-}
-
-function updateStatsCards() {
-  // Stats cards removed — dashboard.js handles the full dashboard now
-}
-
-
-window.updatePlantGoal = function (event) {
-  event.preventDefault();
-  if (!window._alasCanEdit) return;
-
-  const input = document.getElementById("plant-goal-input");
-  const value = parseInt(input.value, 10);
-  if (isNaN(value) || value <= 0) {
-    alert("Por favor ingresa una meta válida mayor que 0.");
-    return;
-  }
-  targetGoal = value;
-  saveData();
-  renderLeaderboard(false);
-};
-
-// ==========================================
-// ADMIN VIEW
-// ==========================================
-window.openAdminDrawer = function () { switchView('admin'); };
-window.closeAdminDrawer = function () {};
-
-function renderAdminView() {
-  renderAdminGrid();
-}
-
-function catHeaderHTML(cat, count) {
-  var info = CATEGORIA_INFO[cat];
-  return `<div class="cat-header" style="--cat:${info.color};--cat-soft:${info.soft}">
-    <span class="cat-header__icon">${info.icon}</span>
-    <span class="cat-header__title">${info.label}</span>
-    <span class="cat-header__count">${count}</span>
-  </div>`;
-}
-
-function admCatSelectHTML(picker, canEdit) {
-  var cur = pickerCategoria(picker);
-  if (!canEdit) {
-    var ci = CATEGORIA_INFO[cur];
-    return `<div class="adm-cat-badge" style="--cat:${ci.color};--cat-soft:${ci.soft}">${ci.icon}<span>${ci.label}</span></div>`;
-  }
-  return `<div class="adm-cat-select">` + CATEGORIAS.map(function (c) {
-    var ci = CATEGORIA_INFO[c];
-    var active = cur === c ? ' active' : '';
-    return `<button type="button" class="adm-cat-opt${active}" style="--cat:${ci.color};--cat-soft:${ci.soft}" onclick="updatePickerCategoria('${picker.id}','${c}')">${ci.label}</button>`;
-  }).join('') + `</div>`;
-}
-
-function renderAdminGrid() {
-  var container = document.getElementById('admin-grid-container');
-  if (!container) return;
-  pickers.sort((a, b) => b.score - a.score);
-
-  var canEdit = window._alasCanEdit;
-  var html = '';
-
-  if (canEdit) {
-    html += `
-      <div class="adm-newbar">
-        <div class="adm-card adm-card-new" onclick="openNewPickerModal()">
-          <div class="adm-new-icon">
-            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          </div>
-          <span class="adm-card-name" style="color:var(--text-muted);">Nuevo Preparador</span>
-        </div>
-      </div>
-    `;
-  }
-
-  html += '<div class="adm-cols">';
-  CATEGORIAS.forEach(function (cat) {
-    var info = CATEGORIA_INFO[cat];
-    var grupo = pickers.filter(function (p) { return pickerCategoria(p) === cat; });
-    html += `<div class="adm-cat-col" style="--cat:${info.color};--cat-soft:${info.soft}">`;
-    html += catHeaderHTML(cat, grupo.length);
-    if (!grupo.length) { html += `<div class="cat-empty">Sin preparadores en esta categoría</div></div>`; return; }
-    html += `<div class="adm-cat-cards">`;
-
-    grupo.forEach(function (picker) {
-      var imgSrc = picker.avatarType === 'preset'
-        ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-        : picker.avatarValue;
-
-      var meta = getPickerMeta(picker);
-      var readonlyAttr = canEdit ? '' : 'readonly';
-      var fmtItems = meta.metaItemsMes.toLocaleString('es-PY');
-
-      html += `
-        <div class="adm-card" data-id="${picker.id}">
-          ${canEdit ? `<button class="adm-card-del" title="Eliminar preparador" onclick="deletePreparadorAdmin('${picker.id}')">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-          </button>` : ''}
-          <div class="adm-card-photo">
-            <img src="${imgSrc}" alt="${picker.name}">
-            ${canEdit ? `<label class="adm-card-photo-edit" title="Cambiar foto">
-              <input type="file" style="display:none" accept="image/*" onchange="updatePickerPhoto('${picker.id}', event)">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </label>` : ''}
-          </div>
-          <span class="adm-card-name" title="${picker.name}">${picker.name}</span>
-          ${admCatSelectHTML(picker, canEdit)}
-          <div class="adm-card-meta">
-            <span class="adm-meta-label">Meta de ítems / mes</span>
-            <div class="adm-meta-row">
-              <span class="adm-meta-key">Ítems</span>
-              <input type="text" inputmode="numeric" class="adm-meta-input" value="${fmtItems}"
-                onfocus="metaFocus(this)" oninput="metaFormat(this)"
-                onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-    html += `</div></div>`;
-  });
-  html += '</div>';
-
-  container.innerHTML = html;
-}
-
-window.updatePickerCategoria = async function (id, categoria) {
-  if (!window._alasCanEdit) return;
-  if (CATEGORIAS.indexOf(categoria) === -1) return;
-  var picker = pickers.find(p => p.id === id);
-  if (!picker || picker.categoria === categoria) return;
-  picker.categoria = categoria;
-  saveData();
-  renderAdminGrid();
-  renderLeaderboard(false);
-
-  if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-    showToast('Guardando…', 'loading');
-    var ok = await PickingAPI.updatePreparadorCategoria(picker.codigo, categoria);
-    showToast(ok ? 'Categoría: ' + (CATEGORIA_INFO[categoria].label) : 'No se pudo guardar en la nube', ok ? 'success' : 'error');
-  } else {
-    showToast('Categoría guardada localmente', 'success');
-  }
-};
-
-window.openNewPickerModal = function () {
-  document.getElementById("modal-edit-id").value = "__new__";
-  document.getElementById("modal-title").textContent = "Nuevo Preparador";
-  document.getElementById("modal-name-input").value = "";
-  document.getElementById("modal-score-input").value = "0";
-  document.getElementById("modal-deleted-score-input").value = "0";
-
-  var codInput = document.getElementById("modal-codigo-input");
-  if (codInput) { codInput.value = ""; codInput.readOnly = false; codInput.style.opacity = ""; }
-
-  var submitBtn = document.getElementById("modal-submit-btn");
-  if (submitBtn) submitBtn.textContent = "Crear Preparador";
-
-  var form = document.getElementById("modal-edit-form");
-  form.dataset.avatarType = "preset";
-  form.dataset.avatarValue = "avatar1";
-
-  document.querySelectorAll("#modal-avatar-picker .avatar-option").forEach(opt => opt.classList.remove("selected"));
-  var first = document.querySelector("#modal-avatar-picker .avatar-option[data-avatar='avatar1']");
-  if (first) first.classList.add("selected");
-
-  var fileLabel = document.querySelector("#modal-avatar-picker .file-upload-btn");
-  if (fileLabel) { fileLabel.style.borderColor = "var(--text-muted)"; fileLabel.style.color = "var(--text-muted)"; }
-  document.getElementById("modal-file-input").value = "";
-
-  document.getElementById("edit-modal-overlay").classList.add("active");
-};
-
-// Redimensiona + comprime una imagen a un cuadrado de maxSize px (JPEG)
-function resizeImageToDataURL(file, maxSize, cb) {
-  var reader = new FileReader();
-  reader.onload = function (e) {
-    var img = new Image();
-    img.onload = function () {
-      var w = img.width, h = img.height;
-      // recorte cuadrado centrado
-      var side = Math.min(w, h);
-      var sx = (w - side) / 2, sy = (h - side) / 2;
-      var canvas = document.createElement('canvas');
-      canvas.width = maxSize;
-      canvas.height = maxSize;
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
-      try {
-        cb(canvas.toDataURL('image/jpeg', 0.82));
-      } catch (err) {
-        cb(e.target.result); // fallback al original si falla el canvas
-      }
-    };
-    img.onerror = function () { cb(e.target.result); };
-    img.src = e.target.result;
+  // SAP corta los motivos de rechazo a 20 caracteres
+  var MOTIVO_TXT = {
+    'Cliente desiste de l': 'Cliente desiste de la compra', 'Facturado en otro Pe': 'Facturado en otro pedido',
+    'Error código de clie': 'Error en código de cliente', 'Borrar uno o más ite': 'Borrar uno o más ítems'
   };
-  reader.readAsDataURL(file);
-}
+  function motivoTxt(m) { return m ? (MOTIVO_TXT[m] || m) : 'Sin motivo en SAP (pendiente)'; }
 
-window.updatePickerPhoto = function (id, event) {
-  var file = event.target.files[0];
-  if (!file || !window._alasCanEdit) return;
-  resizeImageToDataURL(file, 256, function (dataUrl) {
-    var picker = pickers.find(function (p) { return p.id === id; });
-    if (!picker) return;
-    picker.avatarType = 'uploaded';
-    picker.avatarValue = dataUrl;
-    saveData();
-    renderAdminGrid();
-    renderLeaderboard(false);
+  function isAdmin() { var c = window.AlasAuthClient, r = c && c.getRole ? String(c.getRole() || '').toLowerCase() : ''; return r === 'admin' || r === 'supervisor'; }
+  function userName() { var c = window.AlasAuthClient; return c && c.getCurrentUser ? c.getCurrentUser() : null; }
 
-    // Persistir en Supabase
-    if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-      PickingAPI.updatePreparadorFoto(picker.codigo, 'uploaded', dataUrl);
+  /* ── Datos ── */
+  function rangoMes(ym) {
+    var y = +ym.slice(0, 4), m = +ym.slice(5, 7), ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+    return [ym + '-01T00:00:00-03:00', ny + '-' + pad(nm) + '-01T00:00:00-03:00'];
+  }
+  function mesesEntre(d1, d2) {
+    var out = [], y = +d1.slice(0, 4), m = +d1.slice(5, 7), y2 = +d2.slice(0, 4), m2 = +d2.slice(5, 7);
+    while (y < y2 || (y === y2 && m <= m2)) { out.push(y + '-' + pad(m)); m++; if (m > 12) { m = 1; y++; } }
+    return out;
+  }
+  async function paginar(build) {
+    var out = [], PAGE = 1000;
+    for (var off = 0; ; off += PAGE) {
+      var r = await build().range(off, off + PAGE - 1);
+      if (r.error) throw r.error;
+      out = out.concat(r.data || []);
+      if (!r.data || r.data.length < PAGE) break;
     }
-  });
-};
-
-// ── Modal de confirmación reutilizable (rojo + blanco, animado) ──
-function showConfirm(opts) {
-  var overlay = document.getElementById('confirm-overlay');
-  if (!overlay) { if (confirm(opts.message)) opts.onConfirm(); return; }
-
-  var titleEl = document.getElementById('confirm-title');
-  var msgEl = document.getElementById('confirm-msg');
-  var okBtn = document.getElementById('confirm-ok');
-  var cancelBtn = document.getElementById('confirm-cancel');
-
-  if (titleEl) titleEl.textContent = opts.title || 'Confirmar';
-  if (msgEl) msgEl.innerHTML = opts.message || '';
-  if (okBtn) okBtn.textContent = opts.okLabel || 'Eliminar';
-
-  function close() {
-    overlay.classList.remove('active');
-    okBtn.onclick = null;
-    cancelBtn.onclick = null;
-    overlay.onclick = null;
+    return out;
+  }
+  async function cargarBase() {
+    var c = await DB.from('otif_config').select('data').eq('id', 1).maybeSingle();
+    if (c.error) throw c.error;
+    CFG = (c.data && c.data.data) || {};
+    CALC = OtifCalc.crear(CFG);
+    var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos').order('cargado_en', { ascending: false });
+    if (im.error) throw im.error;
+    IMPORTS = im.data || [];
+    var set = new Set();
+    IMPORTS.forEach(function (i) { if (i.carga_desde && i.carga_hasta) mesesEntre(i.carga_desde, i.carga_hasta).forEach(function (m) { set.add(m); }); });
+    MONTHS = Array.from(set).sort();
+    if (!CUR || MONTHS.indexOf(CUR) < 0) CUR = MONTHS[MONTHS.length - 1] || null;
+  }
+  var COLS = 'doc_vtas,fecha_carga,clase_doc,cond_exp,region_cod,departamento,zona,cliente_cod,cliente_nombre,vendedor_cod,vendedor_nombre,n_lineas,n_completas,n_sin_entrega,monto_pedido,n_entregas,n_entregadas,n_no_entregado,almacen,ts_factura,ts_creacion,ts_control,ts_transporte,ts_entrega,ult_etapa';
+  async function cargarMes() {
+    if (!CUR) { ROWS = []; MOTIVOS = []; return; }
+    var r = rangoMes(CUR);
+    var res = await Promise.all([
+      paginar(function () { return DB.from('otif_v_pedidos').select(COLS).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]).order('doc_vtas'); }),
+      paginar(function () {
+        return DB.from('otif_lineas').select('doc_vtas,motivo_rechazo,cant_pedida,precio,desc_pct,otif_pedidos!inner(fecha_carga)')
+          .is('entrega', null).gte('otif_pedidos.fecha_carga', r[0]).lt('otif_pedidos.fecha_carga', r[1]).order('doc_vtas').order('pos');
+      })
+    ]);
+    ROWS = res[0]; MOTIVOS = res[1];
+    EVS = ROWS.map(CALC.evaluar).filter(Boolean);
   }
 
-  okBtn.onclick = function () { close(); if (opts.onConfirm) opts.onConfirm(); };
-  cancelBtn.onclick = close;
-  overlay.onclick = function (e) { if (e.target === overlay) close(); };
+  function enScope(o) {
+    if (SCOPE === 'fer') return o.p.almacen === 'LDAL';
+    if (SCOPE === 'hie') return o.p.almacen === 'LDFA';
+    return true;
+  }
+  function diaPY(iso) { var t = CALC.aMin(iso); return new Date(t * 60000).toISOString().slice(0, 10); }
 
-  overlay.classList.add('active');
-}
-
-window.deletePreparadorAdmin = function (id) {
-  if (!window._alasCanEdit) return;
-  var picker = pickers.find(function (p) { return p.id === id; });
-  if (!picker) return;
-
-  showConfirm({
-    title: 'Eliminar preparador',
-    message: '¿Seguro que querés eliminar a <strong>' + picker.name + '</strong>? No aparecerá más en el ranking ni en la configuración.',
-    okLabel: 'Eliminar',
-    onConfirm: function () {
-      var card = document.querySelector('.adm-card[data-id="' + id + '"]');
-      var onDone = function () {
-        pickers = pickers.filter(function (p) { return p.id !== id; });
-        saveData();
-        renderAdminGrid();
-        renderLeaderboard(false);
-        if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-          PickingAPI.deletePreparador(picker.codigo);
-        }
-      };
-      if (card) {
-        gsap.to(card, { opacity: 0, scale: 0.9, y: 8, duration: 0.25, ease: 'power2.in', onComplete: onDone });
-      } else {
-        onDone();
-      }
+  /* ── Toolbar ── */
+  function mesLbl(ym) { return ym ? MESES[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4) : '—'; }
+  function toolbarHtml() {
+    var idx = MONTHS.indexOf(CUR), last = IMPORTS[0], chip = '';
+    if (last && last.cargado_en) {
+      var d = new Date(last.cargado_en);
+      chip = '<span class="upd-chip" title="Último Excel cargado' + (last.cargado_por ? ' por ' + esc(last.cargado_por) : '') + '">' + IC.clock + '<span>Última actualización</span> <b>' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + '</b></span>';
     }
-  });
-};
-
-// ==========================================
-// AVATARES
-// ==========================================
-function selectPresetAvatar(element, avatarName) {
-  document.querySelectorAll(".adm-pre, .avatar-option").forEach(opt => opt.classList.remove("selected"));
-  element.classList.add("selected");
-  selectedAvatarType = "preset";
-  selectedAvatarValue = avatarName;
-  updateAdminAvatarPreview();
-}
-
-function selectPresetAvatarModal(element, avatarName) {
-  document.querySelectorAll("#modal-avatar-picker .avatar-option").forEach(opt => opt.classList.remove("selected"));
-  element.classList.add("selected");
-  const form = document.getElementById("modal-edit-form");
-  form.dataset.avatarType = "preset";
-  form.dataset.avatarValue = avatarName;
-}
-
-function handleFileUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    document.querySelectorAll(".adm-pre, .avatar-option").forEach(opt => opt.classList.remove("selected"));
-    selectedAvatarType = "uploaded";
-    selectedAvatarValue = e.target.result;
-    updateAdminAvatarPreview();
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleFileUploadModal(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  resizeImageToDataURL(file, 256, function (dataUrl) {
-    document.querySelectorAll("#modal-avatar-picker .avatar-option").forEach(opt => opt.classList.remove("selected"));
-    const form = document.getElementById("modal-edit-form");
-    form.dataset.avatarType = "uploaded";
-    form.dataset.avatarValue = dataUrl;
-    const fileLabel = document.querySelector("#modal-avatar-picker .file-upload-btn");
-    fileLabel.style.borderColor = "#0B5F8D";
-    fileLabel.style.color = "#0B5F8D";
-  });
-}
-
-// ==========================================
-// CRUD
-// ==========================================
-function handleFormSubmit(event) {
-  event.preventDefault();
-  if (!window._alasCanEdit) return;
-
-  const nameInput = document.getElementById("picker-name-input");
-  const scoreInput = document.getElementById("picker-score-input");
-  const deletedScoreInput = document.getElementById("picker-deleted-score-input");
-
-  const name = nameInput.value.trim();
-  const score = parseInt(scoreInput.value, 10);
-  const deletedScore = parseInt(deletedScoreInput.value, 10) || 0;
-  if (!name || isNaN(score)) return;
-
-  pickers.push({
-    id: "picker_" + Date.now(), name, score, deletedScore,
-    avatarType: selectedAvatarType, avatarValue: selectedAvatarValue
-  });
-  updatePickersListAndTrends(pickers);
-
-  nameInput.value = "";
-  scoreInput.value = "";
-  deletedScoreInput.value = "";
-  selectedAvatarType = "preset";
-  selectedAvatarValue = "avatar1";
-
-  document.querySelectorAll(".adm-pre").forEach(opt => opt.classList.remove("selected"));
-  var firstPreset = document.querySelector(".adm-pre[data-avatar='avatar1']");
-  if (firstPreset) firstPreset.classList.add("selected");
-  var fileInput = document.getElementById("picker-file-input");
-  if (fileInput) fileInput.value = "";
-  updateAdminAvatarPreview();
-
-  renderLeaderboard(false);
-  renderAdminGrid();
-}
-
-function renderManageList() { renderAdminGrid(); }
-
-function deletePicker(id) {
-  if (!window._alasCanEdit) return;
-  const pickerIndex = pickers.findIndex(p => p.id === id);
-  if (pickerIndex === -1) return;
-
-  const deletedPicker = pickers[pickerIndex];
-  const element = document.querySelector(`.pillar-card[data-id="${id}"]`);
-  const manageElement = document.querySelector(`.manage-picker-item[data-manage-id="${id}"]`);
-
-  const onDone = () => {
-    const nextPickers = pickers.filter(p => p.id !== id);
-    deletedPickers.push(deletedPicker);
-    updatePickersListAndTrends(nextPickers);
-    renderLeaderboard(false);
-    renderManageList();
-    renderTrashList();
-  };
-
-  const targets = [];
-  if (element) targets.push(element);
-  if (manageElement) targets.push(manageElement);
-
-  if (targets.length) {
-    gsap.to(targets, { opacity: 0, scale: 0.8, x: 30, duration: 0.35, stagger: 0.05, onComplete: onDone });
-  } else {
-    onDone();
-  }
-}
-
-function renderTrashList() {
-  var container = document.getElementById("trash-list-container");
-  var footer = document.getElementById("trash-footer");
-  if (!container) return;
-
-  if (deletedPickers.length === 0) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);font-size:0.85rem;">La papelera está vacía</div>';
-    if (footer) footer.style.display = "none";
-    return;
-  }
-
-  if (footer) footer.style.display = window._alasCanEdit ? "block" : "none";
-  var html = "";
-
-  deletedPickers.forEach(picker => {
-    var imgSrc = picker.avatarType === "preset"
-      ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-      : picker.avatarValue;
-
-    var canEdit = window._alasCanEdit;
-    var restoreBtn = canEdit ? `<button class="btn" onclick="restorePicker('${picker.id}')"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restaurar</button>` : '';
-    var deleteBtn = canEdit ? `<button class="btn btn-danger" onclick="deletePickerPermanently('${picker.id}')"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> Eliminar</button>` : '';
-
-    html += `
-      <div class="admin-trash-card" data-trash-id="${picker.id}">
-        <div class="admin-card-avatar"><img src="${imgSrc}" alt="${picker.name}"></div>
-        <span class="admin-card-name">${picker.name}</span>
-        <div class="admin-card-stats">
-          <div class="admin-card-stat"><span class="admin-card-stat-val">${picker.score}</span><span class="admin-card-stat-lbl">Picks/H</span></div>
-        </div>
-        <div class="admin-card-actions">${restoreBtn}${deleteBtn}</div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-window.restorePicker = function (id) {
-  if (!window._alasCanEdit) return;
-  const pickerIndex = deletedPickers.findIndex(p => p.id === id);
-  if (pickerIndex === -1) return;
-
-  const restoredPicker = deletedPickers[pickerIndex];
-  const element = document.querySelector(`[data-trash-id="${id}"]`);
-
-  const onDone = () => {
-    deletedPickers = deletedPickers.filter(p => p.id !== id);
-    pickers.push(restoredPicker);
-    updatePickersListAndTrends(pickers);
-    renderLeaderboard(false);
-    renderManageList();
-    renderTrashList();
-  };
-
-  if (element) {
-    gsap.to(element, { opacity: 0, x: -30, duration: 0.3, onComplete: onDone });
-  } else {
-    onDone();
-  }
-};
-
-window.deletePickerPermanently = function (id) {
-  if (!window._alasCanEdit) return;
-  if (!confirm("¿Estás seguro de que deseas eliminar permanentemente a este preparador? Esta acción no se puede deshacer.")) return;
-
-  const element = document.querySelector(`[data-trash-id="${id}"]`);
-  const onDone = () => {
-    deletedPickers = deletedPickers.filter(p => p.id !== id);
-    saveData();
-    renderTrashList();
-  };
-
-  if (element) {
-    gsap.to(element, { opacity: 0, scale: 0.8, duration: 0.3, onComplete: onDone });
-  } else {
-    onDone();
-  }
-};
-
-window.emptyTrash = function () {
-  if (!window._alasCanEdit) return;
-  if (!confirm("¿Deseas vaciar toda la papelera? Todos los preparadores aquí guardados se eliminarán definitivamente.")) return;
-
-  const items = document.getElementById("trash-list-container").querySelectorAll(".manage-picker-item");
-  gsap.to(items, {
-    opacity: 0, y: -15, duration: 0.3, stagger: 0.05,
-    onComplete: () => {
-      deletedPickers = [];
-      saveData();
-      renderTrashList();
-    }
-  });
-};
-
-// ==========================================
-// METAS INDIVIDUALES
-// ==========================================
-// Items/monto reales (de la importación) o derivados (demo/fallback)
-function pickerItems(p) {
-  return (window._pickingFromDB && p.items != null) ? p.items : (p.score || 0) * 8;
-}
-function pickerMonto(p) {
-  return (window._pickingFromDB && p.monto != null) ? p.monto : Math.round((p.score || 0) * 8 * ratePerItem * 7500);
-}
-
-function getPickerMeta(picker) {
-  var defaultItems = targetGoal * 8;
-  var defaultMonto = Math.round(defaultItems * ratePerItem * 7500);
-  return {
-    metaItemsMes: picker.metaItemsMes || defaultItems,
-    metaMontoMes: picker.metaMontoMes || defaultMonto
-  };
-}
-
-function getMetaPercent(picker) {
-  var meta = getPickerMeta(picker);
-  var totalItems = pickerItems(picker);
-  if (meta.metaItemsMes <= 0) return 0;
-  return Math.round((totalItems / meta.metaItemsMes) * 100);
-}
-
-function renderMetasList() {
-  var container = document.getElementById("metas-list-container");
-  if (!container) return;
-
-  var globalInput = document.getElementById("meta-global-items");
-  if (globalInput && !globalInput.value) {
-    globalInput.value = targetGoal * 8;
-  }
-
-  if (pickers.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;font-size:0.8rem;color:var(--text-muted);">Sin preparadores activos</div>';
-    return;
-  }
-
-  pickers.sort((a, b) => b.score - a.score);
-  var html = "";
-
-  pickers.forEach(picker => {
-    var meta = getPickerMeta(picker);
-    var totalItems = (window._pickingFromDB && picker.items != null) ? picker.items : picker.score * 8;
-    var moneyNet = (window._pickingFromDB && picker.monto != null) ? picker.monto : Math.round(totalItems * ratePerItem * 7500);
-    var pct = getMetaPercent(picker);
-
-    var pctClass = pct >= 100 ? "above" : pct >= 80 ? "near" : "below";
-    var progressColor = pct >= 100 ? "#10b981" : pct >= 80 ? "#f59e0b" : "#ef4444";
-    var progressW = Math.min(pct, 100);
-
-    var imgSrc = picker.avatarType === "preset"
-      ? (PRESET_AVATARS[picker.avatarValue] || PRESET_AVATARS.avatar1)
-      : picker.avatarValue;
-
-    var readonlyAttr = window._alasCanEdit ? '' : 'readonly style="opacity:.5;cursor:not-allowed"';
-
-    html += `
-      <div class="meta-picker-card" data-meta-id="${picker.id}">
-        <div class="meta-picker-header">
-          <div class="manage-picker-avatar"><img src="${imgSrc}" alt="${picker.name}"></div>
-          <span class="meta-picker-name">${picker.name}</span>
-          <span class="meta-picker-pct ${pctClass}">${pct}%</span>
-        </div>
-        <div class="meta-inputs-row">
-          <div class="meta-field">
-            <label>Meta Items / Mes</label>
-            <input type="number" value="${meta.metaItemsMes}" min="1"
-              onchange="updatePickerMeta('${picker.id}','metaItemsMes',this.value)" ${readonlyAttr}>
-          </div>
-          <div class="meta-field">
-            <label>Meta Monto Gs. / Mes</label>
-            <input type="number" value="${meta.metaMontoMes}" min="1"
-              onchange="updatePickerMeta('${picker.id}','metaMontoMes',this.value)" ${readonlyAttr}>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:0.68rem;color:var(--text-muted);">
-          <span>Actual: ${totalItems.toLocaleString()} items · Gs. ${moneyNet.toLocaleString('es-PY')}</span>
-        </div>
-        <div class="meta-progress-bar">
-          <div class="meta-progress-fill" style="width:${progressW}%;background:${progressColor};"></div>
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-// ── Formateo de inputs de meta (separador de miles) ──
-window.metaFocus = function (el) { try { el.select(); } catch (e) {} };
-
-window.metaFormat = function (el) {
-  var digits = el.value.replace(/\D/g, '');
-  if (!digits) { el.value = ''; return; }
-  var selEnd = el.selectionStart;
-  var digitsBefore = el.value.slice(0, selEnd).replace(/\D/g, '').length;
-  var formatted = parseInt(digits, 10).toLocaleString('es-PY');
-  el.value = formatted;
-  // reposicionar cursor según dígitos antes del cursor
-  var pos = formatted.length, count = 0;
-  for (var i = 0; i < formatted.length; i++) {
-    if (/\d/.test(formatted.charAt(i))) count++;
-    if (count >= digitsBefore) { pos = i + 1; break; }
-  }
-  try { el.setSelectionRange(pos, pos); } catch (e) {}
-};
-
-window.updatePickerMeta = async function (id, field, value) {
-  if (!window._alasCanEdit) return;
-  var val = parseInt(String(value).replace(/\D/g, ''), 10);
-  if (isNaN(val) || val <= 0) { showToast('Ingresá un número válido', 'error'); return; }
-
-  var picker = pickers.find(p => p.id === id);
-  if (!picker) return;
-  picker[field] = val;
-  saveData();
-  renderLeaderboard(false);
-
-  // Persistir en Supabase y confirmar
-  if (picker.codigo && window.PickingAPI && PickingAPI.isReady()) {
-    showToast('Guardando…', 'loading');
-    var ok = await PickingAPI.updatePreparadorMeta(picker.codigo, field, val);
-    if (ok) {
-      showToast('Meta guardada: ' + val.toLocaleString('es-PY') + ' ítems', 'success');
-    } else {
-      showToast('No se pudo guardar en la nube', 'error');
-    }
-  } else {
-    showToast('Meta guardada localmente', 'success');
-  }
-};
-
-// ── Toast de confirmación ──────────────────────────────────
-var _toastTimer = null;
-function showToast(message, type) {
-  var el = document.getElementById('toast');
-  if (!el) return;
-  type = type || 'success';
-  var icons = {
-    success: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
-    error:   '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-    loading: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" class="toast-spin"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>'
-  };
-  el.className = 'toast toast-' + type + ' show';
-  el.innerHTML = (icons[type] || '') + '<span>' + message + '</span>';
-  if (_toastTimer) clearTimeout(_toastTimer);
-  if (type !== 'loading') {
-    _toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
-  }
-}
-window.showToast = showToast;
-
-window.applyGlobalMeta = function () {
-  if (!window._alasCanEdit) return;
-  var input = document.getElementById("meta-global-items");
-  var val = parseInt(input.value, 10);
-  if (isNaN(val) || val <= 0) {
-    alert("Ingresa un valor válido de items por mes.");
-    return;
-  }
-
-  var montoDefault = Math.round(val * ratePerItem * 7500);
-  pickers.forEach(p => {
-    p.metaItemsMes = val;
-    p.metaMontoMes = montoDefault;
-  });
-  saveData();
-  renderMetasList();
-  renderLeaderboard(false);
-};
-
-// ==========================================
-// MODAL EDICIÓN
-// ==========================================
-function openEditModal(id) {
-  if (!window._alasCanEdit) return;
-  const picker = pickers.find(p => p.id === id);
-  if (!picker) return;
-
-  document.getElementById("modal-edit-id").value = picker.id;
-  document.getElementById("modal-title").textContent = "Editar Preparador";
-  document.getElementById("modal-name-input").value = picker.name;
-  document.getElementById("modal-score-input").value = picker.score || 0;
-  document.getElementById("modal-deleted-score-input").value = 0;
-
-  var codInput = document.getElementById("modal-codigo-input");
-  if (codInput) {
-    codInput.value = picker.codigo || "";
-    // El código es la clave de matcheo — no se cambia al editar
-    codInput.readOnly = true;
-    codInput.style.opacity = "0.6";
-  }
-
-  var submitBtn = document.getElementById("modal-submit-btn");
-  if (submitBtn) submitBtn.textContent = "Guardar Cambios";
-
-  const form = document.getElementById("modal-edit-form");
-  form.dataset.avatarType = picker.avatarType;
-  form.dataset.avatarValue = picker.avatarValue;
-
-  document.querySelectorAll("#modal-avatar-picker .avatar-option").forEach(opt => opt.classList.remove("selected"));
-  if (picker.avatarType === "preset") {
-    const selectedOpt = document.querySelector(`#modal-avatar-picker .avatar-option[data-avatar='${picker.avatarValue}']`);
-    if (selectedOpt) selectedOpt.classList.add("selected");
-  }
-
-  const fileLabel = document.querySelector("#modal-avatar-picker .file-upload-btn");
-  if (picker.avatarType === "uploaded") {
-    fileLabel.style.borderColor = "var(--accent-blue)";
-    fileLabel.style.color = "var(--accent-blue)";
-  } else {
-    fileLabel.style.borderColor = "var(--text-muted)";
-    fileLabel.style.color = "var(--text-muted)";
-  }
-  document.getElementById("modal-file-input").value = "";
-
-  document.getElementById("edit-modal-overlay").classList.add("active");
-}
-
-function closeEditModal() {
-  document.getElementById("edit-modal-overlay").classList.remove("active");
-}
-
-function handleModalSubmit(event) {
-  event.preventDefault();
-  if (!window._alasCanEdit) return;
-
-  const id = document.getElementById("modal-edit-id").value;
-  const name = document.getElementById("modal-name-input").value.trim();
-  const score = parseInt(document.getElementById("modal-score-input").value, 10) || 0;
-  const deletedScore = 0;
-  const form = document.getElementById("modal-edit-form");
-  const avatarType = form.dataset.avatarType;
-  const avatarValue = form.dataset.avatarValue;
-  var codInputEl = document.getElementById("modal-codigo-input");
-  var codigoIngresado = codInputEl ? codInputEl.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
-
-  if (!name) return;
-
-  if (id === "__new__") {
-    var newCodigo = codigoIngresado || name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || ('M' + Date.now().toString(36).toUpperCase());
-    // Evitar colisión de código
-    if (pickers.some(function (p) { return p.codigo === newCodigo; })) {
-      alert('Ya existe un preparador con el código "' + newCodigo + '".');
-      return;
-    }
-    var newPicker = {
-      id: newCodigo, codigo: newCodigo, name: name, score: score, deletedScore: 0,
-      items: 0, monto: 0, categoria: 'JUNIOR',
-      avatarType: avatarType, avatarValue: avatarValue,
-      metaItemsMes: targetGoal * 8, metaMontoMes: Math.round(targetGoal * 8 * ratePerItem * 7500)
-    };
-    pickers.push(newPicker);
-    updatePickersListAndTrends(pickers);
-
-    if (window.PickingAPI && PickingAPI.isReady()) {
-      PickingAPI.upsertPreparador(newPicker);
-    }
-  } else {
-    const pickerIndex = pickers.findIndex(p => p.id === id);
-    if (pickerIndex === -1) return;
-    var existingMeta = { metaItemsMes: pickers[pickerIndex].metaItemsMes, metaMontoMes: pickers[pickerIndex].metaMontoMes };
-    pickers[pickerIndex] = { ...pickers[pickerIndex], name, score, deletedScore, avatarType, avatarValue, ...existingMeta };
-    updatePickersListAndTrends(pickers);
-
-    var edited = pickers.find(function (p) { return p.id === id; });
-    if (edited && edited.codigo && window.PickingAPI && PickingAPI.isReady()) {
-      PickingAPI.upsertPreparador(edited);
-    }
-  }
-
-  closeEditModal();
-  renderLeaderboard(false);
-  renderAdminGrid();
-}
-
-// ==========================================
-// MODO TV
-// ==========================================
-function setTVModeState(enableTV) {
-  const existingFloating = document.getElementById("exit-tv-floating-btn");
-  if (existingFloating) existingFloating.remove();
-
-  if (enableTV) {
-    document.body.classList.add("tv-mode");
-
-    const controls = document.getElementById("header-controls");
-    const buttonHTML = `
-      <div class="floating-exit-tv" id="exit-tv-floating-btn">
-        <button class="btn btn-primary" onclick="exitTVMode()" title="Volver al Panel">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M12 20h9M3 12h18M3 12l4-4M3 12l4 4"></path>
-          </svg>
-          Salir TV
-        </button>
-      </div>
-    `;
-    if (controls) {
-      controls.insertAdjacentHTML("afterbegin", buttonHTML);
-    } else {
-      document.body.insertAdjacentHTML("beforeend", buttonHTML);
-    }
-    
-    startPodiumAutoplay();
-  } else {
-    document.body.classList.remove("tv-mode");
-    stopPodiumAutoplay();
-    window._activeCategory = "all";
-  }
-
-  renderLeaderboard(true);
-}
-
-function _fsElement() {
-  return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
-}
-function _requestFullscreen() {
-  const el = document.documentElement;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-  if (req) { try { const p = req.call(el); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
-}
-function _exitFullscreen() {
-  if (!_fsElement()) return;
-  const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-  if (ex) { try { const p = ex.call(document); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
-}
-window.enterTVMode = function () {
-  _requestFullscreen();            // pantalla completa REAL (oculta el marco del launcher/navegador)
-  window.location.hash = "tv";
-};
-window.exitTVMode = function () {
-  _exitFullscreen();
-  window.location.hash = "";
-};
-// Si el usuario sale de pantalla completa (tecla ESC), salir también del Modo TV
-["fullscreenchange", "webkitfullscreenchange", "msfullscreenchange"].forEach(function (ev) {
-  document.addEventListener(ev, function () {
-    if (!_fsElement() && document.body.classList.contains("tv-mode")) {
-      window.location.hash = "";
-    }
-  });
-});
-
-window.resetToMockData = function () {
-  if (!window._alasCanEdit) return;
-  if (!confirm("¿Deseas restaurar el ranking a la lista de demostración? Se perderán los cambios activos y la papelera.")) return;
-
-  const container = document.getElementById("pillars-container");
-  const items = container ? container.querySelectorAll(".pillar-card") : [];
-
-  gsap.to(items, {
-    opacity: 0, y: 20, duration: 0.4, stagger: 0.05,
-    onComplete: () => {
-      pickers = JSON.parse(JSON.stringify(MOCK_DATA));
-      pickers.forEach((p, idx) => { p.prevRank = idx + 1; });
-      deletedPickers = [];
-      targetGoal = 200;
-      saveData();
-      renderLeaderboard(true);
-      renderManageList();
-      renderTrashList();
-    }
-  });
-};
-
-// openSummaryModal / closeSummaryModal — delegados a dashboard.js
-
-// ── Variables y Funciones del Auto-ciclo y Filtros de Categorías ──
-window._activeCategory = window._activeCategory || "destacados";
-window._podiumAutoplay = window._podiumAutoplay !== undefined ? window._podiumAutoplay : false;
-window._autoplayTimer = window._autoplayTimer || null;
-
-function setPodiumActiveCategory(cat) {
-  window._activeCategory = cat;
-  if (cat !== "all" && !document.body.classList.contains("tv-mode")) {
-    if (window._podiumAutoplay) {
-      stopPodiumAutoplay();
-    }
-  }
-  renderLeaderboard(true);
-}
-
-function togglePodiumAutoplay() {
-  if (window._podiumAutoplay) {
-    stopPodiumAutoplay();
-  } else {
-    startPodiumAutoplay();
-  }
-  renderLeaderboard(true);
-}
-
-// ¿La categoría tiene datos para mostrar? (para omitir vacías en el ciclo TV)
-function catHasData(cat) {
-  if (cat === 'destacados') return Object.keys(_primerosByCat).length > 0;
-  if (cat === 'rest') return getRemainingPickers().length > 0;
-  return pickers.some(function (p) { return pickerCategoria(p) === cat && pickerItems(p) > 0; });
-}
-function tvCycleCats() {
-  var cats = ["destacados", "PLENO", "JUNIOR", "APRENDIZ", "EMPAQUE", "rest"].filter(catHasData);
-  return cats.length ? cats : ["all"];
-}
-// Cuánto queda cada categoría en pantalla (Posiciones dura una vuelta completa del scroll)
-var TVRANK_VISIBLE = 5, TVRANK_SPEED = 34; // filas visibles a la vez · velocidad px/s (lento)
-function tvRankAvail() { return Math.max(320, window.innerHeight - 210); }
-function catDwellMs(cat) {
-  if (cat === 'rest') {
-    var n = getRemainingPickers().length;
-    if (n <= TVRANK_VISIBLE) return 9000;
-    var rowH = tvRankAvail() / TVRANK_VISIBLE;
-    var downDur = ((n - TVRANK_VISIBLE) * rowH) / TVRANK_SPEED;
-    return Math.round((2.2 + downDur + 2.4 + 1.8 + 1) * 1000); // pausas + scroll
-  }
-  return 6000;
-}
-function _clearAutoplayTimer() { if (window._autoplayTimer) { clearTimeout(window._autoplayTimer); window._autoplayTimer = null; } }
-function _scheduleAutoplay() { _clearAutoplayTimer(); window._autoplayTimer = setTimeout(_autoplayAdvance, catDwellMs(window._activeCategory)); }
-function _autoplayAdvance() {
-  stopRestTicker();
-  var cats = tvCycleCats();
-  var idx = cats.indexOf(window._activeCategory);
-  idx = idx === -1 ? 0 : (idx + 1) % cats.length;
-  window._activeCategory = cats[idx];
-  var container = document.getElementById("pillars-container");
-  var exitItems = container ? container.querySelectorAll(".pillar-card, .remaining-table tbody tr, .tvrank-row") : [];
-  if (window.gsap && exitItems.length) {
-    gsap.to(exitItems, { opacity: 0, y: -20, duration: 0.35, stagger: 0.03, ease: "power2.in", onComplete: function () { renderLeaderboard(true); _scheduleAutoplay(); } });
-  } else { renderLeaderboard(true); _scheduleAutoplay(); }
-}
-function startPodiumAutoplay() {
-  window._podiumAutoplay = true;
-  _clearAutoplayTimer();
-  var cats = tvCycleCats();
-  if (cats.indexOf(window._activeCategory) === -1) window._activeCategory = cats[0];
-  _scheduleAutoplay();
-}
-function stopPodiumAutoplay() {
-  window._podiumAutoplay = false;
-  _clearAutoplayTimer();
-  stopRestTicker();
-}
-// Ticker de "Posiciones" en TV: muestra 5 filas y baja la lista con scroll continuo LENTO (sin saltos)
-function stopRestTicker() {
-  if (window._restTween) { window._restTween.kill(); window._restTween = null; }
-  if (window._restTicker) { clearInterval(window._restTicker); window._restTicker = null; }
-}
-// Dimensiona el ranking para que LLENE la pantalla (5 filas, o menos si hay menos)
-function layoutRestTV() {
-  var vp = document.getElementById('tvrank-vp'), list = document.getElementById('tvrank-list');
-  if (!vp || !list) return;
-  var rows = list.children.length; if (!rows) return;
-  var visible = Math.min(TVRANK_VISIBLE, rows);
-  var top = vp.getBoundingClientRect().top;
-  var avail = Math.max(320, window.innerHeight - top - 52);
-  vp.style.height = avail + 'px';
-  var rowH = Math.floor(avail / visible);
-  list.querySelectorAll('.tvrank-row').forEach(function (r) { r.style.height = rowH + 'px'; });
-}
-function startRestTicker() {
-  stopRestTicker();
-  var vp = document.getElementById('tvrank-vp'), list = document.getElementById('tvrank-list');
-  if (!vp || !list) return;
-  layoutRestTV();
-  if (list.children.length <= TVRANK_VISIBLE) return;   // entran todas, sin scroll
-  var distance = list.scrollHeight - vp.clientHeight;
-  if (distance <= 2 || !window.gsap) return;
-  var downDur = distance / TVRANK_SPEED; // segundos (lento)
-  window._restTween = gsap.timeline({ repeat: -1 })
-    .set(list, { y: 0 })
-    .to({}, { duration: 2.2 })                                   // pausa arriba
-    .to(list, { y: -distance, duration: downDur, ease: 'none' })// baja lento y parejo
-    .to({}, { duration: 2.4 })                                   // pausa abajo
-    .to(list, { y: 0, duration: 1.8, ease: 'power1.inOut' });    // vuelve suave al inicio
-}
-function buildRestTV(remaining) {
-  var rows = remaining.map(function (p, i) {
-    var totalItems = pickerItems(p), goalPercent = getMetaPercent(p);
-    var catInfo = CATEGORIA_INFO[pickerCategoria(p)] || { color: '#0B5F8D', label: '' };
-    var imgSrc = p.avatarType === "preset" ? (PRESET_AVATARS[p.avatarValue] || PRESET_AVATARS.avatar1) : p.avatarValue;
-    return '<div class="tvrank-row">' +
-      '<div class="tvrank-pos">#' + (i + 4) + '</div>' +
-      '<img class="tvrank-ava" src="' + imgSrc + '" alt="">' +
-      '<div class="tvrank-id"><span class="tvrank-name">' + p.name + '</span>' +
-        '<span class="tvrank-cat" style="color:' + catInfo.color + '">' + catInfo.label + '</span></div>' +
-      '<div class="tvrank-items">' + totalItems.toLocaleString() + '<small>items</small></div>' +
-      '<div class="tvrank-meta"><span class="tvrank-pct">' + goalPercent + '%</span>' +
-        '<div class="tvrank-track"><div class="tvrank-fill" style="width:' + Math.min(goalPercent, 100) + '%;background:' + (goalPercent >= 100 ? '#10b981' : '#f59e0b') + '"></div></div></div>' +
+    function sb(s, ico, lbl) { return '<button class="scopebtn' + (SCOPE === s ? ' on' : '') + '" data-s="' + s + '">' + ico + lbl + '</button>'; }
+    return '<div class="tbd-toolbar">' +
+      '<div class="tbd-title"><h2 id="tbTitle">Pedidos en tiempo y forma</h2><span class="sub" id="tbSub"></span></div>' +
+      '<div id="scopeSlot"><div class="scopebar" id="scopeSeg">' + sb('tot', IC.grid, 'Total') + sb('fer', IC.deposito, 'Ferretería') + sb('hie', IC.fabrica, 'Hierros') + '</div></div>' +
+      '<span class="spacer"></span>' + chip +
+      '<div class="mnav"><button class="mnav__btn" id="mnPrev"' + (idx > 0 ? '' : ' disabled') + ' title="Mes anterior">‹</button><span class="mnav__cur" id="mnCur">' + esc(mesLbl(CUR)) + '</span><button class="mnav__btn" id="mnNext"' + (idx >= 0 && idx < MONTHS.length - 1 ? '' : ' disabled') + ' title="Mes siguiente">›</button></div>' +
+      '<button class="refresh-btn" id="btnRefresh" type="button" title="Refrescar datos">' + IC.refresh + '</button>' +
+      (isAdmin() ? '<button class="btn btn--primary btn--hero" id="btnActualizar">' + IC.upload + ' Actualizar base</button>' : '') +
       '</div>';
-  }).join('');
-  return '<div class="cat-podium cat-podium--full-width" style="--cat:#0B5F8D;--cat-soft:rgba(11,95,141,0.08);width:100%;">' +
-    '<div class="cat-header cat-header--podium"><span class="cat-header__kicker">Ranking</span><span class="cat-header__title">Posiciones</span></div>' +
-    '<div class="tvrank-viewport" id="tvrank-vp"><div class="tvrank-list" id="tvrank-list">' + rows + '</div></div>' +
-    '</div>';
-}
+  }
+  function wireToolbar() {
+    var b = q('#btnActualizar'); if (b) b.addEventListener('click', function () { q('#fileBase').click(); });
+    q('#btnRefresh').addEventListener('click', refrescar);
+    q('#mnPrev').addEventListener('click', function () { var i = MONTHS.indexOf(CUR); if (i > 0) irMes(MONTHS[i - 1], -1); });
+    q('#mnNext').addEventListener('click', function () { var i = MONTHS.indexOf(CUR); if (i < MONTHS.length - 1) irMes(MONTHS[i + 1], 1); });
+    qa('#scopeSeg .scopebtn').forEach(function (bt) {
+      bt.addEventListener('click', function () {
+        if (SCOPE === bt.dataset.s) return;
+        SCOPE = bt.dataset.s;
+        qa('#scopeSeg .scopebtn').forEach(function (x) { x.classList.toggle('on', x === bt); });
+        if (GS) { gsap.fromTo(bt, { scale: .92 }, { scale: 1, duration: .4, ease: 'back.out(2.4)', clearProps: 'transform' }); var ic = bt.querySelector('svg'); if (ic) gsap.fromTo(ic, { rotate: -18, scale: .7 }, { rotate: 0, scale: 1, duration: .5, ease: 'back.out(2.6)', clearProps: 'transform' }); }
+        renderPagina(false);
+      });
+    });
+  }
 
-// Exportar a global de forma segura
-window.setPodiumActiveCategory = setPodiumActiveCategory;
-window.togglePodiumAutoplay = togglePodiumAutoplay;
-window.startPodiumAutoplay = startPodiumAutoplay;
-window.stopPodiumAutoplay = stopPodiumAutoplay;
+  /* ── Shell ── */
+  function renderShell() {
+    var st = q('#stage');
+    if (!MONTHS.length) {
+      st.innerHTML = '<div class="tbd-toolbar"><div class="tbd-title"><h2>Pedidos en tiempo y forma</h2><span class="sub">Todavía no hay datos cargados</span></div><span class="spacer"></span>' +
+        (isAdmin() ? '<button class="btn btn--primary btn--hero" id="btnActualizar">' + IC.upload + ' Actualizar base</button>' : '') + '</div>' +
+        '<div class="empty">' + IC.empty + '<h3>Todavía no hay una base cargada</h3><p>' + (isAdmin() ? 'Usá <b>Actualizar base</b> para subir el Excel de pedidos de SAP tal como sale.' : 'Pedile a un administrador que cargue el Excel de pedidos.') + '</p></div>';
+      var b = q('#btnActualizar'); if (b) b.addEventListener('click', function () { q('#fileBase').click(); });
+      return;
+    }
+    st.innerHTML = toolbarHtml() + '<div class="ot" id="otBody"></div>';
+    wireToolbar();
+    if (GS) {
+      gsap.from('#stage .tbd-toolbar', { opacity: 0, y: -8, duration: .35, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from('#scopeSeg .scopebtn', { opacity: 0, y: -10, scale: .9, duration: .42, stagger: .07, ease: 'back.out(1.8)', clearProps: 'transform,opacity', delay: .08 });
+    }
+    renderPagina(true);
+  }
+
+  function renderPagina(entrada) {
+    var body = q('#otBody'); if (!body) return;
+    var scopeSlot = q('#scopeSlot'); if (scopeSlot) scopeSlot.style.display = VIEW === 'parametros' ? 'none' : '';
+    if (VIEW === 'resumen') renderResumen(body, entrada);
+    else renderPronto(body);
+  }
+
+  function renderPronto(body) {
+    var nom = { tiempos: 'Tiempos del proceso', zonas: 'Zonas', vendedores: 'Vendedores y clientes', detalle: 'Detalle de pedidos', parametros: 'Plazos y feriados' }[VIEW] || '';
+    q('#tbTitle').textContent = nom; q('#tbSub').textContent = '';
+    body.innerHTML = '<div class="ot-soon">' + IC.soon + '<h3>' + esc(nom) + '</h3><p>Esta pantalla se arma después de aprobar el Resumen, con el mismo estilo.</p></div>';
+    if (GS) gsap.from(body.firstChild, { opacity: 0, y: 12, duration: .4, ease: 'power2.out', clearProps: 'transform,opacity' });
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     RESUMEN
+     ════════════════════════════════════════════════════════════ */
+  function semColor(p) { var meta = +CFG.meta_otif || 95; return p == null ? '#cbd5e1' : p >= meta ? '#16a34a' : p >= meta - 10 ? '#d97706' : '#dc2626'; }
+
+  function spark(vals, labels, meta) {
+    var W = 720, H = 92, n = vals.length, max = 100, min = Math.max(0, Math.min.apply(null, vals.concat([meta])) - 10);
+    var X = function (i) { return n < 2 ? W / 2 : 10 + (i / (n - 1)) * (W - 20); };
+    var Y = function (v) { return H - 10 - ((v - min) / (max - min || 1)) * (H - 24); };
+    var pts = vals.map(function (v, i) { return [X(i), Y(v)]; });
+    var line = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' L ');
+    var area = line + ' L ' + X(n - 1).toFixed(1) + ' ' + H + ' L ' + X(0).toFixed(1) + ' ' + H + ' Z';
+    var avg = vals.reduce(function (a, v) { return a + v; }, 0) / (n || 1);
+    var dots = pts.map(function (p, i) {
+      var last = i === n - 1;
+      return '<circle class="gspark__dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (last ? 5 : 3.4) + '" fill="' + (last ? '#fff' : 'rgba(255,255,255,.75)') + '"' + (last ? ' stroke="#9FD3FF" stroke-width="3"' : '') + '><title>' + esc(labels[i]) + ' · ' + pf(vals[i]) + '</title></circle>';
+    }).join('');
+    return '<svg class="gspark" viewBox="0 0 ' + W + ' ' + H + '">' +
+      '<defs><linearGradient id="otSpG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9FD3FF" stop-opacity=".42"/><stop offset="1" stop-color="#9FD3FF" stop-opacity="0"/></linearGradient></defs>' +
+      '<path class="gspark__area" d="' + area + '" fill="url(#otSpG)"/>' +
+      '<line class="gspark__meta" x1="4" y1="' + Y(meta).toFixed(1) + '" x2="' + (W - 4) + '" y2="' + Y(meta).toFixed(1) + '"><title>Meta ' + pf(meta, 0) + '</title></line>' +
+      '<line class="gspark__avg" x1="4" y1="' + Y(avg).toFixed(1) + '" x2="' + (W - 4) + '" y2="' + Y(avg).toFixed(1) + '"><title>Promedio · ' + pf(avg) + '</title></line>' +
+      '<path class="gspark__line" d="' + line + '" fill="none" stroke="#CFE8FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' + dots + '</svg>';
+  }
+
+  function renderResumen(body, entrada) {
+    var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 95;
+    var scopeTxt = { tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE];
+    q('#tbTitle').textContent = 'Pedidos en tiempo y forma';
+    q('#tbSub').textContent = 'OTIF por pedido · ' + mesLbl(CUR) + ' · ' + scopeTxt;
+
+    // tendencia diaria (por día de carga del pedido)
+    var porDia = new Map();
+    evs.forEach(function (o) { if (o.estado !== 'evaluado') return; var d = diaPY(o.p.fecha_carga); if (!porDia.has(d)) porDia.set(d, [0, 0]); var x = porDia.get(d); x[0]++; if (o.otif) x[1]++; });
+    var dias = Array.from(porDia.entries()).filter(function (e) { return e[1][0] >= 10; }).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    var dv = dias.map(function (e) { return e[1][1] / e[1][0] * 100; }), dl = dias.map(function (e) { return e[0].slice(8) + '/' + e[0].slice(5, 7); });
+    var hayTrend = dv.length >= 2, ultimo = hayTrend ? dv[dv.length - 1] : null, prev = hayTrend ? dv[dv.length - 2] : null;
+    var delta = hayTrend ? ultimo - prev : null, cls = delta == null ? 'flat' : delta > .5 ? 'up' : delta < -.5 ? 'down' : 'flat';
+    var iMax = dv.indexOf(Math.max.apply(null, dv)), iMin = dv.indexOf(Math.min.apply(null, dv));
+    var promDias = dv.length ? dv.reduce(function (a, v) { return a + v; }, 0) / dv.length : null;
+
+    // pedidos con chofer pero sin registro (etapa 04)
+    var sinCerrar = evs.filter(function (o) { return o.estado === 'sin_registro'; });
+    var parciales = sinCerrar.filter(function (o) { return o.p.n_entregadas > 0; }).length;
+    var conChofer = sinCerrar.filter(function (o) { return o.p.ult_etapa === 4; }).length;
+    SIN_CERRAR = sinCerrar;
+    var sinDesp = evs.filter(function (o) { return o.estado === 'sin_despacho'; });
+    var montoSinDesp = sinDesp.reduce(function (a, o) { return a + (+o.p.monto_pedido || 0); }, 0);
+
+    // motivos (líneas no entregadas) del scope
+    var docs = new Map(); evs.forEach(function (o) { docs.set(o.p.doc_vtas, o); });
+    var mot = new Map(), lineasFalt = 0;
+    MOTIVOS.forEach(function (l) {
+      if (!docs.has(l.doc_vtas)) return;
+      lineasFalt++;
+      var k = motivoTxt(l.motivo_rechazo);
+      if (!mot.has(k)) mot.set(k, { n: 0, monto: 0, ped: new Set() });
+      var m = mot.get(k); m.n++; m.monto += (+l.cant_pedida || 0) * (+l.precio || 0) * (1 - (+l.desc_pct || 0) / 100); m.ped.add(l.doc_vtas);
+    });
+    var motL = Array.from(mot.entries()).map(function (e) { return { k: e[0], n: e[1].n, monto: e[1].monto, ped: e[1].ped.size }; }).sort(function (a, b) { return b.n - a.n; });
+    var motTop = sinDesp.length ? (function () { var c = new Map(); MOTIVOS.forEach(function (l) { var o = docs.get(l.doc_vtas); if (o && o.estado === 'sin_despacho') { var k = motivoTxt(l.motivo_rechazo); c.set(k, (c.get(k) || 0) + 1); } }); var b = null; c.forEach(function (v, k) { if (!b || v > b[1]) b = [k, v]; }); return b ? b[0] : '—'; })() : '—';
+
+    // zonas y departamentos
+    var zonas = CALC.agrupar(evs, function (p) { return p.zona; }).filter(function (z) { return z.evaluados; }).sort(function (a, b) { return a.clave < b.clave ? -1 : 1; });
+    var deps = CALC.agrupar(evs, function (p) { return p.departamento; }).filter(function (d) { return d.evaluados >= 5; }).sort(function (a, b) { return b.evaluados - a.evaluados; }).slice(0, 10);
+
+    // tramos
+    var tm = g.tramosMed, tMax = null;
+    TRAMOS.forEach(function (t) { var v = tm[t[0]]; if (v != null && (tMax == null || v > tm[tMax])) tMax = t[0]; });
+    var tSum = TRAMOS.reduce(function (a, t) { return a + (tm[t[0]] || 0); }, 0) || 1;
+    var horasJ = (CALC.jornada || 585) / 60;
+
+    var C = 2 * Math.PI * 74, pOtif = g.pOtif || 0;
+    var mkAng = (meta / 100) * 2 * Math.PI, mkX1 = 86 + 64 * Math.cos(mkAng), mkY1 = 86 + 64 * Math.sin(mkAng), mkX2 = 86 + 84 * Math.cos(mkAng), mkY2 = 86 + 84 * Math.sin(mkAng);
+
+    body.innerHTML =
+      '<div class="ot-top">' +
+        '<div class="ot-blue" id="cardOtif">' +
+          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + '<span class="meta">Meta ' + pf(meta, 0) + '</span></div>' +
+          '<div class="ot-hero__body">' +
+            '<div class="ot-gauge"><svg viewBox="0 0 172 172"><circle class="bg" cx="86" cy="86" r="74"/><circle class="fg" id="gFg" cx="86" cy="86" r="74" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '"/>' +
+              '<line class="mk" x1="' + mkX1.toFixed(1) + '" y1="' + mkY1.toFixed(1) + '" x2="' + mkX2.toFixed(1) + '" y2="' + mkY2.toFixed(1) + '"><title>Meta ' + pf(meta, 0) + '</title></line></svg>' +
+              '<div class="ot-gauge__c"><div class="ot-gauge__v" id="gPct">0%</div><div class="ot-gauge__l">En tiempo y forma</div></div></div>' +
+            '<div class="ot-meters">' +
+              '<div class="ot-meter"><div class="ot-meter__hd"><span>A tiempo</span><b id="mOt">0%</b></div><div class="ot-meter__bar"><span id="bOt"></span></div><div class="ot-meter__sub">' + nf(g.ot) + ' de ' + nf(g.evaluados) + ' pedidos llegaron dentro del plazo</div></div>' +
+              '<div class="ot-meter"><div class="ot-meter__hd"><span>Completos</span><b id="mIn">0%</b></div><div class="ot-meter__bar"><span id="bIn"></span></div><div class="ot-meter__sub">' + nf(g.inf) + ' de ' + nf(g.evaluados) + ' pedidos se entregaron sin faltantes</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ot-foot">' +
+            '<div class="ot-st"><b id="sEv">0</b><span>Pedidos evaluados</span></div>' +
+            '<div class="ot-st"><b>' + jd(g.cicloMed) + '</b><span>Ciclo mediano</span></div>' +
+            '<div class="ot-st"><b>' + gs(g.monto) + '</b><span>Monto pedido</span></div>' +
+            '<div class="ot-st"><b>' + nf(g.total) + '</b><span>Pedidos del mes</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ot-blue alt" id="cardTrend">' +
+          '<div class="ot-lbl">Tendencia diaria · ' + esc(mesLbl(CUR)) + '</div>' +
+          (hayTrend
+            ? '<div class="ot-trend__big"><i class="' + cls + '">' + (cls === 'up' ? '▲' : cls === 'down' ? '▼' : '●') + '</i><span id="tUlt" data-v="' + ultimo + '">0%</span><small>último día (' + esc(dl[dl.length - 1]) + ') · ' + (delta >= 0 ? '+' : '') + nf(delta, 1) + ' pts vs ' + esc(dl[dl.length - 2]) + '</small></div>'
+            : '<div class="ot-trend__big"><span style="font-size:20px;letter-spacing:-.2px">Se necesitan al menos 2 días con datos</span></div>') +
+          '<div class="ot-trend__ch">' + (hayTrend ? spark(dv, dl, meta) + '<div class="gspark__x">' + dl.map(function (l, i) { return '<span' + (i === dl.length - 1 ? ' class="on"' : '') + '>' + l + '</span>'; }).join('') + '</div>' : '') + '</div>' +
+          '<div class="ot-foot">' +
+            '<div class="ot-st"><b>' + pf(promDias) + '</b><span>Promedio diario</span></div>' +
+            '<div class="ot-st"><b>' + (hayTrend ? esc(dl[iMax]) + ' · ' + pf(dv[iMax]) : '—') + '</b><span>Mejor día</span></div>' +
+            '<div class="ot-st"><b>' + (hayTrend ? esc(dl[iMin]) + ' · ' + pf(dv[iMin]) : '—') + '</b><span>Peor día</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="ot-tiles">' +
+        tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', [[nf(g.ot), 'Pedidos a tiempo'], [nf(g.evaluados - g.ot), 'Fuera de plazo'], [nf(g.no_entregado), 'No entregados (06)']]) +
+        tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', [[nf(g.inf), 'Sin faltantes'], [nf(g.evaluados - g.inf), 'Con faltantes'], [nf(lineasFalt), 'Artículos sin entrega']]) +
+        tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_registro / g.total * 100 : null), 'Del total'], [nf(conChofer), 'En chofer (04)'], [nf(parciales), 'Entrega parcial']], 'tileSinCerrar', 'Ver lista') +
+        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_despacho / g.total * 100 : null), 'Del total'], [gs(montoSinDesp), 'Monto'], [esc(motTop), 'Motivo principal']]) +
+      '</div>' +
+
+      '<div class="ot-grid2">' +
+        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>mediana por tramo · jornadas hábiles</small></div>' +
+          '<div class="ot-flow">' + TRAMOS.map(function (t) { var v = tm[t[0]] || 0, p = v / tSum * 100; return '<div class="ot-flow__seg" style="flex:' + Math.max(v, tSum * .015) + ' 1 0;background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '" title="' + esc(t[1]) + ' · ' + jd(tm[t[0]]) + '">' + (p >= 9 ? Math.round(p) + '%' : '') + '</div>'; }).join('') + '</div>' +
+          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '<small>' + esc(t[2]) + '</small></div><span class="ot-step__h">' + (v == null ? '' : '≈ ' + nf(v * horasJ, 1) + ' h') + '</span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
+        '</div>' +
+        '<div class="ot-card" id="cardZonas"><div class="ot-card__h"><h3>Cumplimiento por zona y departamento</h3><small>% OTIF · línea = meta</small></div>' +
+          '<div class="ot-zchips">' + zonas.map(function (z) { return '<div class="ot-zchip"><span>' + esc(z.clave) + '</span><div><b>' + pf(z.pOtif) + '</b><small>' + nf(z.evaluados) + ' ped.</small></div></div>'; }).join('') + '</div>' +
+          '<div class="ot-bars">' + deps.map(function (d) { return barRow(d.clave, d.evaluados + ' ped.', d.pOtif, semColor(d.pOtif), pf(d.pOtif), meta); }).join('') + '</div>' +
+          '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Hasta 10 pts abajo</span><span><i style="background:#dc2626"></i>Más de 10 pts abajo</span></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>¿Por qué no se entregaron artículos?</h3><small>' + nf(lineasFalt) + ' artículos sin entrega · motivo de rechazo cargado en SAP</small></div>' +
+        (motL.length ? '<div class="ot-bars">' + motL.slice(0, 10).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' ped. · ' + gs(m.monto), m.n / mx * 100, '#0B5F8D', nf(m.n), null); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
+      '</div>';
+
+    var ts = q('#tileSinCerrar');
+    if (ts) { ts.addEventListener('click', abrirSinCerrar); ts.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSinCerrar(); } }); }
+    animarResumen(g, pOtif, C, hayTrend, entrada);
+  }
+
+  function tile(color, lbl, valHtml, foot, id, accion) {
+    return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + ' →</span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
+      '<div class="ot-tile__f">' + foot.map(function (f) { return '<div><b title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>';
+  }
+  function barRow(name, sub, pct, color, valTxt, meta) {
+    return '<div class="ot-bar"><div class="ot-bar__n" title="' + esc(name) + '">' + esc(name) + '<small>' + esc(sub) + '</small></div>' +
+      '<div class="ot-bar__t"><span data-w="' + Math.max(0, Math.min(100, pct || 0)).toFixed(1) + '" style="background:' + color + '"></span>' + (meta != null ? '<em style="left:' + meta + '%"></em>' : '') + '</div>' +
+      '<div class="ot-bar__v" style="color:' + color + '">' + valTxt + '</div></div>';
+  }
+
+  function animarResumen(g, pOtif, C, hayTrend, entrada) {
+    var off = C * (1 - Math.min(pOtif, 100) / 100);
+    var setW = function (sel, w) { var n = q(sel); if (n) n.style.width = w + '%'; };
+    if (!GS) {
+      q('#gFg').setAttribute('stroke-dashoffset', off);
+      q('#gPct').textContent = pf(g.pOtif); q('#mOt').textContent = pf(g.pOt); q('#mIn').textContent = pf(g.pIn);
+      [['#sEv', nf(g.evaluados)], ['#tOt', pf(g.pOt)], ['#tIn', pf(g.pIn)], ['#tSr', nf(g.sin_registro)], ['#tSd', nf(g.sin_despacho)]].forEach(function (x) { var n = q(x[0]); if (n) n.textContent = x[1]; });
+      var u = q('#tUlt'); if (u) u.textContent = pf(parseFloat(u.dataset.v));
+      setW('#bOt', g.pOt || 0); setW('#bIn', g.pIn || 0);
+      qa('.ot-bar__t span').forEach(function (s) { s.style.width = s.dataset.w + '%'; });
+      return;
+    }
+    var tl = gsap.timeline();
+    // entrada de tarjetas (escalonada)
+    tl.from('#otBody .ot-blue, #otBody .ot-tile, #otBody .ot-card', { opacity: 0, y: entrada ? 18 : 10, duration: .5, stagger: .06, ease: 'power3.out', clearProps: 'transform,opacity' }, 0);
+    // anillo OTIF
+    tl.fromTo('#gFg', { attr: { 'stroke-dashoffset': C } }, { attr: { 'stroke-dashoffset': off }, duration: 1.3, ease: 'power2.out' }, .15);
+    tl.from('.ot-gauge', { scale: .88, duration: .6, ease: 'back.out(1.6)', clearProps: 'transform' }, .1);
+    animCount(q('#gPct'), g.pOtif, function (v) { return pf(v); }, 1.3);
+    animCount(q('#mOt'), g.pOt, function (v) { return pf(v); }, 1.1);
+    animCount(q('#mIn'), g.pIn, function (v) { return pf(v); }, 1.1);
+    animCount(q('#sEv'), g.evaluados, function (v) { return nf(v); }, 1);
+    animCount(q('#tOt'), g.pOt, function (v) { return pf(v); }, 1.1);
+    animCount(q('#tIn'), g.pIn, function (v) { return pf(v); }, 1.1);
+    animCount(q('#tSr'), g.sin_registro, function (v) { return nf(v); }, 1);
+    animCount(q('#tSd'), g.sin_despacho, function (v) { return nf(v); }, 1);
+    tl.fromTo('#bOt', { width: '0%' }, { width: (g.pOt || 0) + '%', duration: 1.1, ease: 'power2.out' }, .25);
+    tl.fromTo('#bIn', { width: '0%' }, { width: (g.pIn || 0) + '%', duration: 1.1, ease: 'power2.out' }, .32);
+    // tendencia: dibujar línea + puntos
+    if (hayTrend) {
+      var line = q('#cardTrend .gspark__line');
+      if (line && line.getTotalLength) {
+        var L = line.getTotalLength();
+        gsap.set(line, { strokeDasharray: L, strokeDashoffset: L });
+        tl.to(line, { strokeDashoffset: 0, duration: 1.2, ease: 'power2.inOut', onComplete: function () { line.style.strokeDasharray = ''; line.style.strokeDashoffset = ''; } }, .3);
+      }
+      tl.from('#cardTrend .gspark__area', { opacity: 0, duration: .8, ease: 'power1.out' }, .6);
+      tl.from('#cardTrend .gspark__dot', { scale: 0, transformOrigin: '50% 50%', duration: .4, stagger: .07, ease: 'back.out(2.5)' }, .55);
+      var ult = q('#tUlt');
+      if (ult) animCount(ult, parseFloat(ult.dataset.v), function (x) { return pf(x); }, 1.2);
+    }
+    // flujo del proceso + barras
+    tl.from('#cardTramos .ot-flow__seg', { scaleX: 0, transformOrigin: '0% 50%', duration: .55, stagger: .08, ease: 'power3.out', clearProps: 'transform' }, .35);
+    tl.from('#cardTramos .ot-step', { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' }, .45);
+    qa('.ot-bar__t span').forEach(function (s, i) { gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .4 + i * .035, ease: 'power3.out' }); });
+    tl.from('#cardZonas .ot-zchip', { opacity: 0, y: 8, scale: .96, duration: .4, stagger: .08, ease: 'back.out(1.8)', clearProps: 'transform,opacity' }, .4);
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     ENTREGAS SIN CERRAR — pedidos con alguna entrega que no llegó a
+     la etapa 5 (culminado y entregado). Lista para que logística
+     las cierre en SAP. Se abre desde la tarjeta naranja.
+     ════════════════════════════════════════════════════════════ */
+  function fechaHora(iso) {
+    if (!iso) return '—';
+    var t = CALC.aMin(iso), d = new Date(t * 60000);
+    return pad(d.getUTCDate()) + '/' + pad(d.getUTCMonth() + 1) + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+  }
+  function diasDesde(iso) { if (!iso) return null; return Math.floor((Date.now() - Date.parse(iso)) / 86400000); }
+  function etapaChip(e) {
+    var n = e.ult_etapa, t = e.etapa_desc || 'Sin etapa';
+    var cls = n === 4 ? 'c04' : n === 6 ? 'c06' : 'cxx';
+    return '<span class="ot-chip ' + cls + '">' + esc(t.replace(/^0?(\d)\s*-\s*/, '0$1 · ').replace('REGISTRAR ENTRE', 'REGISTRAR ENTREGA').replace('NO ENTREGADO/PE', 'NO ENTREGADO')) + '</span>';
+  }
+  async function abrirSinCerrar() {
+    var peds = SIN_CERRAR.slice(), byDoc = new Map();
+    peds.forEach(function (o) { byDoc.set(o.p.doc_vtas, o.p); });
+    var bd = el('<div class="modal-bd open ot-modal"><div class="modal-box">' +
+      '<div class="modal-hd"><div><h3>Entregas sin cerrar</h3><div class="ot-modal__sub">' + nf(peds.length) + ' pedidos de ' + esc(mesLbl(CUR)) + ' con entregas que no llegaron a la etapa 5 (culminado y entregado)</div></div>' +
+        '<button class="modal-x" type="button" aria-label="Cerrar"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>' +
+      '<div class="ot-modal__bar"><div class="ot-search"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Buscar pedido, entrega, cliente o chofer…" /></div>' +
+        '<span class="ot-count"></span><button class="btn btn--sm" type="button" data-x>' + IC.upload.replace('M17 8l-5-5-5 5M12 3v12', 'M7 10l5 5 5-5M12 15V3') + ' Exportar Excel</button></div>' +
+      '<div class="ot-modal__body"><div class="ot-loading" style="padding:50px 20px"><div class="ot-loading__ring"></div><b>Buscando entregas…</b></div></div>' +
+      '</div></div>');
+    document.body.appendChild(bd);
+    var box = q('.modal-box', bd), body = q('.ot-modal__body', bd), inp = q('input', bd), cnt = q('.ot-count', bd), filas = [];
+    function cerrar() {
+      if (!GS) { bd.remove(); return; }
+      gsap.to(box, { opacity: 0, y: 14, scale: .97, duration: .22, ease: 'power2.in' });
+      gsap.to(bd, { opacity: 0, duration: .26, delay: .04, onComplete: function () { bd.remove(); } });
+    }
+    q('.modal-x', bd).addEventListener('click', cerrar);
+    bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
+    document.addEventListener('keydown', function esc_(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', esc_); } });
+    if (GS) { gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .25 }); gsap.fromTo(box, { opacity: 0, y: 22, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: .45, ease: 'back.out(1.5)', clearProps: 'transform,opacity' }); }
+
+    try {
+      var docs = Array.from(byDoc.keys()), ents = [];
+      for (var i = 0; i < docs.length; i += 150) {
+        var r = await DB.from('otif_entregas').select('entrega,doc_vtas,almacen,ult_etapa,etapa_desc,ts_transporte,transporte,usuario_transp,nro_manifiesto,ts_entrega').in('doc_vtas', docs.slice(i, i + 150));
+        if (r.error) throw r.error;
+        ents = ents.concat(r.data);
+      }
+      filas = ents.filter(function (e) { return e.ult_etapa !== 5; }).map(function (e) {
+        var p = byDoc.get(e.doc_vtas) || {};
+        return { e: e, p: p, parcial: p.n_entregadas > 0 };
+      }).sort(function (a, b) { return (a.e.ts_transporte || '9') < (b.e.ts_transporte || '9') ? -1 : 1; });
+    } catch (err) { console.error(err); body.innerHTML = '<div class="ot-soon" style="padding:40px">No se pudieron traer las entregas.</div>'; return; }
+
+    function pintar(f) {
+      var t = (f || '').toLowerCase().trim();
+      var vis = !t ? filas : filas.filter(function (x) { return [x.e.entrega, x.e.doc_vtas, x.p.cliente_nombre, x.e.usuario_transp, x.e.transporte].join(' ').toLowerCase().indexOf(t) >= 0; });
+      cnt.textContent = nf(vis.length) + ' entregas';
+      if (!vis.length) { body.innerHTML = '<div class="ot-soon" style="padding:40px">Sin resultados.</div>'; return; }
+      body.innerHTML = '<table class="ot-tbl"><thead><tr><th>Entrega</th><th>Pedido</th><th>Cliente</th><th>Alm.</th><th>Etapa</th><th>Chofer</th><th>Transporte</th><th>Salió</th><th class="r">Hace</th></tr></thead><tbody>' +
+        vis.slice(0, 400).map(function (x) {
+          var d = diasDesde(x.e.ts_transporte);
+          return '<tr><td class="b">' + esc(x.e.entrega) + '</td><td>' + esc(x.e.doc_vtas) + (x.parcial ? ' <span class="ot-chip cpar" title="El pedido tiene otras entregas ya registradas">parcial</span>' : '') + '</td>' +
+            '<td class="cli" title="' + esc(x.p.cliente_nombre) + '">' + esc(x.p.cliente_nombre || x.p.cliente_cod || '—') + '</td><td>' + esc(x.e.almacen || '—') + '</td><td>' + etapaChip(x.e) + '</td>' +
+            '<td>' + esc(x.e.usuario_transp || '—') + '</td><td class="tr" title="' + esc(x.e.transporte || '') + '">' + esc(x.e.transporte || '—') + '</td><td>' + fechaHora(x.e.ts_transporte) + '</td><td class="r">' + (d == null ? '—' : nf(d) + ' d') + '</td></tr>';
+        }).join('') + '</tbody></table>' + (vis.length > 400 ? '<div class="ot-more">Se muestran 400 de ' + nf(vis.length) + '. Usá el buscador o exportá a Excel para ver todo.</div>' : '');
+      if (GS) gsap.from(qa('tbody tr', body).slice(0, 22), { opacity: 0, x: -8, duration: .28, stagger: .02, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+    pintar('');
+    var tmr; inp.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(function () { pintar(inp.value); }, 160); });
+    setTimeout(function () { inp.focus(); }, 350);
+
+    q('[data-x]', bd).addEventListener('click', async function () {
+      try {
+        var X = await cargarXLSX();
+        var aoa = [['Entrega', 'Pedido', 'Cliente', 'Almacén', 'Etapa', 'Chofer', 'Transporte', 'Manifiesto', 'Salió (fecha y hora)', 'Días desde que salió', 'Pedido con entrega parcial']];
+        filas.forEach(function (x) { aoa.push([x.e.entrega, x.e.doc_vtas, x.p.cliente_nombre || x.p.cliente_cod || '', x.e.almacen || '', x.e.etapa_desc || '', x.e.usuario_transp || '', x.e.transporte || '', x.e.nro_manifiesto || '', fechaHora(x.e.ts_transporte), diasDesde(x.e.ts_transporte), x.parcial ? 'Sí' : 'No']); });
+        var wb = X.utils.book_new(), ws = X.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [12, 12, 34, 8, 24, 14, 28, 14, 18, 10, 12].map(function (w) { return { wch: w }; });
+        X.utils.book_append_sheet(wb, ws, 'Sin cerrar');
+        X.writeFile(wb, 'entregas_sin_cerrar_' + CUR + '.xlsx');
+        toast('Excel descargado');
+      } catch (err) { console.error(err); toast('No se pudo exportar', true); }
+    });
+  }
+
+  /* ── Navegación ── */
+  function setNav(v) {
+    qa('[data-nav]').forEach(function (b) {
+      var on = b.dataset.nav === v, was = b.classList.contains('is-active');
+      b.classList.toggle('is-active', on);
+      if (on && !was && GS) { var ic = b.querySelector('.nav-btn__ico'); if (ic) gsap.fromTo(ic, { scale: .7 }, { scale: 1, duration: .4, ease: 'back.out(2.2)', clearProps: 'transform' }); }
+    });
+  }
+  function ir(v) { VIEW = v; setNav(v); if (!q('#otBody')) { renderShell(); return; } renderPagina(true); }
+
+  async function irMes(ym, dir) {
+    CUR = ym;
+    var cur = q('#mnCur'); if (cur) { cur.textContent = mesLbl(CUR); if (GS) gsap.fromTo(cur, { y: dir > 0 ? 8 : -8, opacity: .2 }, { y: 0, opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' }); }
+    var body = q('#otBody'); if (body) body.classList.add('ot-busy');
+    try { await cargarMes(); renderShell(); }
+    catch (e) { console.error(e); toast('No se pudo cargar el mes', true); if (body) body.classList.remove('ot-busy'); }
+  }
+
+  async function refrescar() {
+    var btn = q('#btnRefresh'), icon = btn && btn.querySelector('svg'), spin = null;
+    if (btn) btn.classList.add('is-busy');
+    if (GS && icon) { gsap.set(icon, { transformOrigin: '50% 50%' }); spin = gsap.to(icon, { rotation: '+=360', duration: .8, ease: 'none', repeat: -1 }); }
+    try {
+      await Promise.all([cargarBase().then(cargarMes), new Promise(function (r) { setTimeout(r, 600); })]);
+      if (spin) spin.kill(); renderShell(); toast('Datos actualizados');
+    } catch (e) { console.error(e); if (spin) spin.kill(); if (btn) btn.classList.remove('is-busy'); toast('No se pudo refrescar', true); }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     ACTUALIZAR BASE (Excel de SAP)
+     Pantalla de carga minimalista azul: anillo fino con brillo,
+     % continuo (GSAP persigue el objetivo), pasos que se tildan,
+     cierre con check + resumen. El Excel se lee en un Web Worker
+     para que la animación no se trabe.
+     ════════════════════════════════════════════════════════════ */
+  var SVG_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
+  var ICO_XLS = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13l4 5M12 13l-4 5"/></svg>';
+  var PASOS = ['Leyendo el Excel', 'Procesando pedidos', 'Guardando en la nube', 'Actualizando el tablero'];
+
+  function pantallaCarga(nombreArchivo) {
+    var R = 70, C = 2 * Math.PI * R;
+    var ov = el('<div class="ld-ov"><div class="ld-card">' +
+      '<div class="ld-file">' + ICO_XLS + '<span>' + esc(nombreArchivo) + '</span></div>' +
+      '<div class="ld-ring"><svg viewBox="0 0 156 156"><circle class="halo" cx="78" cy="78" r="76"/><circle class="bg" cx="78" cy="78" r="' + R + '"/><circle class="fg" cx="78" cy="78" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
+        '<div class="ld-pct"><span>0</span><small>%</small></div>' +
+        '<svg class="ld-ok" viewBox="0 0 156 156"><circle cx="78" cy="78" r="58"/><path d="M52 80 l18 18 l36 -40"/></svg></div>' +
+      '<div class="ld-title">Actualizando la base</div>' +
+      '<div class="ld-msg">Preparando…</div>' +
+      '<div class="ld-steps">' + PASOS.map(function (p) { return '<div class="ld-step"><span class="ld-step__i">' + SVG_OK + '</span><span class="ld-step__t">' + p + '</span><span class="ld-step__n"></span></div>'; }).join('') + '</div>' +
+      '</div></div>');
+    document.body.appendChild(ov);
+    var card = q('.ld-card', ov), fg = q('.fg', ov), num = q('.ld-pct span', ov), msgEl = q('.ld-msg', ov), steps = qa('.ld-step', ov);
+    var st = { v: 0 }, objetivo = 0, tw = null;
+
+    function dibujar() { fg.setAttribute('stroke-dashoffset', (C * (1 - st.v / 100)).toFixed(2)); num.textContent = Math.round(st.v); }
+    // Avanza suave hacia el objetivo (nunca retrocede)
+    function ir(p, dur, ease) {
+      objetivo = Math.max(objetivo, Math.min(100, p));
+      if (!GS) { st.v = objetivo; dibujar(); return; }
+      if (tw) tw.kill();
+      tw = gsap.to(st, { v: objetivo, duration: dur || .7, ease: ease || 'power2.out', onUpdate: dibujar });
+    }
+    function mensaje(t) {
+      if (msgEl.textContent === t) return;
+      if (!GS) { msgEl.textContent = t; return; }
+      gsap.to(msgEl, { opacity: 0, y: -4, duration: .14, ease: 'power1.in', onComplete: function () { msgEl.textContent = t; gsap.fromTo(msgEl, { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: .24, ease: 'power2.out' }); } });
+    }
+    function paso(i, extra) {
+      steps.forEach(function (s, k) {
+        var was = s.classList.contains('is-ok');
+        s.classList.toggle('is-ok', k < i);
+        s.classList.toggle('is-on', k === i);
+        if (k < i && !was && GS) {
+          var ic = q('.ld-step__i', s), pth = q('path', s), L = 24;
+          gsap.fromTo(ic, { scale: .6 }, { scale: 1, duration: .45, ease: 'back.out(2.6)', clearProps: 'transform' });
+          gsap.fromTo(pth, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: .35, delay: .08, ease: 'power2.out' });
+        }
+      });
+      if (extra != null && steps[i]) q('.ld-step__n', steps[i]).textContent = extra;
+    }
+
+    // Entrada
+    if (GS) {
+      gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.out' });
+      gsap.fromTo(card, { opacity: 0, y: 26, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: .55, ease: 'back.out(1.5)', clearProps: 'transform,opacity' });
+      gsap.from(steps, { opacity: 0, x: -10, duration: .35, stagger: .06, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.ld-ring', ov), { scale: .85, opacity: 0, duration: .6, delay: .08, ease: 'back.out(1.6)', clearProps: 'transform,opacity' });
+    }
+
+    function cerrar(cb) {
+      if (!GS) { ov.remove(); if (cb) cb(); return; }
+      gsap.to(card, { opacity: 0, y: 14, scale: .96, duration: .32, ease: 'power2.in' });
+      gsap.to(ov, { opacity: 0, duration: .36, delay: .06, ease: 'power1.in', onComplete: function () { ov.remove(); if (cb) cb(); } });
+    }
+    function botones(html, onClick) {
+      var b = el(html); card.appendChild(b);
+      if (GS) gsap.from(b, { opacity: 0, y: 8, duration: .35, delay: .35, ease: 'power2.out', clearProps: 'transform,opacity' });
+      b.addEventListener('click', onClick);
+    }
+    function sello(fail) {
+      var okSvg = q('.ld-ok', ov), pth = q('.ld-ok path', ov);
+      if (fail) { card.classList.add('is-fail'); pth.setAttribute('d', 'M58 58 L98 98 M98 58 L58 98'); }
+      if (!GS) { okSvg.style.opacity = 1; q('.ld-pct', ov).style.opacity = 0; return; }
+      var L = pth.getTotalLength ? pth.getTotalLength() : 90;
+      gsap.to(q('.ld-pct', ov), { opacity: 0, scale: .7, duration: .25, ease: 'power2.in' });
+      gsap.fromTo(okSvg, { opacity: 0, scale: .4, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: .55, ease: 'back.out(1.9)', delay: .12 });
+      gsap.fromTo(pth, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: .45, delay: .4, ease: 'power2.out' });
+      gsap.fromTo(card, { scale: 1 }, { scale: 1.025, duration: .18, yoyo: true, repeat: 1, delay: .5, ease: 'power1.inOut', clearProps: 'transform' });
+    }
+
+    return {
+      ir: ir, mensaje: mensaje, paso: paso,
+      // espera "viva": el anillo sigue avanzando despacio mientras se trabaja
+      gotear: function (hasta, seg) { ir(hasta, seg, 'power1.out'); },
+      ok: function (filas, alCerrar) {
+        paso(PASOS.length);
+        ir(100, .5, 'power2.inOut');
+        setTimeout(function () {
+          sello(false);
+          q('.ld-title', ov).textContent = 'Base actualizada';
+          mensaje('Ya está disponible para todo el equipo');
+          var sum = el('<div class="ld-sum">' + filas.map(function (r) { return '<div class="row"><span>' + esc(r[0]) + '</span><b' + (r[2] ? ' class="new"' : '') + '>' + esc(r[1]) + '</b></div>'; }).join('') + '</div>');
+          var stepsBox = q('.ld-steps', ov);
+          if (GS) {
+            gsap.to(stepsBox, { opacity: 0, height: 0, marginTop: 0, duration: .35, ease: 'power2.inOut', onComplete: function () { stepsBox.remove(); } });
+            card.appendChild(sum);
+            gsap.from(qa('.row', sum), { opacity: 0, y: 8, duration: .32, stagger: .07, delay: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
+            gsap.from(sum, { opacity: 0, duration: .3, delay: .25 });
+          } else { stepsBox.remove(); card.appendChild(sum); }
+          botones('<button class="ld-btn" type="button">Ver el tablero actualizado</button>', function () { cerrar(alCerrar); });
+        }, 560);
+      },
+      fail: function (texto) {
+        if (tw) tw.kill();
+        steps.forEach(function (s) { s.classList.remove('is-on'); });
+        sello(true);
+        q('.ld-title', ov).textContent = 'No se pudo cargar';
+        mensaje(texto);
+        botones('<button class="ld-btn ld-btn--ghost" type="button">Cerrar</button>', function () { cerrar(); });
+      }
+    };
+  }
+
+  function adaptador() {
+    return {
+      insertImport: async function (row) { var r = await DB.from('otif_importaciones').insert(row).select('id').single(); if (r.error) throw r.error; return r.data; },
+      existentes: async function (t, col, keys) { var r = await DB.from(t).select(col).in(col, keys); if (r.error) throw r.error; return r.data.map(function (x) { return x[col]; }); },
+      upsert: async function (t, rows, oc) { var r = await DB.from(t).upsert(rows, { onConflict: oc, returning: 'minimal' }); if (r.error) throw r.error; }
+    };
+  }
+
+  // Lee y procesa el Excel en un Web Worker (fluido). Si el navegador no
+  // permite workers, cae a hacerlo en la página.
+  function procesarEnWorker(buf, alFase) {
+    return new Promise(function (resolve, reject) {
+      var w;
+      try { w = new Worker('otif-worker.js'); } catch (e) { reject(e); return; }
+      w.onmessage = function (e) {
+        var m = e.data;
+        if (m.t === 'fase') alFase(m.fase);
+        else if (m.t === 'fin') { w.terminate(); resolve(m.res); }
+        else if (m.t === 'error') { w.terminate(); reject(new Error(m.msg)); }
+      };
+      w.onerror = function (e) { w.terminate(); reject(new Error(e.message || 'Error leyendo el Excel')); };
+      w.postMessage({ buf: buf }, [buf]);
+    });
+  }
+  function cargarXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = function () { res(window.XLSX); }; s.onerror = function () { rej(new Error('No se pudo cargar el lector de Excel')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function subirExcel(file) {
+    var ui = pantallaCarga(file.name);
+    var espera = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    try {
+      await espera(420);                                   // que termine la entrada
+      ui.paso(0); ui.mensaje('Abriendo ' + (file.size > 1048576 ? nf(file.size / 1048576, 1) + ' MB' : nf(file.size / 1024) + ' KB') + '…');
+      var buf = await file.arrayBuffer();
+      ui.ir(4);
+      var res;
+      try {
+        res = await procesarEnWorker(buf.slice(0), function (fase) {
+          if (fase === 'leer') { ui.mensaje('Leyendo filas del Excel…'); ui.gotear(16, 9); }
+          if (fase === 'procesar') { ui.paso(1); ui.mensaje('Agrupando pedidos, entregas y artículos…'); ui.gotear(24, 4); }
+        });
+      } catch (eW) {
+        console.warn('[OTIF] Worker no disponible, proceso en la página:', eW);
+        ui.mensaje('Leyendo filas del Excel…');
+        var X = await cargarXLSX(); await espera(40);
+        var wb = X.read(buf, { type: 'array' });
+        ui.paso(1); await espera(40);
+        res = OtifImport.parsear(X, wb);
+      }
+      if (!res.ok) { ui.fail(res.error); return; }
+      ui.paso(1, nf(res.meta.pedidos) + ' pedidos');
+      ui.ir(26);
+      await espera(250);
+      ui.paso(2);
+      var out = await OtifImport.subir(adaptador(), res, { archivo: file.name, usuario: userName() }, function (p, t) {
+        ui.ir(26 + p * .66, .6);
+        if (t) ui.mensaje(t);
+      });
+      ui.paso(3); ui.mensaje('Recalculando indicadores…');
+      CUR = res.meta.carga_hasta.slice(0, 7);
+      await cargarBase(); CUR = res.meta.carga_hasta.slice(0, 7);
+      ui.ir(96, 1.2);
+      await cargarMes();
+      var f = function (d) { return d ? d.slice(8) + '/' + d.slice(5, 7) : '—'; };
+      ui.ok([
+        ['Pedidos en el Excel', nf(res.meta.pedidos)],
+        ['Pedidos nuevos', nf(out.nuevos), true],
+        ['Pedidos actualizados', nf(out.actualizados)],
+        ['Período (fecha de carga)', f(res.meta.carga_desde) + ' → ' + f(res.meta.carga_hasta) + '/' + res.meta.carga_hasta.slice(0, 4)]
+      ], function () { renderShell(); });
+    } catch (e) {
+      console.error(e);
+      ui.fail('Error al guardar: ' + (e && e.message ? e.message : e) + '. Probá de nuevo: lo que ya se guardó no se duplica.');
+    }
+  }
+
+  /* ── Init ── */
+  window.__initOtif = async function () {
+    qa('[data-nav]').forEach(function (b) { b.addEventListener('click', function () { ir(b.dataset.nav); }); });
+    q('#fileBase').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) subirExcel(f); });
+    if (!DB) { q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>Sin conexión</h3><p>No se pudo conectar con la base de datos.</p></div>'; return; }
+    q('#stage').innerHTML = '<div class="ot-loading"><div class="ot-loading__ring"></div><b>Cargando pedidos</b><span>Calculando el cumplimiento del mes…</span></div>';
+    if (GS) gsap.from('#stage .ot-loading', { opacity: 0, y: 10, duration: .4, ease: 'power2.out', clearProps: 'transform,opacity' });
+    try { await cargarBase(); await cargarMes(); renderShell(); }
+    catch (e) { console.error(e); q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>No se pudieron cargar los datos</h3><p>' + esc(e && e.message ? e.message : e) + '</p></div>'; }
+  };
+})();

@@ -1,47 +1,29 @@
-# Productividad Picking - Ranking 3D
+# Pedidos en tiempo y forma (OTIF) — ALAS
 
-Este es un proyecto web premium e interactivo diseñado para la presentación y gestión visual del ranking de productividad de preparadores de pedidos ("pickers"). Combina un diseño de interfaz de usuario futurista (Cyberpunk y Glassmorphism) con barras de progreso tridimensionales dinámicas y animaciones fluidas con GSAP.
+Módulo del Launcher **"Reporte de pedidos en tiempo y forma"**. Mide el cumplimiento OTIF
+(*On Time In Full*) **por pedido**, a partir del export de pedidos/entregas de SAP.
 
-## ✨ Características Principales
+> Este repo antes contenía **Productividad Picking**. Ese módulo ahora vive dentro de
+> Items Borrados (`itemsborrados/picking/`). El código viejo quedó en la etiqueta
+> `archive/picking-standalone`.
 
-1. **Dashboard 3D de Alto Impacto**:
-   - Barras de productividad tridimensionales reales construidas con transformaciones CSS 3D (`preserve-3d`).
-   - Efecto de iluminación neón ambiental y brillos dinámicos en las barras según el puntaje.
-   - Efecto de inclinación 3D (Tilt) interactivo al pasar el cursor sobre las filas del ranking.
-   - Puestos del podio (1º, 2º y 3º) resaltados con colores metalizados (Oro, Plata, Bronce) y medallas brillantes.
+## Cómo se calcula
+- **Completo**: todas las líneas del pedido entregadas y facturadas (`Cant.Fact. >= Ctd.ped.`).
+- **A tiempo**: horas hábiles desde la carga del pedido hasta la **última** entrega ≤ plazo (SLA).
+  El plazo se busca por condición de envío → departamento → zona → valor por defecto.
+- **Entregado** = etapa 5 (culminado y entregado). Etapa 06 (no entregado) cuenta como **fuera de plazo**.
+- Pedidos con entregas en etapa 04 (chofer) u otras sin cerrar **no se evalúan**: van a la lista
+  *Entregas sin cerrar* para que logística las cierre en SAP.
+- Calendario laboral, feriados, plazos y meta: tabla `otif_config`.
 
-2. **Panel de Administración Lateral**:
-   - **Crear**: Agrega nuevos preparadores con su nombre y tasa de picks/hora.
-   - **Editar**: Modifica directamente el nombre, los picks/hora o la foto de cualquier preparador mediante un modal flotante integrado.
-   - **Eliminar**: Remueve preparadores con animaciones suaves de desvanecimiento de GSAP.
-   - **Persistencia**: Todos los datos se guardan en el almacenamiento local (`localStorage`) del navegador, por lo que no se perderán al recargar o cerrar la página.
+## Archivos
+| Archivo | Qué hace |
+|---|---|
+| `index.html`, `style.css`, `app.js` | Pantalla (shell del ecosistema + Resumen + animaciones GSAP) |
+| `otif-calc.js` | Motor OTIF (horas hábiles en hora de Paraguay, SLA, agrupaciones) |
+| `otif-import.js` | Lee el Excel de SAP tal cual sale y lo guarda (upsert, no duplica) |
+| `otif-worker.js` | Lee el Excel en segundo plano para que la carga sea fluida |
+| `otif_schema.sql` | Tablas en Supabase (pedidos, entregas, líneas, materiales, regiones, config) |
+| `otif_views.sql` | Vista `otif_v_pedidos` (una fila por pedido) que lee la pantalla |
 
-3. **Subida de Fotos Personalizadas**:
-   - Carga imágenes o fotos reales de tus preparadores desde tu computadora. Se procesan a nivel de cliente y se guardan directamente en el navegador.
-   - Selección rápida entre 4 avatares predeterminados de diseño premium de forma alternativa.
-
-4. **Modo TV (Pantalla Completa)**:
-   - Activa el modo "Pantalla Completa" para ocultar el panel de administración y escalar toda la interfaz (tamaño de textos, barras 3D y avatares) para su visualización clara en televisores o monitores grandes dentro del almacén.
-
----
-
-## 🛠️ Tecnologías Utilizadas
-
-- **HTML5**: Estructura semántica completa optimizada para accesibilidad.
-- **Vanilla CSS**: Estilos a medida, glassmorphism (`backdrop-filter`) y transformaciones 3D.
-- **Vanilla Javascript (ES6)**: Lógica de la aplicación, operaciones CRUD y gestión de persistencia.
-- **GSAP (GreenSock Animation Platform)**:
-  - Animación inicial progresiva (cascada).
-  - Técnica FLIP para la transición de ordenamiento del ranking cuando cambian los puntajes.
-  - Animación rodante del conteo numérico de picks y estadísticas globales.
-
----
-
-## 🚀 Cómo Ejecutar el Proyecto
-
-Este proyecto no requiere de ningún servidor backend, bases de datos complejas ni instalaciones de NodeJS. Se ejecuta directamente en el navegador web del cliente.
-
-1. Ve a la carpeta del proyecto en tu explorador de archivos:
-   `/home/eladripc/.gemini/antigravity/scratch/productividad_picking/`
-2. Abre el archivo `index.html` con cualquier navegador web moderno (Google Chrome, Microsoft Edge, Mozilla Firefox o Safari).
-3. ¡Comienza a configurar tus preparadores!
+Supabase: proyecto `yvwslygebxuiivlzscpq`. Los Excel no se suben al repo (`.gitignore`).

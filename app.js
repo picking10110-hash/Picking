@@ -99,7 +99,7 @@
   }
   function chipEstado(p, meta) { var e = estadoMeta(p, meta); return '<span class="st-meta ' + e.c + '"><i></i>' + e.t + ' <small>' + pf(meta, 0) + '</small></span>'; }
   var IC_META = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
-  function chipFaltan(f, meta) { return f === 0 ? '<span class="meta ok">' + IC_META + 'Meta alcanzada</span>' : '<span class="meta gap">' + IC_META + '<b>' + nf(f) + '</b> pedidos para alcanzar el ' + pf(meta, 0) + '</span>'; }
+  function chipFaltan(f, meta, corto) { return f === 0 ? '<span class="meta ok">' + IC_META + 'Meta alcanzada</span>' : '<span class="meta gap" title="' + nf(f) + ' pedidos para alcanzar el ' + pf(meta, 0) + '">' + IC_META + '<b>' + nf(f) + '</b>' + (corto ? ' para el ' : ' pedidos para alcanzar el ') + pf(meta, 0) + '</span>'; }
 
   /* ── Estado ── */
   var DB = window.__otifDB;
@@ -692,6 +692,15 @@
      los pedidos que les faltan para llegar a la meta.
      ════════════════════════════════════════════════════════════ */
   var ZN = { orden: 'faltan', abierto: null, lente: 'cumpl', sel: null };
+  function ajustarAltoZonas() {
+    var lay = q('.zn-layout'), st = q('#stage'); if (!lay || !st) return;
+    if (window.innerWidth <= 1180) { lay.classList.remove('fit'); lay.style.height = ''; return; }
+    lay.classList.add('fit');
+    var top = lay.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop;
+    var pb = parseFloat(getComputedStyle(st).paddingBottom) || 0, bb = parseFloat(getComputedStyle(q('#otBody') || st).paddingBottom) || 0;
+    lay.style.height = Math.max(460, st.clientHeight - top - pb - bb - 4) + 'px';
+  }
+  window.addEventListener('resize', function () { if (VIEW === 'zonas') ajustarAltoZonas(); });
   function renderZonas(body, entrada) {
     var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85, tot = CALC.resumen(evs);
     q('#tbTitle').textContent = 'Cumplimiento por zona';
@@ -708,11 +717,11 @@
       var cap = z.clave === 'Capital';
       return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + '">' +
         '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(z.clave) + '</b></span>' +
-          '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f == null ? '' : chipFaltan(f, meta)) + '</div></div>' +
+          '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f == null ? '' : chipFaltan(f, meta, true)) + '</div></div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
         '<div class="ot-foot">' +
-          '<div class="ot-st"><b>' + nf(z.evaluados) + '</b><span>Pedidos evaluados</span></div>' +
+          '<div class="ot-st"><b>' + nf(z.evaluados) + '</b><span>Pedidos</span></div>' +
           '<div class="ot-st"><b>' + tiempo(z.cicloMed) + '</b><span>Tiempo habitual</span></div>' +
           '<div class="ot-st"><b>' + plazo(slaProm(lista)) + '</b><span>Plazo</span></div>' +
         '</div></div>';
@@ -821,18 +830,19 @@
       pintarFilas(true);
       if (abrir) { var r = q('#znRows .zn-row[data-dep="' + abrir + '"]'); if (r) toggleDep(r.parentNode, abrir); }
       if (!l.length) return;
-      var st = q('#stage'), rk = q('#znRank'); if (!st || !rk) return;
-      var top = rk.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop - 16;
-      if (GS) gsap.to(st, { scrollTop: top, duration: .7, ease: 'power3.inOut' }); else st.scrollTop = top;
+      var rows = q('#znRows'); if (!rows) return;
+      if (GS) gsap.to(rows, { scrollTop: 0, duration: .5, ease: 'power3.inOut' }); else rows.scrollTop = 0;
+      var st = q('#stage'); if (st && st.scrollTop > 0) { if (GS) gsap.to(st, { scrollTop: 0, duration: .5, ease: 'power3.inOut' }); else st.scrollTop = 0; }
       if (GS) gsap.fromTo('#znFInfo', { backgroundColor: '#CFE4FA' }, { backgroundColor: '#EEF5FC', duration: 1.2, ease: 'power1.out', clearProps: 'backgroundColor' });
     };
+    ajustarAltoZonas();
     pintarFilas(entrada);
     setTimeout(function () { if (!q('#znMapBox') || VIEW !== 'zonas') return; mapApi = pintarMapa(deps, meta, entrada, function (dep) {
       var r = qa('#znRows .zn-row[data-dep]').filter(function (x) { return x.dataset.dep === dep; })[0];
       if (!r) return;
       if (!r.parentNode.classList.contains('open')) toggleDep(r.parentNode, dep);
-      var st = q('#stage'), top = r.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop - 90;
-      if (GS) gsap.to(st, { scrollTop: top, duration: .6, ease: 'power2.inOut' }); else st.scrollTop = top;
+      var rows = q('#znRows'), top = r.getBoundingClientRect().top - rows.getBoundingClientRect().top + rows.scrollTop - 8;
+      if (GS) gsap.to(rows, { scrollTop: top, duration: .6, ease: 'power2.inOut' }); else rows.scrollTop = top;
       if (GS) gsap.fromTo(r, { backgroundColor: '#dbeafe' }, { backgroundColor: 'rgba(0,0,0,0)', duration: 1.4, delay: .4, ease: 'power1.out', clearProps: 'backgroundColor' });
     }); }, GS && entrada !== false ? 380 : 0);   // el mapa se dibuja cuando termina la entrada de la página
 

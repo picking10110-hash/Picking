@@ -1697,3 +1697,29 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 /* durante el zoom el mapa no reacciona al mouse (evita trabajo extra) */
 .zn-map__box.zooming{pointer-events:none}
 .zn-map__box.zooming .pm-o{display:none}
+
+/* ===== Zonas en una sola vista: solo la tabla tiene scroll ===== */
+.zn-layout.fit{align-items:stretch;min-height:0}
+.zn-layout.fit .zn-left{display:flex;flex-direction:column;min-height:0}
+.zn-layout.fit #znRank{flex:1;min-height:0;display:flex;flex-direction:column}
+.zn-layout.fit #znRows{flex:1;min-height:0;overflow-y:auto;margin-right:-6px;padding-right:6px;scrollbar-width:thin;scrollbar-color:#C9D8E8 transparent}
+.zn-layout.fit #znRows::-webkit-scrollbar{width:6px}
+.zn-layout.fit #znRows::-webkit-scrollbar-thumb{background:#C9D8E8;border-radius:6px}
+.zn-layout.fit .zn-right{position:static;min-height:0;height:100%}
+.zn-layout.fit .zn-right .zn-map{height:100%;min-height:0}
+.zn-layout.fit .zn-map__wrap{min-height:0}
+.zn-layout.fit .zn-dl-b{overflow-y:auto}
+
+/* ===== Tarjetas de zona: chips a la izquierda, datos arriba a la derecha ===== */
+.zn-stack--top .zn-card{grid-template-columns:auto 1fr auto;grid-template-areas:"top top foot" "big meter meter";row-gap:10px}
+.zn-stack--top .zn-top{flex-wrap:nowrap;gap:10px}
+.zn-stack--top .zn-chips{margin:0;flex-wrap:nowrap}
+.zn-stack--top .ot-foot{align-self:start;justify-self:end}
+.zn-stack--top .ot-st:first-child{padding-left:12px}
+.zn-stack--top .zn-meter{margin:0 0 12px}
+@media(max-width:1500px){.zn-stack--top .zn-card{grid-template-columns:auto 1fr;grid-template-areas:"top top" "foot foot" "big meter"}.zn-stack--top .ot-foot{justify-self:start}.zn-stack--top .zn-top{flex-wrap:wrap}}
+.zn-stack--top .ot-st span{overflow:visible;text-overflow:clip}
+.zn-stack--top .zn-top{min-width:0}
+@media(max-width:1750px){.zn-stack--top .zn-card{grid-template-columns:auto 1fr;grid-template-areas:"top foot" "big meter"}.zn-stack--top .zn-chips .st-meta small{display:none}}
+@media(max-width:1600px){.zn-stack--top .zn-card{grid-template-areas:"top top" "big foot" "meter meter"}.zn-stack--top .ot-foot{justify-self:end;align-self:center}.zn-stack--top .zn-meter{margin-bottom:14px}}
+.zn-stack--top .ot-st{padding:0 16px;min-width:max-content}

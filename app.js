@@ -369,7 +369,7 @@
     var deps = CALC.agrupar(evs, function (p) { return p.departamento; }).filter(function (d) { return d.evaluados >= 5; }).sort(function (a, b) { return b.evaluados - a.evaluados; }).slice(0, 10);
 
     // tramos
-    var tm = g.tramosMed, tMax = null;
+    var gT = TZ ? CALC.resumen(evs.filter(enTZ)) : g, tm = gT.tramosMed, tMax = null;
     TRAMOS.forEach(function (t) { var v = tm[t[0]]; if (v != null && (tMax == null || v > tm[tMax])) tMax = t[0]; });
     var tSum = TRAMOS.reduce(function (a, t) { return a + (tm[t[0]] || 0); }, 0) || 1;
     var horasJ = (CALC.jornada || 585) / 60;
@@ -413,7 +413,9 @@
       '</div>' +
 
       '<div class="ot-grid2">' +
-        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se demora el pedido?</h3><small>tiempo habitual · tocá una etapa para ver sus pedidos</small></div>' +
+        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se demora el pedido?</h3>' +
+            '<div class="zn-sort rt-zona" id="rtZona">' + [['', 'Todas'], ['Capital', 'Capital'], ['Interior', 'Interior']].map(function (z) { return '<button type="button" data-z="' + z[0] + '"' + (TZ === z[0] ? ' class="on"' : '') + '>' + z[1] + '</button>'; }).join('') + '</div></div>' +
+          '<div class="rt-sub" id="rtSub">' + rtSubTxt(gT) + '</div>' +
           '<div class="rt"><div class="rt-line"><span></span></div>' + TRAMOS.map(function (t) { var v = tm[t[0]], mx = t[0] === tMax; return '<div class="rt-n' + (mx ? ' is-max' : '') + '" data-etapa="' + t[0] + '" role="button" tabindex="0" title="Ver los pedidos de ' + esc(t[1].toLowerCase()) + ' (' + esc(t[2]) + ')"><i class="rt-go">' + SV('<path d="M7 17L17 7M9 7h8v8"/>') + '</i><div class="rt-i">' + STG_ICO[t[0]] + '</div><b>' + esc(t[1]) + '</b><span>' + jd(v) + '</span>' + (mx ? '<em>Cuello de botella</em>' : '') + '</div>'; }).join('') + '</div>' +
           '<div class="cfg-wrap">' + btnConfigHorario() + '</div>' +
         '</div>' +
@@ -429,6 +431,14 @@
     });
     wireConfigHorario(body);
     wireEtapas(body, 'resumen');
+    qa('#rtZona button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (TZ === b.dataset.z) return;
+        TZ = b.dataset.z;
+        qa('#rtZona button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        repintarTramos(evs, true);
+      });
+    });
     animarResumen(g, pOtif, C, false, entrada);
     montarTendencia(meta);
   }
@@ -1602,6 +1612,24 @@
   };
   var IC_BACK = SV('<path d="M15 18l-6-6 6-6"/>');
 
+  var TZ = '';   // zona elegida en "¿Dónde se demora el pedido?" ('' = todas)
+  function enTZ(o) { return !TZ || o.p.zona === TZ; }
+  function rtSubTxt(gx) { return 'tiempo habitual ' + (TZ ? 'de ' + TZ : 'de todas las zonas') + ' · ' + nf(gx.tramos.rep.length) + ' pedidos con reparto · tocá una etapa para ver sus pedidos'; }
+  function repintarTramos(evs, anim) {
+    var gx = CALC.resumen(evs.filter(enTZ)), tm = gx.tramosMed, tMax = null;
+    TRAMOS.forEach(function (t) { var v = tm[t[0]]; if (v != null && (tMax == null || v > tm[tMax])) tMax = t[0]; });
+    var sub = q('#rtSub'); if (sub) sub.textContent = rtSubTxt(gx);
+    qa('#cardTramos .rt-n').forEach(function (n) {
+      var k = n.dataset.etapa, mx = k === tMax, sp = q('span', n), em = q('em', n);
+      var cambiar = function () {
+        sp.textContent = jd(tm[k]);
+        n.classList.toggle('is-max', mx);
+        if (mx && !em) { em = el('<em>Cuello de botella</em>'); n.appendChild(em); } else if (!mx && em) { em.remove(); em = null; }
+      };
+      if (GS && anim) gsap.to(sp, { opacity: 0, y: -5, duration: .14, ease: 'power1.in', onComplete: function () { cambiar(); gsap.fromTo(sp, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' }); if (mx && em) gsap.fromTo(em, { scale: .6, opacity: 0 }, { scale: 1, opacity: 1, duration: .35, ease: 'back.out(2.4)', clearProps: 'transform,opacity' }); } });
+      else cambiar();
+    });
+  }
   function wireEtapas(root, desde) {
     qa('[data-etapa]', root).forEach(function (n) {
       var go = function () { abrirKpi('etapa', n.dataset.etapa, desde); };
@@ -1640,12 +1668,12 @@
   }
 
   function renderKpi(body, entrada) {
-    var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85, ES = KPI.k === 'etapa';
+    var ES = KPI.k === 'etapa', evs = EVS.filter(enScope).filter(function (o) { return !ES || enTZ(o); }), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85;
     if (ES && !KPI.tab) KPI.tab = 'rep';
     var def = ES ? defEtapa(g, KPI.tab) : (KPIS[KPI.k] || KPIS.ot);
     if (!KPI.tab) KPI.tab = def.tabs[def.tabs.length > 1 && (KPI.k === 'ot' || KPI.k === 'inf') ? 1 : 0][0];   // de entrada: lo que hay que mirar (fuera de plazo / con faltantes)
     q('#tbTitle').textContent = def.t;
-    q('#tbTitle').textContent = ES ? 'Pedidos por etapa' : def.t;
+    q('#tbTitle').textContent = ES ? 'Pedidos por etapa' + (TZ ? ' · ' + TZ : '') : def.t;
     q('#tbSub').textContent = (ES ? 'Tiempo de cada pedido en la etapa · ' : 'Pedidos del indicador · ') + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
     var conteo = def.tabs.map(function (t) { return evs.filter(t[2]).length; });
     body.innerHTML =

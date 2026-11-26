@@ -203,6 +203,9 @@
     if (VIEW === 'resumen') renderResumen(body, entrada);
     else if (VIEW === 'detalle') renderDetalle(body, entrada);
     else if (VIEW === 'zonas') renderZonas(body, entrada);
+    else if (VIEW === 'vendedores') renderVendedores(body, entrada);
+    else if (VIEW === 'tiempos') renderTiempos(body, entrada);
+    else if (VIEW === 'parametros') renderParametros(body, entrada);
     else renderPronto(body);
   }
 
@@ -512,7 +515,7 @@
     if (m === 'semana') ks = ks.slice(-10);
     return ks.map(function (k) {
       var x = grp.get(k), corto, largo;
-      if (m === 'mes') { corto = MES_AB[+k.slice(5, 7) - 1]; largo = mesLbl(k); }
+      if (m === 'mes') { corto = MESES[+k.slice(5, 7) - 1] + (k.slice(0, 4) !== CUR.slice(0, 4) ? ' ' + k.slice(0, 4) : ''); largo = mesLbl(k); }   // nombre completo, sin abreviar
       else if (m === 'semana') { var fin = new Date(Date.parse(k + 'T00:00:00Z') + 6 * 86400000).toISOString().slice(0, 10); corto = k.slice(8) + '/' + k.slice(5, 7); largo = k.slice(8) + '/' + k.slice(5, 7) + '–' + fin.slice(8) + '/' + fin.slice(5, 7); }
       else { corto = k.slice(8) + '/' + k.slice(5, 7); largo = corto; }
       return { k: k, v: x[1] / x[0] * 100, n: x[0], corto: corto, largo: largo };
@@ -682,6 +685,180 @@
       gsap.from('.zn-card', { opacity: 0, y: 18, duration: .5, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
       gsap.from('#znRank', { opacity: 0, y: 16, duration: .5, delay: .15, ease: 'power3.out', clearProps: 'transform,opacity' });
     }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     VENDEDORES Y CLIENTES (minimalista)
+     Nombre · barra % en tiempo y forma · faltan para la meta.
+     Tocar una fila abre el Detalle filtrado.
+     ════════════════════════════════════════════════════════════ */
+  var VC = { tipo: 'vend', orden: 'faltan', q: '', limit: 25 };
+  function renderVendedores(body, entrada) {
+    var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85;
+    q('#tbTitle').textContent = 'Vendedores y clientes';
+    q('#tbSub').textContent = 'Cumplimiento por persona · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    body.innerHTML =
+      '<div class="ot-card vc-card">' +
+        '<div class="vc-bar"><div class="zn-sort" id="vcTipo"><button type="button" data-t="vend">Vendedores</button><button type="button" data-t="cli">Clientes</button></div>' +
+          '<div class="ot-search vc-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="vcQ" placeholder="Buscar…" value="' + esc(VC.q) + '"/></div>' +
+          '<div class="zn-sort" id="vcOrden"><button type="button" data-o="faltan">Más lejos de la meta</button><button type="button" data-o="otif">Peor %</button></div></div>' +
+        '<div class="zn-head vc-head"><span id="vcCol">Vendedor</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
+        '<div id="vcRows"></div>' +
+        '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span><span>· Solo personas con 5 pedidos evaluados o más</span></div>' +
+      '</div>';
+    function pintar(animar) {
+      var key = VC.tipo === 'vend' ? function (p) { return p.vendedor_nombre || p.vendedor_cod; } : function (p) { return p.cliente_nombre || p.cliente_cod; };
+      var grupos = CALC.agrupar(evs, key).filter(function (g) { return g.evaluados >= 5; });
+      grupos.forEach(function (g) { g.faltan = faltanParaMeta(g, meta); });
+      var t = VC.q.toLowerCase().trim();
+      if (t) grupos = grupos.filter(function (g) { return String(g.clave).toLowerCase().indexOf(t) >= 0; });
+      grupos.sort(function (a, b) { return VC.orden === 'otif' ? a.pOtif - b.pOtif : (b.faltan - a.faltan || b.evaluados - a.evaluados); });
+      qa('#vcTipo button').forEach(function (b) { b.classList.toggle('on', b.dataset.t === VC.tipo); });
+      qa('#vcOrden button').forEach(function (b) { b.classList.toggle('on', b.dataset.o === VC.orden); });
+      q('#vcCol').textContent = VC.tipo === 'vend' ? 'Vendedor' : 'Cliente';
+      var vis = grupos.slice(0, VC.limit);
+      q('#vcRows').innerHTML = !grupos.length ? '<div class="ot-soon" style="padding:40px">Sin resultados.</div>' :
+        vis.map(function (g) {
+          var c = semColor(g.pOtif);
+          return '<div class="zn-row vc-row" data-k="' + esc(g.clave) + '" role="button" tabindex="0" title="Ver sus pedidos">' +
+            '<div class="zn-name">' + esc(g.clave) + '<small>' + nf(g.evaluados) + ' pedidos</small></div>' +
+            '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, g.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(g.pOtif) + '</b></div>' +
+            '<div class="r">' + (g.faltan === 0 ? '<span class="st-chip ok">En meta</span>' : nf(g.faltan)) + '</div>' +
+            '<div class="zn-chev"><svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div></div>';
+        }).join('') + (grupos.length > vis.length ? '<div class="det-more"><button class="btn btn--sm" type="button" id="vcMas">Mostrar más</button><span>' + nf(vis.length) + ' de ' + nf(grupos.length) + '</span></div>' : '');
+      qa('#vcRows .zn-bar span').forEach(function (s, i) { if (GS && animar !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .8, delay: .05 + Math.min(i, 20) * .03, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
+      if (GS && animar !== false) gsap.from(qa('#vcRows .zn-row').slice(0, 20), { opacity: 0, x: -10, duration: .3, stagger: .025, ease: 'power2.out', clearProps: 'transform,opacity' });
+      qa('#vcRows .vc-row').forEach(function (r) {
+        var go = function () {
+          DET.q = DET.estado = DET.zona = DET.depto = DET.vend = DET.cond = ''; DET.limit = 200;
+          if (VC.tipo === 'vend') DET.vend = r.dataset.k; else DET.q = r.dataset.k;
+          ir('detalle');
+        };
+        r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      });
+      var mas = q('#vcMas'); if (mas) mas.addEventListener('click', function () { VC.limit += 25; pintar(false); });
+    }
+    qa('#vcTipo button').forEach(function (b) { b.addEventListener('click', function () { if (VC.tipo === b.dataset.t) return; VC.tipo = b.dataset.t; VC.limit = 25; VC.q = ''; q('#vcQ').value = ''; pintar(true); }); });
+    qa('#vcOrden button').forEach(function (b) { b.addEventListener('click', function () { if (VC.orden === b.dataset.o) return; VC.orden = b.dataset.o; pintar(true); }); });
+    var tmr; q('#vcQ').addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { VC.q = e.target.value; VC.limit = 25; pintar(false); }, 180); });
+    pintar(entrada);
+    if (GS && entrada !== false) gsap.from('.vc-card', { opacity: 0, y: 16, duration: .45, ease: 'power3.out', clearProps: 'transform,opacity' });
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     TIEMPOS DEL PROCESO (minimalista)
+     Cada etapa: tiempo típico + "los más lentos" (1 de cada 10).
+     Y cuánto tardan los pedidos en llegar, en tramos simples.
+     ════════════════════════════════════════════════════════════ */
+  function p90(a) { if (!a.length) return null; var b = a.slice().sort(function (x, y) { return x - y; }); return b[Math.min(b.length - 1, Math.floor(b.length * .9))]; }
+  function renderTiempos(body, entrada) {
+    var evs = EVS.filter(enScope), g = CALC.resumen(evs);
+    q('#tbTitle').textContent = 'Tiempos del proceso';
+    q('#tbSub').textContent = 'Horario laboral · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    var filas = TRAMOS.map(function (t) { var a = g.tramos[t[0]] || []; return { t: t, med: g.tramosMed[t[0]], lento: p90(a) }; });
+    var maxV = Math.max.apply(null, filas.map(function (f) { return f.lento || 0; })) || 1;
+    var tMax = filas.reduce(function (m, f) { return f.med != null && (!m || f.med > m.med) ? f : m; }, null);
+    // distribución: cuánto tardó cada pedido (carga → entrega)
+    var J = CALC.jornada || 585;
+    var cubos = [['Menos de 1 día', function (j) { return j < 1; }], ['1 día', function (j) { return j >= 1 && j < 2; }], ['2 días', function (j) { return j >= 2 && j < 3; }], ['3 a 5 días', function (j) { return j >= 3 && j < 6; }], ['Más de 5 días', function (j) { return j >= 6; }]];
+    var cnt = cubos.map(function () { return 0; });
+    g.ciclos.forEach(function (j) { for (var i = 0; i < cubos.length; i++) if (cubos[i][1](j)) { cnt[i]++; break; } });
+    var tot = g.ciclos.length || 1, maxC = Math.max.apply(null, cnt) || 1;
+    body.innerHTML =
+      '<div class="ot-grid2 tp-grid">' +
+        '<div class="ot-card" id="tpEtapas"><div class="ot-card__h"><h3>Cada etapa</h3><small>típico · los más lentos (1 de cada 10)</small></div>' +
+          filas.map(function (f) {
+            var w1 = (f.med || 0) / maxV * 100, w2 = (f.lento || 0) / maxV * 100, max = f === tMax;
+            return '<div class="tp-row' + (max ? ' is-max' : '') + '"><div class="tp-n">' + esc(f.t[1]) + '<small>' + esc(f.t[2]) + '</small></div>' +
+              '<div class="tp-bar"><span class="slow" data-w="' + w2.toFixed(1) + '"></span><span class="typ" data-w="' + w1.toFixed(1) + '" style="background:' + (max ? '#dc2626' : f.t[3]) + '"></span></div>' +
+              '<div class="tp-v"><b>' + tiempo(f.med) + '</b><small>hasta ' + tiempo(f.lento, true) + '</small></div></div>';
+          }).join('') +
+          '<div class="ot-legend"><span><i style="background:#0B5F8D"></i>Tiempo típico</span><span><i style="background:#d6e4f2"></i>Los más lentos</span><span>· 1 día = jornada laboral (' + esc(horarioTxt()) + ')</span></div>' +
+        '</div>' +
+        '<div class="ot-card" id="tpDist"><div class="ot-card__h"><h3>¿Cuánto tardan en llegar?</h3><small>' + nf(g.ciclos.length) + ' pedidos entregados</small></div>' +
+          cubos.map(function (c, i) {
+            return '<div class="tp-col"><div class="tp-col__n">' + c[0] + '</div><div class="tp-col__bar"><span data-w="' + (cnt[i] / maxC * 100).toFixed(1) + '"></span></div><div class="tp-col__v"><b>' + pf(cnt[i] / tot * 100, 0) + '</b><small>' + nf(cnt[i]) + '</small></div></div>';
+          }).join('') +
+          '<div class="tp-tip">La mitad de los pedidos llega en <b>' + tiempo(g.cicloMed) + '</b> o menos.</div>' +
+        '</div>' +
+      '</div>';
+    var bars = qa('#tpEtapas .tp-bar span, #tpDist .tp-col__bar span');
+    bars.forEach(function (s, i) { if (GS && entrada !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .1 + i * .04, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
+    if (GS && entrada !== false) {
+      gsap.from('.tp-grid .ot-card', { opacity: 0, y: 16, duration: .45, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('.tp-row, .tp-col', { opacity: 0, x: -8, duration: .3, stagger: .04, delay: .1, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     PLAZOS Y FERIADOS — configuración (solo admin edita)
+     Guarda en otif_config y recalcula todo el tablero.
+     ════════════════════════════════════════════════════════════ */
+  function renderParametros(body, entrada) {
+    var adm = isAdmin(), c = JSON.parse(JSON.stringify(CFG || {}));
+    c.sla_zona = c.sla_zona || {}; c.sla_departamento = c.sla_departamento || {}; c.feriados = c.feriados || [];
+    c.calendario = c.calendario || { dias: [null, [435, 1020], [435, 1020], [435, 1020], [435, 1020], [435, 1020], [435, 690]] };
+    q('#tbTitle').textContent = 'Plazos y feriados';
+    q('#tbSub').textContent = adm ? 'Los cambios se aplican a todo el equipo' : 'Solo lectura · lo edita un administrador';
+    var hm = function (m) { return m == null ? '' : pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+    var aMinHM = function (s) { var p = String(s || '').split(':'); return p.length === 2 ? (+p[0]) * 60 + (+p[1]) : null; };
+    var dis = adm ? '' : ' disabled';
+    var DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    var deps = Object.keys(c.sla_departamento).sort(function (a, b) { return a.localeCompare(b, 'es'); });
+    function fer() {
+      return c.feriados.slice().sort().map(function (f) {
+        var d = new Date(f + 'T12:00:00Z');
+        return '<div class="pf-fer"><span><b>' + f.slice(8) + '/' + f.slice(5, 7) + '/' + f.slice(0, 4) + '</b> ' + DIAS[d.getUTCDay()] + '</span>' + (adm ? '<button type="button" data-del="' + f + '" title="Quitar">×</button>' : '') + '</div>';
+      }).join('') || '<div class="mute">Sin feriados cargados.</div>';
+    }
+    body.innerHTML =
+      '<div class="pf-grid">' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Meta</h3></div>' +
+          '<label class="pf-big"><input type="number" id="pfMeta" min="50" max="100" step="1" value="' + (+c.meta_otif || 85) + '"' + dis + '/><span>% de pedidos en tiempo y forma</span></label></div>' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Horario laboral</h3><small>define qué es "1 día"</small></div>' +
+          '<div class="pf-row"><span>Lunes a viernes</span><input type="time" id="pfLvI" value="' + hm(c.calendario.dias[1] && c.calendario.dias[1][0]) + '"' + dis + '/><i>a</i><input type="time" id="pfLvF" value="' + hm(c.calendario.dias[1] && c.calendario.dias[1][1]) + '"' + dis + '/></div>' +
+          '<div class="pf-row"><span>Sábado</span><input type="time" id="pfSaI" value="' + hm(c.calendario.dias[6] && c.calendario.dias[6][0]) + '"' + dis + '/><i>a</i><input type="time" id="pfSaF" value="' + hm(c.calendario.dias[6] && c.calendario.dias[6][1]) + '"' + dis + '/></div></div>' +
+        '<div class="ot-card"><div class="ot-card__h"><h3>Plazo por zona</h3><small>días laborales</small></div>' +
+          ['Capital', 'Interior'].map(function (z) { return '<div class="pf-row"><span>' + z + '</span><input type="number" min="0.5" step="0.5" data-zona="' + z + '" value="' + (c.sla_zona[z] || '') + '"' + dis + '/><i>días</i></div>'; }).join('') +
+          '<div class="pf-note">Retira el cliente / salón (' + esc((c.condiciones_retiro || ['08', '09']).join(', ')) + '): el plazo termina en la factura.</div></div>' +
+        '<div class="ot-card pf-deps"><div class="ot-card__h"><h3>Plazo por departamento</h3><small>días laborales · tiene prioridad sobre la zona</small></div>' +
+          '<div class="pf-depgrid">' + deps.map(function (d) { return '<div class="pf-row"><span>' + esc(d) + '</span><input type="number" min="0.5" step="0.5" data-dep="' + esc(d) + '" value="' + c.sla_departamento[d] + '"' + dis + '/><i>días</i></div>'; }).join('') + '</div></div>' +
+        '<div class="ot-card pf-fers"><div class="ot-card__h"><h3>Feriados</h3><small>' + nf(c.feriados.length) + ' cargados · no cuentan como día laboral</small></div>' +
+          (adm ? '<div class="pf-add"><input type="date" id="pfFerD"/><button class="btn btn--sm" type="button" id="pfFerAdd">Agregar</button></div>' : '') +
+          '<div class="pf-ferlist" id="pfFerList">' + fer() + '</div></div>' +
+      '</div>' +
+      (adm ? '<div class="pf-save"><span id="pfDirty">Sin cambios</span><button class="btn btn--primary btn--hero" type="button" id="pfGuardar">Guardar cambios</button></div>' : '');
+    if (GS && entrada !== false) gsap.from('.pf-grid .ot-card', { opacity: 0, y: 14, duration: .4, stagger: .06, ease: 'power3.out', clearProps: 'transform,opacity' });
+    if (!adm) return;
+    var marcar = function () { var d = q('#pfDirty'); d.textContent = 'Hay cambios sin guardar'; d.classList.add('on'); };
+    qa('.pf-grid input').forEach(function (i) { i.addEventListener('input', marcar); });
+    function wireFer() { qa('#pfFerList [data-del]').forEach(function (b) { b.addEventListener('click', function () { c.feriados = c.feriados.filter(function (f) { return f !== b.dataset.del; }); q('#pfFerList').innerHTML = fer(); wireFer(); marcar(); }); }); }
+    wireFer();
+    q('#pfFerAdd').addEventListener('click', function () {
+      var v = q('#pfFerD').value; if (!v) { toast('Elegí una fecha', true); return; }
+      if (c.feriados.indexOf(v) < 0) c.feriados.push(v);
+      q('#pfFerList').innerHTML = fer(); wireFer(); marcar(); q('#pfFerD').value = '';
+    });
+    q('#pfGuardar').addEventListener('click', async function () {
+      var btn = this;
+      var meta = parseFloat(q('#pfMeta').value);
+      if (!(meta >= 50 && meta <= 100)) { toast('La meta tiene que estar entre 50 y 100', true); return; }
+      var lv = [aMinHM(q('#pfLvI').value), aMinHM(q('#pfLvF').value)], sa = [aMinHM(q('#pfSaI').value), aMinHM(q('#pfSaF').value)];
+      if (lv[0] == null || lv[1] == null || lv[1] <= lv[0]) { toast('Revisá el horario de lunes a viernes', true); return; }
+      c.meta_otif = meta;
+      c.calendario.dias = [null, lv, lv, lv, lv, lv, (sa[0] != null && sa[1] != null && sa[1] > sa[0]) ? sa : null];
+      qa('[data-zona]').forEach(function (i) { var v = parseFloat(i.value); if (v > 0) c.sla_zona[i.dataset.zona] = v; });
+      qa('[data-dep]').forEach(function (i) { var v = parseFloat(i.value); if (v > 0) c.sla_departamento[i.dataset.dep] = v; });
+      c.feriados.sort();
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try {
+        var r = await DB.from('otif_config').update({ data: c, actualizado_en: new Date().toISOString(), actualizado_por: userName() }).eq('id', 1);
+        if (r.error) throw r.error;
+        await cargarBase(); await cargarMes();
+        toast('Cambios guardados · tablero recalculado');
+        renderShell();
+      } catch (e) { console.error(e); toast('No se pudo guardar', true); btn.disabled = false; btn.textContent = 'Guardar cambios'; }
+    });
   }
 
   /* ── Brecha a la meta (Resumen) ── */

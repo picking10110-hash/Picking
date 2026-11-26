@@ -202,6 +202,7 @@
     var scopeSlot = q('#scopeSlot'); if (scopeSlot) scopeSlot.style.display = VIEW === 'parametros' ? 'none' : '';
     if (VIEW === 'resumen') renderResumen(body, entrada);
     else if (VIEW === 'detalle') renderDetalle(body, entrada);
+    else if (VIEW === 'zonas') renderZonas(body, entrada);
     else renderPronto(body);
   }
 
@@ -583,6 +584,104 @@
       gsap.from(qa('.gspark__dot', inner), { scale: 0, transformOrigin: '50% 50%', duration: .38, stagger: Math.min(.07, .6 / n), delay: cambio ? .2 : .55, ease: 'back.out(2.5)' });
     }
     if (ult) animCount(q('#tUlt'), ult.v, function (x) { return pf(x); }, cambio ? .8 : 1.2);
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     ZONAS (minimalista) — Capital / Interior + departamentos ordenados por
+     los pedidos que les faltan para llegar a la meta.
+     ════════════════════════════════════════════════════════════ */
+  var ZN = { orden: 'faltan', abierto: null };
+  function renderZonas(body, entrada) {
+    var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85, tot = CALC.resumen(evs);
+    q('#tbTitle').textContent = 'Zonas';
+    q('#tbSub').textContent = 'Cumplimiento por destino · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    var zonas = CALC.agrupar(evs, function (p) { return p.zona; }).filter(function (z) { return z.evaluados; }).sort(function (a, b) { return a.clave < b.clave ? -1 : 1; });
+    var deps = CALC.agrupar(evs, function (p) { return p.departamento; }).filter(function (d) { return d.evaluados; });
+    var zonaDe = {}; evs.forEach(function (o) { zonaDe[o.p.departamento] = o.p.zona; });
+    deps.forEach(function (d) { d.faltan = faltanParaMeta(d, meta); d.zona = zonaDe[d.clave]; });
+    var slaProm = function (lista) { var s = 0, n = 0; lista.forEach(function (o) { if (o.estado === 'evaluado') { s += o.sla; n++; } }); return n ? s / n : null; };
+
+    function zonaCard(z) {
+      var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
+      return '<div class="ot-blue zn-card">' +
+        '<div class="ot-lbl">Zona ' + esc(z.clave) + ' · ' + esc(mesLbl(CUR)) + (f === 0 ? '<span class="meta ok">✓ En meta</span>' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos para el ' + pf(meta, 0) + '</span>') + '</div>' +
+        '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
+        '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
+        '<div class="ot-foot">' +
+          '<div class="ot-st"><b>' + nf(z.evaluados) + '</b><span>Pedidos evaluados</span></div>' +
+          '<div class="ot-st"><b>' + tiempo(z.cicloMed) + '</b><span>Tiempo típico</span></div>' +
+          '<div class="ot-st"><b>' + plazo(slaProm(lista)) + '</b><span>Plazo</span></div>' +
+        '</div></div>';
+    }
+    body.innerHTML =
+      '<div class="ot-top zn-top">' + zonas.map(zonaCard).join('') + '</div>' +
+      '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Departamentos</h3>' +
+        '<div class="zn-sort" id="znSort"><button type="button" data-o="faltan">Más lejos de la meta</button><button type="button" data-o="otif">Peor %</button></div></div>' +
+        '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
+        '<div id="znRows"></div>' +
+        '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span></div>' +
+      '</div>';
+
+    function fila(d, sub) {
+      var c = semColor(d.pOtif);
+      return '<div class="zn-row' + (sub ? ' sub' : '') + '"' + (sub ? '' : ' data-dep="' + esc(d.clave) + '" role="button" tabindex="0"') + '>' +
+        '<div class="zn-name">' + esc(d.clave) + '<small>' + nf(d.evaluados) + ' pedidos</small>' + '</div>' +
+        '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, d.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(d.pOtif) + '</b></div>' +
+        '<div class="r">' + (d.faltan === 0 ? '<span class="st-chip ok">En meta</span>' : nf(d.faltan)) + '</div>' +
+        '<div class="zn-chev">' + (sub ? '' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
+    }
+    function ordenar() {
+      var k = ZN.orden;
+      deps.sort(function (a, b) { return k === 'otif' ? (a.pOtif - b.pOtif) : k === 'pedidos' ? (b.evaluados - a.evaluados) : (b.faltan - a.faltan || b.evaluados - a.evaluados); });
+      qa('#znSort button').forEach(function (b) { b.classList.toggle('on', b.dataset.o === k); });
+    }
+    function pintarFilas(animar) {
+      ordenar();
+      q('#znRows').innerHTML = deps.map(function (d) { return '<div class="zn-grp' + (ZN.abierto === d.clave ? ' open' : '') + '">' + fila(d, false) + '<div class="zn-sub"></div></div>'; }).join('');
+      qa('#znRows .zn-bar span').forEach(function (s, i) { if (GS && animar !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .8, delay: .1 + i * .03, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
+      if (GS && animar !== false) gsap.from(qa('#znRows .zn-row'), { opacity: 0, x: -10, duration: .32, stagger: .03, ease: 'power2.out', clearProps: 'transform,opacity' });
+      qa('#znRows .zn-row[data-dep]').forEach(function (r) {
+        var go = function () { toggleDep(r.parentNode, r.dataset.dep); };
+        r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+      if (ZN.abierto) { var g = qa('#znRows .zn-grp').filter(function (x) { return x.classList.contains('open'); })[0]; if (g) llenarSub(g, ZN.abierto, false); }
+    }
+    function llenarSub(grp, dep, animar) {
+      var subs = CALC.agrupar(evs.filter(function (o) { return o.p.departamento === dep; }), function (p) { return p.region_nombre || p.region_cod || '—'; })
+        .filter(function (c) { return c.evaluados; }).sort(function (a, b) { return b.evaluados - a.evaluados; });
+      subs.forEach(function (c) { c.faltan = faltanParaMeta(c, meta); });
+      var box = q('.zn-sub', grp);
+      box.innerHTML = subs.map(function (c) { return fila(c, true); }).join('');
+      qa('.zn-bar span', box).forEach(function (s) { s.style.width = s.dataset.w + '%'; });
+      if (!GS || animar === false) { box.style.height = 'auto'; return; }
+      gsap.fromTo(box, { height: 0 }, { height: 'auto', duration: .45, ease: 'power3.out' });
+      gsap.from(qa('.zn-row', box), { opacity: 0, y: -6, duration: .3, stagger: .025, delay: .08, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+    function toggleDep(grp, dep) {
+      var abierto = grp.classList.contains('open');
+      qa('#znRows .zn-grp.open').forEach(function (g) {
+        if (g === grp) return;
+        g.classList.remove('open'); var b = q('.zn-sub', g);
+        if (GS) gsap.to(b, { height: 0, duration: .3, ease: 'power2.in', onComplete: function () { b.innerHTML = ''; } }); else { b.innerHTML = ''; b.style.height = '0'; }
+      });
+      if (abierto) {
+        grp.classList.remove('open'); ZN.abierto = null; var b2 = q('.zn-sub', grp);
+        if (GS) gsap.to(b2, { height: 0, duration: .3, ease: 'power2.in', onComplete: function () { b2.innerHTML = ''; } }); else { b2.innerHTML = ''; b2.style.height = '0'; }
+      } else { grp.classList.add('open'); ZN.abierto = dep; llenarSub(grp, dep, true); }
+    }
+    qa('#znSort button').forEach(function (b) { b.addEventListener('click', function () { if (ZN.orden === b.dataset.o) return; ZN.orden = b.dataset.o; pintarFilas(true); }); });
+    pintarFilas(entrada);
+
+    // animación de las tarjetas de zona
+    qa('.zn-card').forEach(function (c, i) {
+      var n = q('[data-p]', c), m = q('.zn-meter span', c);
+      animCount(n, parseFloat(n.dataset.p), function (v) { return pf(v); }, 1.1);
+      if (GS) gsap.fromTo(m, { width: '0%' }, { width: m.dataset.w + '%', duration: 1.1, delay: .15 + i * .1, ease: 'power3.out' }); else m.style.width = m.dataset.w + '%';
+    });
+    if (GS && entrada !== false) {
+      gsap.from('.zn-card', { opacity: 0, y: 18, duration: .5, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('#znRank', { opacity: 0, y: 16, duration: .5, delay: .15, ease: 'power3.out', clearProps: 'transform,opacity' });
+    }
   }
 
   /* ── Brecha a la meta (Resumen) ── */

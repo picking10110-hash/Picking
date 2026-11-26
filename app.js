@@ -310,27 +310,22 @@
       '</div>' +
 
       '<div class="ot-tiles">' +
-        tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', [[nf(g.ot), 'Pedidos a tiempo'], [nf(g.evaluados - g.ot), 'Fuera de plazo'], [nf(g.no_entregado), 'No entregados (06)']]) +
-        tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', [[nf(g.inf), 'Sin faltantes'], [nf(g.evaluados - g.inf), 'Con faltantes'], [nf(lineasFalt), 'Artículos sin entrega']]) +
-        tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_registro / g.total * 100 : null), 'Del total'], [nf(conChofer), 'En chofer (04)'], [nf(parciales), 'Entrega parcial']], 'tileSinCerrar', 'Ver lista') +
-        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_despacho / g.total * 100 : null), 'Del total'], [gs(montoSinDesp), 'Monto', true], [esc(motTop), 'Motivo principal']]) +
+        tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', nf(g.ot) + ' de ' + nf(g.evaluados) + ' pedidos llegaron en plazo') +
+        tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', nf(g.inf) + ' de ' + nf(g.evaluados) + ' pedidos sin faltantes') +
+        tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', 'Salieron y falta registrar la entrega', 'tileSinCerrar', 'Ver lista') +
+        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', 'Nunca salieron del depósito') +
       '</div>' +
 
       '<div class="ot-grid2">' +
-        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>tiempo típico de cada etapa · horario laboral</small></div>' +
+        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>tiempo típico de cada etapa</small></div>' +
           '<div class="ot-flow">' + TRAMOS.map(function (t) { var v = tm[t[0]] || 0, p = v / tSum * 100; return '<div class="ot-flow__seg" style="flex:' + Math.max(v, tSum * .015) + ' 1 0;background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '" title="' + esc(t[1]) + ' · ' + jd(tm[t[0]]) + '">' + (p >= 9 ? Math.round(p) + '%' : '') + '</div>'; }).join('') + '</div>' +
-          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '<small>' + esc(t[2]) + '</small></div><span class="ot-step__h"></span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '</div><span class="ot-step__h"></span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
           '<div class="ot-legend">1 día = una jornada laboral · ' + esc(horarioTxt()) + '</div>' +
         '</div>' +
-        '<div class="ot-card" id="cardZonas"><div class="ot-card__h"><h3>Cumplimiento por zona y departamento</h3><small>% OTIF · línea = meta</small></div>' +
-          '<div class="ot-zchips">' + zonas.map(function (z) { return '<div class="ot-zchip"><span>' + esc(z.clave) + '</span><div><b>' + pf(z.pOtif) + '</b><small>' + nf(z.evaluados) + ' ped.</small></div></div>'; }).join('') + '</div>' +
-          '<div class="ot-bars">' + deps.map(function (d) { return barRow(d.clave, d.evaluados + ' ped.', d.pOtif, semColor(d.pOtif), pf(d.pOtif), meta); }).join('') + '</div>' +
-          '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Hasta 10 pts abajo</span><span><i style="background:#dc2626"></i>Más de 10 pts abajo</span></div>' +
+        '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>¿Por qué no se entregaron?</h3><small>motivos principales</small></div>' +
+          (motL.length ? '<div class="ot-bars ot-bars--mot">' + motL.slice(0, 5).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' pedidos', m.n / mx * 100, '#0B5F8D', nf(m.n), null); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
+          '<div class="ot-legend">Cantidad de artículos que no salieron, según el motivo cargado en SAP</div>' +
         '</div>' +
-      '</div>' +
-
-      '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>¿Por qué no se entregaron artículos?</h3><small>' + nf(lineasFalt) + ' artículos sin entrega · motivo de rechazo cargado en SAP</small></div>' +
-        (motL.length ? '<div class="ot-bars">' + motL.slice(0, 10).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' ped. · ' + gs(m.monto), m.n / mx * 100, '#0B5F8D', nf(m.n), null); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
       '</div>';
 
     var ts = q('#tileSinCerrar');
@@ -341,7 +336,7 @@
 
   function tile(color, lbl, valHtml, foot, id, accion) {
     return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + ' →</span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
-      '<div class="ot-tile__f">' + foot.map(function (f) { return '<div' + (f[2] ? ' class="wide"' : '') + '><b' + (f[2] ? ' class="num"' : '') + ' title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>';
+      (typeof foot === 'string' ? '<div class="ot-tile__s">' + esc(foot) + '</div></div>' : '<div class="ot-tile__f">' + foot.map(function (f) { return '<div' + (f[2] ? ' class="wide"' : '') + '><b' + (f[2] ? ' class="num"' : '') + ' title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>');
   }
   function barRow(name, sub, pct, color, valTxt, meta) {
     return '<div class="ot-bar"><div class="ot-bar__n" title="' + esc(name) + '">' + esc(name) + '<small>' + esc(sub) + '</small></div>' +
@@ -381,7 +376,6 @@
     tl.from('#cardTramos .ot-flow__seg', { scaleX: 0, transformOrigin: '0% 50%', duration: .55, stagger: .08, ease: 'power3.out', clearProps: 'transform' }, .35);
     tl.from('#cardTramos .ot-step', { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' }, .45);
     qa('.ot-bar__t span').forEach(function (s, i) { gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .4 + i * .035, ease: 'power3.out' }); });
-    tl.from('#cardZonas .ot-zchip', { opacity: 0, y: 8, scale: .96, duration: .4, stagger: .08, ease: 'back.out(1.8)', clearProps: 'transform,opacity' }, .4);
   }
 
   /* ════════════════════════════════════════════════════════════

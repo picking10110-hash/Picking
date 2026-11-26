@@ -158,7 +158,8 @@ insert into public.otif_config (id, data) values (1, '{
     "Alto Parana": 7, "Itapua": 7, "San Pedro": 7, "Canindeyu": 7, "Caaguazu": 7,
     "Paraguari": 7, "Caazapa": 7, "Misiones": 7, "Guaira": 7 },
   "sla_condicion": {},
-  "meta_otif": 95
+  "meta_otif": 85,
+  "condiciones_retiro": ["08","09"]
 }'::jsonb)
 on conflict (id) do nothing;
 

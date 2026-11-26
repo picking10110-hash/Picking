@@ -12,6 +12,8 @@
  *  - Completo  = todas sus líneas entregadas y facturadas.
  *  - Sin despacho = ninguna entrega (todas las líneas rechazadas).
  *  - Entrega en etapa 06 (no entregado) = evaluado como FUERA DE PLAZO.
+ *  - Condiciones de retiro (08 salón, 09 retira el cliente): el ciclo termina en
+ *    la factura (listo para retirar), no cuando el cliente lo busca.
  *  - Sin registro = salió (o está en curso) pero alguna entrega no llegó a la
  *    etapa 5 (culminado y entregado). No se evalúa: va a "Entregas sin cerrar".
  *  - Horas hábiles: calendario de la config, en hora de Paraguay (UTC-3).
@@ -31,6 +33,7 @@
     if (!jornada) jornada = 585;
     var habiles = cfg.horas_habiles !== false;
     var clases = new Set(cfg.clases_doc_incluidas || ['ZCRE', 'ZCOS']);
+    var retiro = new Set(cfg.condiciones_retiro || ['08', '09']);
 
     // ISO → minutos "locales de Paraguay" desde epoch
     function aMin(iso) { if (!iso) return null; var t = Date.parse(iso); return isNaN(t) ? null : Math.floor(t / 60000) + PY_OFFSET; }
@@ -77,7 +80,11 @@
       var ent = aMin(p.ts_entrega);
       if (p.n_entregadas < p.n_entregas || ent == null) { o.estado = 'sin_registro'; return o; }
       o.estado = 'evaluado';
-      o.ciclo = jornadas(car, ent);
+      // Retira el cliente / salón (08, 09): el reloj corta cuando el pedido quedó
+      // listo para retirar (factura). Lo que tarde el cliente en buscarlo no es logística.
+      var fin = ent, fac0 = aMin(p.ts_factura);
+      if (retiro.has(p.cond_exp) && fac0 != null && fac0 >= car && fac0 <= ent) { fin = fac0; o.retiro = true; }
+      o.ciclo = jornadas(car, fin);
       o.ot = o.ciclo <= o.sla + 1e-9;
       o.otif = o.ot && o.inf;
       // Tramos en el orden real de SAP (medido sobre 4.218 entregas):
@@ -85,6 +92,7 @@
       // Si falta una etapa (ej. retira el cliente, sin transporte) el tramo siguiente
       // arranca desde la última etapa disponible.
       var marcas = [['car', car], ['lib', aMin(p.ts_creacion)], ['pre', aMin(p.ts_control)], ['fac', aMin(p.ts_factura)], ['tra', aMin(p.ts_transporte)], ['rep', ent]];
+      if (o.retiro) marcas = marcas.slice(0, 4);   // sin transporte ni reparto: retira el cliente
       var prev = car;
       for (var i = 1; i < marcas.length; i++) {
         var t = marcas[i][1];

@@ -17,8 +17,26 @@
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   var nf = function (n, d) { return (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
   var pf = function (n, d) { return (n == null || isNaN(n)) ? '—' : nf(n, d == null ? 1 : d) + '%'; };
-  var gs = function (n) { var a = Math.abs(n || 0); if (a >= 1e9) return 'Gs. ' + nf(n / 1e9, 2) + ' MM'; if (a >= 1e6) return 'Gs. ' + nf(n / 1e6, 1) + ' M'; return 'Gs. ' + nf(n); };
-  var jd = function (n) { return n == null ? '—' : nf(n, 2) + ' j'; };
+  var gs = function (n) { return 'Gs. ' + nf(Math.round(n || 0)); };   // montos completos, sin abreviar
+  // Tiempo en HORARIO LABORAL, en palabras: 1 día = 1 jornada (L–V 07:15–17:00, sáb 07:15–11:30).
+  // 0,03 → '18 min' · 0,43 → '4 h 12 min' · 2,38 → '2 días 4 h'
+  function tiempo(j, corto) {
+    if (j == null || isNaN(j)) return '—';
+    var J = (CALC && CALC.jornada) || 585, m = Math.round(Math.abs(j) * J), sg = j < 0 ? '-' : '';
+    if (m < 1) return corto ? '0 min' : 'menos de 1 min';
+    if (m < 60) return sg + m + ' min';
+    if (m < J) { var h = Math.floor(m / 60), mm = m % 60; return sg + h + ' h' + (mm ? ' ' + mm + ' min' : ''); }
+    var d = Math.floor(m / J), r = Math.round((m - d * J) / 60);
+    if (r * 60 >= J) { d++; r = 0; }
+    return sg + d + (corto ? ' d' : (d === 1 ? ' día' : ' días')) + (r ? ' ' + r + ' h' : '');
+  }
+  function horarioTxt() {
+    var d = (CFG && CFG.calendario && CFG.calendario.dias) || [], hm = function (m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+    var lv = d[1], sa = d[6];
+    return (lv ? 'L–V ' + hm(lv[0]) + '–' + hm(lv[1]) : '') + (sa ? ', sáb ' + hm(sa[0]) + '–' + hm(sa[1]) : '');
+  }
+  function plazo(v) { return v == null ? '—' : nf(v, v % 1 ? 1 : 0) + (v === 1 ? ' día' : ' días'); }
+  var jd = function (n) { return tiempo(n); };
   var MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   var GS = !!window.gsap;
 
@@ -98,12 +116,13 @@
     var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos').order('cargado_en', { ascending: false });
     if (im.error) throw im.error;
     IMPORTS = im.data || [];
+    TCACHE = {};   // datos nuevos: la tendencia vuelve a pedir los meses
     var set = new Set();
     IMPORTS.forEach(function (i) { if (i.carga_desde && i.carga_hasta) mesesEntre(i.carga_desde, i.carga_hasta).forEach(function (m) { set.add(m); }); });
     MONTHS = Array.from(set).sort();
     if (!CUR || MONTHS.indexOf(CUR) < 0) CUR = MONTHS[MONTHS.length - 1] || null;
   }
-  var COLS = 'doc_vtas,fecha_carga,clase_doc,cond_exp,region_cod,departamento,zona,cliente_cod,cliente_nombre,vendedor_cod,vendedor_nombre,n_lineas,n_completas,n_sin_entrega,monto_pedido,n_entregas,n_entregadas,n_no_entregado,almacen,ts_factura,ts_creacion,ts_control,ts_transporte,ts_entrega,ult_etapa';
+  var COLS = 'doc_vtas,fecha_carga,clase_doc,cond_exp,region_cod,region_nombre,departamento,zona,cliente_cod,cliente_nombre,vendedor_cod,vendedor_nombre,n_lineas,n_completas,n_sin_entrega,monto_pedido,n_entregas,n_entregadas,n_no_entregado,almacen,ts_factura,ts_creacion,ts_control,ts_transporte,ts_entrega,ult_etapa';
   async function cargarMes() {
     if (!CUR) { ROWS = []; MOTIVOS = []; return; }
     var r = rangoMes(CUR);
@@ -182,6 +201,7 @@
     var body = q('#otBody'); if (!body) return;
     var scopeSlot = q('#scopeSlot'); if (scopeSlot) scopeSlot.style.display = VIEW === 'parametros' ? 'none' : '';
     if (VIEW === 'resumen') renderResumen(body, entrada);
+    else if (VIEW === 'detalle') renderDetalle(body, entrada);
     else renderPronto(body);
   }
 
@@ -195,7 +215,7 @@
   /* ════════════════════════════════════════════════════════════
      RESUMEN
      ════════════════════════════════════════════════════════════ */
-  function semColor(p) { var meta = +CFG.meta_otif || 95; return p == null ? '#cbd5e1' : p >= meta ? '#16a34a' : p >= meta - 10 ? '#d97706' : '#dc2626'; }
+  function semColor(p) { var meta = +CFG.meta_otif || 85; return p == null ? '#cbd5e1' : p >= meta ? '#16a34a' : p >= meta - 10 ? '#d97706' : '#dc2626'; }
 
   function spark(vals, labels, meta) {
     var W = 720, H = 92, n = vals.length, max = 100, min = Math.max(0, Math.min.apply(null, vals.concat([meta])) - 10);
@@ -218,20 +238,10 @@
   }
 
   function renderResumen(body, entrada) {
-    var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 95;
+    var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85;
     var scopeTxt = { tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE];
     q('#tbTitle').textContent = 'Pedidos en tiempo y forma';
     q('#tbSub').textContent = 'OTIF por pedido · ' + mesLbl(CUR) + ' · ' + scopeTxt;
-
-    // tendencia diaria (por día de carga del pedido)
-    var porDia = new Map();
-    evs.forEach(function (o) { if (o.estado !== 'evaluado') return; var d = diaPY(o.p.fecha_carga); if (!porDia.has(d)) porDia.set(d, [0, 0]); var x = porDia.get(d); x[0]++; if (o.otif) x[1]++; });
-    var dias = Array.from(porDia.entries()).filter(function (e) { return e[1][0] >= 10; }).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
-    var dv = dias.map(function (e) { return e[1][1] / e[1][0] * 100; }), dl = dias.map(function (e) { return e[0].slice(8) + '/' + e[0].slice(5, 7); });
-    var hayTrend = dv.length >= 2, ultimo = hayTrend ? dv[dv.length - 1] : null, prev = hayTrend ? dv[dv.length - 2] : null;
-    var delta = hayTrend ? ultimo - prev : null, cls = delta == null ? 'flat' : delta > .5 ? 'up' : delta < -.5 ? 'down' : 'flat';
-    var iMax = dv.indexOf(Math.max.apply(null, dv)), iMin = dv.indexOf(Math.min.apply(null, dv));
-    var promDias = dv.length ? dv.reduce(function (a, v) { return a + v; }, 0) / dv.length : null;
 
     // pedidos con chofer pero sin registro (etapa 04)
     var sinCerrar = evs.filter(function (o) { return o.estado === 'sin_registro'; });
@@ -270,7 +280,7 @@
     body.innerHTML =
       '<div class="ot-top">' +
         '<div class="ot-blue" id="cardOtif">' +
-          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + '<span class="meta">Meta ' + pf(meta, 0) + '</span></div>' +
+          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + '<span class="meta">Meta ' + pf(meta, 0) + '</span>' + gapHtml(g, meta) + '</div>' +
           '<div class="ot-hero__body">' +
             '<div class="ot-gauge"><svg viewBox="0 0 172 172"><circle class="bg" cx="86" cy="86" r="74"/><circle class="fg" id="gFg" cx="86" cy="86" r="74" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '"/>' +
               '<line class="mk" x1="' + mkX1.toFixed(1) + '" y1="' + mkY1.toFixed(1) + '" x2="' + mkX2.toFixed(1) + '" y2="' + mkY2.toFixed(1) + '"><title>Meta ' + pf(meta, 0) + '</title></line></svg>' +
@@ -282,22 +292,16 @@
           '</div>' +
           '<div class="ot-foot">' +
             '<div class="ot-st"><b id="sEv">0</b><span>Pedidos evaluados</span></div>' +
-            '<div class="ot-st"><b>' + jd(g.cicloMed) + '</b><span>Ciclo mediano</span></div>' +
-            '<div class="ot-st"><b>' + gs(g.monto) + '</b><span>Monto pedido</span></div>' +
+            '<div class="ot-st"><b>' + jd(g.cicloMed) + '</b><span>Tiempo típico</span></div>' +
+            '<div class="ot-st wide"><b class="num">' + gs(g.monto) + '</b><span>Monto pedido</span></div>' +
             '<div class="ot-st"><b>' + nf(g.total) + '</b><span>Pedidos del mes</span></div>' +
           '</div>' +
         '</div>' +
         '<div class="ot-blue alt" id="cardTrend">' +
-          '<div class="ot-lbl">Tendencia diaria · ' + esc(mesLbl(CUR)) + '</div>' +
-          (hayTrend
-            ? '<div class="ot-trend__big"><i class="' + cls + '">' + (cls === 'up' ? '▲' : cls === 'down' ? '▼' : '●') + '</i><span id="tUlt" data-v="' + ultimo + '">0%</span><small>último día (' + esc(dl[dl.length - 1]) + ') · ' + (delta >= 0 ? '+' : '') + nf(delta, 1) + ' pts vs ' + esc(dl[dl.length - 2]) + '</small></div>'
-            : '<div class="ot-trend__big"><span style="font-size:20px;letter-spacing:-.2px">Se necesitan al menos 2 días con datos</span></div>') +
-          '<div class="ot-trend__ch">' + (hayTrend ? spark(dv, dl, meta) + '<div class="gspark__x">' + dl.map(function (l, i) { return '<span' + (i === dl.length - 1 ? ' class="on"' : '') + '>' + l + '</span>'; }).join('') + '</div>' : '') + '</div>' +
-          '<div class="ot-foot">' +
-            '<div class="ot-st"><b>' + pf(promDias) + '</b><span>Promedio diario</span></div>' +
-            '<div class="ot-st"><b>' + (hayTrend ? esc(dl[iMax]) + ' · ' + pf(dv[iMax]) : '—') + '</b><span>Mejor día</span></div>' +
-            '<div class="ot-st"><b>' + (hayTrend ? esc(dl[iMin]) + ' · ' + pf(dv[iMin]) : '—') + '</b><span>Peor día</span></div>' +
-          '</div>' +
+          '<div class="ot-lbl ot-lbl--row"><span id="trTitle"></span>' +
+            '<div class="ot-seg" id="trSeg" role="tablist" aria-label="Agrupar tendencia"><span class="ot-seg__pill"></span>' +
+              '<button type="button" data-m="dia">Día</button><button type="button" data-m="semana">Semana</button><button type="button" data-m="mes">Mes</button></div></div>' +
+          '<div class="ot-trend__inner" id="trInner"></div>' +
         '</div>' +
       '</div>' +
 
@@ -305,13 +309,14 @@
         tile('#0B5F8D', 'A tiempo', '<span id="tOt">0%</span>', [[nf(g.ot), 'Pedidos a tiempo'], [nf(g.evaluados - g.ot), 'Fuera de plazo'], [nf(g.no_entregado), 'No entregados (06)']]) +
         tile('#16a34a', 'Completos', '<span id="tIn">0%</span>', [[nf(g.inf), 'Sin faltantes'], [nf(g.evaluados - g.inf), 'Con faltantes'], [nf(lineasFalt), 'Artículos sin entrega']]) +
         tile('#d97706', 'Entregas sin cerrar', '<span id="tSr">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_registro / g.total * 100 : null), 'Del total'], [nf(conChofer), 'En chofer (04)'], [nf(parciales), 'Entrega parcial']], 'tileSinCerrar', 'Ver lista') +
-        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_despacho / g.total * 100 : null), 'Del total'], [gs(montoSinDesp), 'Monto'], [esc(motTop), 'Motivo principal']]) +
+        tile('#dc2626', 'Sin despachar', '<span id="tSd">0</span><small>pedidos</small>', [[pf(g.total ? g.sin_despacho / g.total * 100 : null), 'Del total'], [gs(montoSinDesp), 'Monto', true], [esc(motTop), 'Motivo principal']]) +
       '</div>' +
 
       '<div class="ot-grid2">' +
-        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>mediana por tramo · jornadas hábiles</small></div>' +
+        '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>tiempo típico de cada etapa · horario laboral</small></div>' +
           '<div class="ot-flow">' + TRAMOS.map(function (t) { var v = tm[t[0]] || 0, p = v / tSum * 100; return '<div class="ot-flow__seg" style="flex:' + Math.max(v, tSum * .015) + ' 1 0;background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '" title="' + esc(t[1]) + ' · ' + jd(tm[t[0]]) + '">' + (p >= 9 ? Math.round(p) + '%' : '') + '</div>'; }).join('') + '</div>' +
-          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '<small>' + esc(t[2]) + '</small></div><span class="ot-step__h">' + (v == null ? '' : '≈ ' + nf(v * horasJ, 1) + ' h') + '</span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '<small>' + esc(t[2]) + '</small></div><span class="ot-step__h"></span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="ot-legend">1 día = una jornada laboral · ' + esc(horarioTxt()) + '</div>' +
         '</div>' +
         '<div class="ot-card" id="cardZonas"><div class="ot-card__h"><h3>Cumplimiento por zona y departamento</h3><small>% OTIF · línea = meta</small></div>' +
           '<div class="ot-zchips">' + zonas.map(function (z) { return '<div class="ot-zchip"><span>' + esc(z.clave) + '</span><div><b>' + pf(z.pOtif) + '</b><small>' + nf(z.evaluados) + ' ped.</small></div></div>'; }).join('') + '</div>' +
@@ -326,12 +331,13 @@
 
     var ts = q('#tileSinCerrar');
     if (ts) { ts.addEventListener('click', abrirSinCerrar); ts.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSinCerrar(); } }); }
-    animarResumen(g, pOtif, C, hayTrend, entrada);
+    animarResumen(g, pOtif, C, false, entrada);
+    montarTendencia(meta);
   }
 
   function tile(color, lbl, valHtml, foot, id, accion) {
     return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + ' →</span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
-      '<div class="ot-tile__f">' + foot.map(function (f) { return '<div><b title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>';
+      '<div class="ot-tile__f">' + foot.map(function (f) { return '<div' + (f[2] ? ' class="wide"' : '') + '><b' + (f[2] ? ' class="num"' : '') + ' title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>';
   }
   function barRow(name, sub, pct, color, valTxt, meta) {
     return '<div class="ot-bar"><div class="ot-bar__n" title="' + esc(name) + '">' + esc(name) + '<small>' + esc(sub) + '</small></div>' +
@@ -367,19 +373,6 @@
     animCount(q('#tSd'), g.sin_despacho, function (v) { return nf(v); }, 1);
     tl.fromTo('#bOt', { width: '0%' }, { width: (g.pOt || 0) + '%', duration: 1.1, ease: 'power2.out' }, .25);
     tl.fromTo('#bIn', { width: '0%' }, { width: (g.pIn || 0) + '%', duration: 1.1, ease: 'power2.out' }, .32);
-    // tendencia: dibujar línea + puntos
-    if (hayTrend) {
-      var line = q('#cardTrend .gspark__line');
-      if (line && line.getTotalLength) {
-        var L = line.getTotalLength();
-        gsap.set(line, { strokeDasharray: L, strokeDashoffset: L });
-        tl.to(line, { strokeDashoffset: 0, duration: 1.2, ease: 'power2.inOut', onComplete: function () { line.style.strokeDasharray = ''; line.style.strokeDashoffset = ''; } }, .3);
-      }
-      tl.from('#cardTrend .gspark__area', { opacity: 0, duration: .8, ease: 'power1.out' }, .6);
-      tl.from('#cardTrend .gspark__dot', { scale: 0, transformOrigin: '50% 50%', duration: .4, stagger: .07, ease: 'back.out(2.5)' }, .55);
-      var ult = q('#tUlt');
-      if (ult) animCount(ult, parseFloat(ult.dataset.v), function (x) { return pf(x); }, 1.2);
-    }
     // flujo del proceso + barras
     tl.from('#cardTramos .ot-flow__seg', { scaleX: 0, transformOrigin: '0% 50%', duration: .55, stagger: .08, ease: 'power3.out', clearProps: 'transform' }, .35);
     tl.from('#cardTramos .ot-step', { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' }, .45);
@@ -468,6 +461,366 @@
         toast('Excel descargado');
       } catch (err) { console.error(err); toast('No se pudo exportar', true); }
     });
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     TENDENCIA — Día / Semana / Mes (botones en la tarjeta azul)
+     Día = días del mes elegido · Semana = últimas 10 semanas ·
+     Mes = últimos 6 meses. Agrupa por fecha de carga del pedido.
+     Los meses anteriores se traen solo cuando se piden (caché).
+     ════════════════════════════════════════════════════════════ */
+  var TMODE = 'mes', TCACHE = {};   // por defecto: tendencia mensual (pedido del usuario)
+  var MES_AB = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  function lunesDe(dia) {   // 'YYYY-MM-DD' → lunes de esa semana
+    var d = new Date(dia + 'T00:00:00Z'), w = (d.getUTCDay() + 6) % 7;
+    return new Date(d.getTime() - w * 86400000).toISOString().slice(0, 10);
+  }
+  function mesMas(ym, n) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7) - 1 + n; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y + '-' + pad(m + 1); }
+  async function evsDeMeses(yms) {
+    var out = [];
+    for (var i = 0; i < yms.length; i++) {
+      var ym = yms[i];
+      if (ym === CUR) { out = out.concat(EVS); continue; }
+      if (MONTHS.indexOf(ym) < 0) continue;
+      if (!TCACHE[ym]) {
+        var r = rangoMes(ym);
+        var rows = await paginar(function () { return DB.from('otif_v_pedidos').select(COLS).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]).order('doc_vtas'); });
+        TCACHE[ym] = rows.map(CALC.evaluar).filter(Boolean);
+      }
+      out = out.concat(TCACHE[ym]);
+    }
+    return out;
+  }
+  function mesesDelModo(m) {
+    if (m === 'mes') return [-5, -4, -3, -2, -1, 0].map(function (n) { return mesMas(CUR, n); });
+    if (m === 'semana') return [-2, -1, 0].map(function (n) { return mesMas(CUR, n); });
+    return [CUR];
+  }
+  function serie(evs, m) {
+    var grp = new Map(), finMes = rangoMes(CUR)[1].slice(0, 10);
+    evs.forEach(function (o) {
+      if (o.estado !== 'evaluado' || !enScope(o)) return;
+      var d = diaPY(o.p.fecha_carga);
+      if (d >= finMes) return;
+      var k = m === 'mes' ? d.slice(0, 7) : m === 'semana' ? lunesDe(d) : d;
+      if (!grp.has(k)) grp.set(k, [0, 0]);
+      var x = grp.get(k); x[0]++; if (o.otif) x[1]++;
+    });
+    var minN = m === 'dia' ? 10 : 20;
+    var ks = Array.from(grp.keys()).filter(function (k) { return grp.get(k)[0] >= minN; }).sort();
+    if (m === 'semana') ks = ks.slice(-10);
+    return ks.map(function (k) {
+      var x = grp.get(k), corto, largo;
+      if (m === 'mes') { corto = MES_AB[+k.slice(5, 7) - 1]; largo = mesLbl(k); }
+      else if (m === 'semana') { var fin = new Date(Date.parse(k + 'T00:00:00Z') + 6 * 86400000).toISOString().slice(0, 10); corto = k.slice(8) + '/' + k.slice(5, 7); largo = k.slice(8) + '/' + k.slice(5, 7) + '–' + fin.slice(8) + '/' + fin.slice(5, 7); }
+      else { corto = k.slice(8) + '/' + k.slice(5, 7); largo = corto; }
+      return { k: k, v: x[1] / x[0] * 100, n: x[0], corto: corto, largo: largo };
+    });
+  }
+  var TXT = {
+    dia: { tit: 'Tendencia diaria', uno: 'día', unos: 'días', prom: 'Promedio diario', mejor: 'Mejor día', peor: 'Peor día' },
+    semana: { tit: 'Tendencia semanal', uno: 'semana', unos: 'semanas', prom: 'Promedio semanal', mejor: 'Mejor semana', peor: 'Peor semana' },
+    mes: { tit: 'Tendencia mensual', uno: 'mes', unos: 'meses', prom: 'Promedio mensual', mejor: 'Mejor mes', peor: 'Peor mes' }
+  };
+  function moverPill(animar) {
+    var seg = q('#trSeg'); if (!seg) return;
+    var b = q('[data-m="' + TMODE + '"]', seg), pill = q('.ot-seg__pill', seg);
+    qa('button', seg).forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+    var to = { x: b.offsetLeft - 3, width: b.offsetWidth };
+    if (GS && animar) gsap.to(pill, { x: to.x, width: to.width, duration: .42, ease: 'back.out(1.6)' });
+    else { pill.style.transform = 'translateX(' + to.x + 'px)'; pill.style.width = to.width + 'px'; }
+  }
+  function montarTendencia(meta) {
+    var seg = q('#trSeg'); if (!seg) return;
+    qa('button', seg).forEach(function (b) {
+      b.addEventListener('click', function () { if (TMODE === b.dataset.m) return; TMODE = b.dataset.m; moverPill(true); pintarTendencia(meta, true); });
+    });
+    requestAnimationFrame(function () { moverPill(false); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moverPill(false); });
+    pintarTendencia(meta, false);
+  }
+  async function pintarTendencia(meta, cambio) {
+    var inner = q('#trInner'), tt = TXT[TMODE];
+    if (!inner) return;
+    q('#trTitle').textContent = tt.tit + ' · ' + (TMODE === 'mes' ? 'últimos 6 meses' : TMODE === 'semana' ? 'últimas semanas' : mesLbl(CUR));
+    var yms = mesesDelModo(TMODE), faltan = yms.some(function (ym) { return ym !== CUR && MONTHS.indexOf(ym) >= 0 && !TCACHE[ym]; });
+    var token = (pintarTendencia._t = (pintarTendencia._t || 0) + 1);
+    if (faltan) {
+      if (GS && cambio) gsap.to(inner, { opacity: .35, duration: .2 });
+      inner.insertAdjacentHTML('beforeend', '<div class="ot-trend__busy"><span></span></div>');
+    } else if (GS && cambio) {
+      await new Promise(function (r) { gsap.to(inner, { opacity: 0, y: 6, duration: .16, ease: 'power1.in', onComplete: r }); });
+    }
+    var evs;
+    try { evs = await evsDeMeses(yms); } catch (e) { console.error(e); toast('No se pudo traer la tendencia', true); evs = EVS; }
+    if (token !== pintarTendencia._t) return;     // el usuario ya eligió otro modo
+    var s = serie(evs, TMODE), n = s.length, vals = s.map(function (x) { return x.v; });
+    var hay = n >= 2, ult = n ? s[n - 1] : null, ant = hay ? s[n - 2] : null;
+    var delta = hay ? ult.v - ant.v : null, cls = delta == null ? 'flat' : delta > .5 ? 'up' : delta < -.5 ? 'down' : 'flat';
+    var iMax = n ? vals.indexOf(Math.max.apply(null, vals)) : -1, iMin = n ? vals.indexOf(Math.min.apply(null, vals)) : -1;
+    var prom = n ? vals.reduce(function (a, v) { return a + v; }, 0) / n : null;
+    var paso = n > 12 ? Math.ceil(n / 10) : 1;
+    var detalle = !ult ? '' : TMODE === 'mes' ? esc(ult.largo) + (hay ? ' · ' + (delta >= 0 ? '+' : '') + nf(delta, 1) + ' pts vs ' + esc(ant.largo) : '')
+      : TMODE === 'semana' ? 'semana ' + esc(ult.largo) + (hay ? ' · ' + (delta >= 0 ? '+' : '') + nf(delta, 1) + ' pts vs la anterior' : '')
+      : 'último día (' + esc(ult.corto) + ')' + (hay ? ' · ' + (delta >= 0 ? '+' : '') + nf(delta, 1) + ' pts vs ' + esc(ant.corto) : '');
+    inner.innerHTML =
+      '<div class="ot-trend__big">' + (ult ? '<i class="' + cls + '">' + (cls === 'up' ? '▲' : cls === 'down' ? '▼' : '●') + '</i><span id="tUlt">' + pf(ult.v) + '</span><small>' + detalle + '</small>' : '<span class="ot-trend__none">Sin datos suficientes</span>') + '</div>' +
+      '<div class="ot-trend__ch">' + (hay
+        ? spark(vals, s.map(function (x) { return x.largo + ' · ' + nf(x.n) + ' ped.'; }), meta) + '<div class="gspark__x">' + s.map(function (x, i) { return '<span' + (i === n - 1 ? ' class="on"' : '') + (i % paso && i !== n - 1 ? ' style="visibility:hidden"' : '') + '>' + esc(x.corto) + '</span>'; }).join('') + '</div>'
+        : '<div class="ot-trend__msg">' + (n === 1 ? 'Hay un solo ' + tt.uno + ' con datos. ' : '') + 'Cargá más ' + tt.unos + ' para ver la tendencia.</div>') + '</div>' +
+      '<div class="ot-foot">' +
+        '<div class="ot-st"><b>' + pf(prom) + '</b><span>' + tt.prom + '</span></div>' +
+        '<div class="ot-st"><b>' + (n ? esc(s[iMax].corto) + ' · ' + pf(vals[iMax]) : '—') + '</b><span>' + tt.mejor + '</span></div>' +
+        '<div class="ot-st"><b>' + (n ? esc(s[iMin].corto) + ' · ' + pf(vals[iMin]) : '—') + '</b><span>' + tt.peor + '</span></div>' +
+      '</div>';
+    if (!GS) { inner.style.opacity = 1; return; }
+    gsap.fromTo(inner, { opacity: cambio ? 0 : 1, y: cambio ? 6 : 0 }, { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform' });
+    var line = q('.gspark__line', inner);
+    if (line && line.getTotalLength) {
+      var L = line.getTotalLength();
+      gsap.fromTo(line, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: cambio ? .9 : 1.2, delay: cambio ? .05 : .3, ease: 'power2.inOut', onComplete: function () { line.style.strokeDasharray = ''; line.style.strokeDashoffset = ''; } });
+      gsap.from(q('.gspark__area', inner), { opacity: 0, duration: .7, delay: cambio ? .2 : .6, ease: 'power1.out' });
+      gsap.from(qa('.gspark__dot', inner), { scale: 0, transformOrigin: '50% 50%', duration: .38, stagger: Math.min(.07, .6 / n), delay: cambio ? .2 : .55, ease: 'back.out(2.5)' });
+    }
+    if (ult) animCount(q('#tUlt'), ult.v, function (x) { return pf(x); }, cambio ? .8 : 1.2);
+  }
+
+  /* ── Brecha a la meta (Resumen) ── */
+  function faltanParaMeta(g, meta) {
+    if (!g.evaluados) return null;
+    return Math.max(0, Math.ceil(meta / 100 * g.evaluados - 1e-9) - g.otif);
+  }
+  function gapHtml(g, meta) {
+    var f = faltanParaMeta(g, meta);
+    if (f == null) return '';
+    return f === 0 ? '<span class="meta ok">✓ Meta cumplida</span>' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos para el ' + pf(meta, 0) + '</span>';
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     DETALLE DE PEDIDOS — tabla filtrable + panel con la línea de tiempo
+     ════════════════════════════════════════════════════════════ */
+  var DET = { q: '', estado: '', zona: '', depto: '', vend: '', cond: '', sort: 'fecha', dir: 1, limit: 200 };
+  var ESTADOS = [
+    ['otif', 'En tiempo y forma', 'ok'],
+    ['tarde', 'Fuera de plazo', 'bad'],
+    ['incompleto', 'Incompleto', 'warn'],
+    ['tarde_inc', 'Fuera de plazo e incompleto', 'bad'],
+    ['noent', 'No entregado (06)', 'bad'],
+    ['sincerrar', 'Sin cerrar', 'warn'],
+    ['sindesp', 'Sin despachar', 'mute']
+  ];
+  var COND_TXT = { '01': 'Entrega capital', '14': 'Entrega interior', '08': 'Salón (espera)', '09': 'Retira el cliente', '02': 'Terminal / encomiendas', '26': 'Herrería', '27': 'Zona Chaco', '29': 'Empresas', '10': 'Sin definir', '13': 'Sin definir' };
+  function estadoDe(o) {
+    if (o.estado === 'sin_despacho') return 'sindesp';
+    if (o.estado === 'sin_registro') return 'sincerrar';
+    if (o.noEnt) return 'noent';
+    if (o.otif) return 'otif';
+    if (!o.ot && !o.inf) return 'tarde_inc';
+    return o.ot ? 'incompleto' : 'tarde';
+  }
+  function estadoChip(o) {
+    var k = estadoDe(o), e = ESTADOS.filter(function (x) { return x[0] === k; })[0];
+    var extra = (k === 'tarde' || k === 'tarde_inc') && o.ciclo != null ? ' +' + tiempo(o.ciclo - o.sla, true) : '';
+    return '<span class="st-chip ' + e[2] + '">' + esc(e[1]) + extra + '</span>';
+  }
+  function filtrarDetalle(evs) {
+    var t = DET.q.toLowerCase().trim();
+    return evs.filter(function (o) {
+      var p = o.p;
+      if (DET.estado && estadoDe(o) !== DET.estado) return false;
+      if (DET.zona && p.zona !== DET.zona) return false;
+      if (DET.depto && p.departamento !== DET.depto) return false;
+      if (DET.vend && p.vendedor_nombre !== DET.vend) return false;
+      if (DET.cond && p.cond_exp !== DET.cond) return false;
+      if (t && [p.doc_vtas, p.cliente_nombre, p.cliente_cod, p.vendedor_nombre, p.region_nombre].join(' ').toLowerCase().indexOf(t) < 0) return false;
+      return true;
+    });
+  }
+  var ORDEN = {
+    pedido: function (o) { return o.p.doc_vtas; },
+    fecha: function (o) { return o.p.fecha_carga; },
+    cliente: function (o) { return (o.p.cliente_nombre || '').toLowerCase(); },
+    vendedor: function (o) { return (o.p.vendedor_nombre || '').toLowerCase(); },
+    destino: function (o) { return (o.p.departamento || '') + (o.p.region_nombre || ''); },
+    ciclo: function (o) { return o.ciclo == null ? -1 : o.ciclo - o.sla; },
+    estado: function (o) { return ESTADOS.map(function (x) { return x[0]; }).indexOf(estadoDe(o)); }
+  };
+  function opciones(evs, fn, fmt) {
+    var m = new Map();
+    evs.forEach(function (o) { var v = fn(o.p); if (v) m.set(v, (m.get(v) || 0) + 1); });
+    return Array.from(m.entries()).sort(function (a, b) { return String(a[0]).localeCompare(String(b[0]), 'es'); })
+      .map(function (e) { return [e[0], (fmt ? fmt(e[0]) : e[0]) + ' (' + nf(e[1]) + ')']; });
+  }
+  function selectHtml(id, lbl, opts, val) {
+    return '<label class="det-fld"><span>' + esc(lbl) + '</span><select id="' + id + '"><option value="">Todos</option>' +
+      opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
+  }
+
+  function renderDetalle(body, entrada) {
+    var evs = EVS.filter(enScope), meta = +CFG.meta_otif || 85;
+    q('#tbTitle').textContent = 'Detalle de pedidos';
+    q('#tbSub').textContent = 'Pedido por pedido · ' + mesLbl(CUR) + ' · ' + ({ tot: 'Total', fer: 'Ferretería', hie: 'Hierros' }[SCOPE]);
+    body.innerHTML =
+      '<div class="det-filters" id="detFilters">' +
+        '<div class="ot-search det-q"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="detQ" placeholder="Buscar pedido, cliente, vendedor o ciudad…" value="' + esc(DET.q) + '"/></div>' +
+        selectHtml('detEstado', 'Estado', ESTADOS.map(function (e) { return [e[0], e[1]]; }), DET.estado) +
+        selectHtml('detZona', 'Zona', opciones(evs, function (p) { return p.zona; }), DET.zona) +
+        selectHtml('detDepto', 'Departamento', opciones(evs, function (p) { return p.departamento; }), DET.depto) +
+        selectHtml('detVend', 'Vendedor', opciones(evs, function (p) { return p.vendedor_nombre; }), DET.vend) +
+        selectHtml('detCond', 'Condición de envío', opciones(evs, function (p) { return p.cond_exp; }, function (c) { return c + ' · ' + (COND_TXT[c] || 'Sin definir'); }), DET.cond) +
+        '<div class="det-actions"><button class="btn btn--sm" type="button" id="detLimpiar">Limpiar</button><button class="btn btn--sm btn--primary" type="button" id="detExport">' + IC.upload.replace('M17 8l-5-5-5 5M12 3v12', 'M7 10l5 5 5-5M12 15V3') + ' Excel</button></div>' +
+      '</div>' +
+      '<div class="det-kpis" id="detKpis"></div>' +
+      '<div class="ot-card det-card"><div class="det-tblwrap" id="detTabla"></div></div>';
+
+    function pintar(animar) {
+      var f = filtrarDetalle(evs), g = CALC.resumen(f);
+      // KPIs del filtro
+      var faltan = faltanParaMeta(g, meta);
+      q('#detKpis').innerHTML =
+        kpi('Pedidos', '<span data-n="' + g.total + '">0</span>', nf(g.evaluados) + ' evaluados') +
+        kpi('En tiempo y forma', '<span data-p="' + (g.pOtif == null ? '' : g.pOtif) + '" style="color:' + semColor(g.pOtif) + '">—</span>', faltan == null ? '—' : faltan === 0 ? 'Meta ' + pf(meta, 0) + ' cumplida' : 'Faltan ' + nf(faltan) + ' para el ' + pf(meta, 0)) +
+        kpi('A tiempo', '<span data-p="' + (g.pOt == null ? '' : g.pOt) + '">—</span>', nf(g.ot) + ' pedidos') +
+        kpi('Completos', '<span data-p="' + (g.pIn == null ? '' : g.pIn) + '">—</span>', nf(g.inf) + ' pedidos') +
+        kpi('Tiempo típico', jd(g.cicloMed), 'carga → entrega · horario laboral');
+      qa('#detKpis [data-n]').forEach(function (n) { animCount(n, +n.dataset.n, function (v) { return nf(v); }, .6); });
+      qa('#detKpis [data-p]').forEach(function (n) { if (n.dataset.p === '') { n.textContent = '—'; return; } animCount(n, +n.dataset.p, function (v) { return pf(v); }, .7); });
+      // orden
+      var key = ORDEN[DET.sort] || ORDEN.fecha;
+      f.sort(function (a, b) { var x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * DET.dir; });
+      var th = function (k, t, cls) { return '<th class="sortable' + (cls ? ' ' + cls : '') + (DET.sort === k ? ' on' : '') + '" data-k="' + k + '">' + t + (DET.sort === k ? (DET.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; };
+      var vis = f.slice(0, DET.limit);
+      q('#detTabla').innerHTML = !f.length ? '<div class="ot-soon" style="padding:50px">No hay pedidos con estos filtros.</div>' :
+        '<table class="ot-tbl det-tbl"><thead><tr>' + th('pedido', 'Pedido') + th('fecha', 'Carga') + th('cliente', 'Cliente') + th('vendedor', 'Vendedor') + th('destino', 'Destino') +
+          '<th>Alm.</th><th class="r">Entregas</th><th class="r">Artículos</th>' + th('ciclo', 'Tiempo / plazo', 'r') + th('estado', 'Estado') + '</tr></thead><tbody>' +
+        vis.map(function (o) {
+          var p = o.p, tarde = o.ciclo != null && o.ciclo > o.sla;
+          return '<tr data-doc="' + esc(p.doc_vtas) + '" tabindex="0"><td class="b">' + esc(p.doc_vtas) + '</td><td>' + fechaHora(p.fecha_carga) + '</td>' +
+            '<td class="cli" title="' + esc(p.cliente_nombre) + '">' + esc(p.cliente_nombre || p.cliente_cod || '—') + '</td>' +
+            '<td class="ven" title="' + esc(p.vendedor_nombre) + '">' + esc(p.vendedor_nombre || '—') + '</td>' +
+            '<td class="des" title="' + esc((p.region_nombre || '') + ' · ' + p.departamento) + '">' + esc(p.region_nombre || p.departamento) + '<small>' + esc(p.departamento) + '</small></td>' +
+            '<td>' + esc(p.almacen || '—') + '</td>' +
+            '<td class="r">' + nf(p.n_entregadas) + '/' + nf(p.n_entregas) + '</td>' +
+            '<td class="r' + (p.n_completas < p.n_lineas ? ' warnt' : '') + '">' + nf(p.n_completas) + '/' + nf(p.n_lineas) + '</td>' +
+            '<td class="r"><b class="' + (tarde ? 'badt' : '') + '">' + (o.ciclo == null ? '—' : tiempo(o.ciclo, true)) + '</b><small> de ' + plazo(o.sla) + '</small></td>' +
+            '<td>' + estadoChip(o) + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        (f.length > vis.length ? '<div class="det-more"><button class="btn btn--sm" type="button" id="detMas">Mostrar 200 más</button><span>Mostrando ' + nf(vis.length) + ' de ' + nf(f.length) + '</span></div>' : '<div class="det-more"><span>' + nf(f.length) + ' pedidos</span></div>');
+      qa('#detTabla th.sortable').forEach(function (h) {
+        h.addEventListener('click', function () { var k = h.dataset.k; if (DET.sort === k) DET.dir = -DET.dir; else { DET.sort = k; DET.dir = k === 'ciclo' || k === 'estado' ? -1 : 1; } pintar(false); });
+      });
+      qa('#detTabla tbody tr').forEach(function (tr) {
+        var go = function () { var o = f.filter(function (x) { return x.p.doc_vtas === tr.dataset.doc; })[0]; if (o) abrirPedido(o); };
+        tr.addEventListener('click', go);
+        tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      });
+      var mas = q('#detMas'); if (mas) mas.addEventListener('click', function () { DET.limit += 200; pintar(false); });
+      if (GS && animar !== false) gsap.from(qa('#detTabla tbody tr').slice(0, 24), { opacity: 0, x: -8, duration: .3, stagger: .018, ease: 'power2.out', clearProps: 'transform,opacity' });
+      EXPORT_DET = f;
+    }
+    function kpi(l, v, s) { return '<div class="det-kpi"><span>' + esc(l) + '</span><b>' + v + '</b><small>' + esc(s) + '</small></div>'; }
+
+    var tmr;
+    q('#detQ').addEventListener('input', function (e) { clearTimeout(tmr); tmr = setTimeout(function () { DET.q = e.target.value; DET.limit = 200; pintar(); }, 180); });
+    [['detEstado', 'estado'], ['detZona', 'zona'], ['detDepto', 'depto'], ['detVend', 'vend'], ['detCond', 'cond']].forEach(function (x) {
+      q('#' + x[0]).addEventListener('change', function (e) { DET[x[1]] = e.target.value; DET.limit = 200; e.target.classList.toggle('on', !!e.target.value); pintar(); });
+      if (DET[x[1]]) q('#' + x[0]).classList.add('on');
+    });
+    q('#detLimpiar').addEventListener('click', function () { DET.q = DET.estado = DET.zona = DET.depto = DET.vend = DET.cond = ''; DET.limit = 200; renderDetalle(body, false); });
+    q('#detExport').addEventListener('click', exportarDetalle);
+    pintar();
+    if (GS && entrada !== false) {
+      gsap.from('#detFilters', { opacity: 0, y: 10, duration: .4, ease: 'power2.out', clearProps: 'transform,opacity' });
+      gsap.from('#detKpis .det-kpi', { opacity: 0, y: 12, duration: .4, stagger: .06, delay: .05, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from('.det-card', { opacity: 0, y: 16, duration: .45, delay: .12, ease: 'power3.out', clearProps: 'transform,opacity' });
+    }
+  }
+  var EXPORT_DET = [];
+  async function exportarDetalle() {
+    try {
+      var X = await cargarXLSX();
+      var aoa = [['Pedido', 'Fecha carga', 'Cliente', 'Vendedor', 'Ciudad', 'Departamento', 'Zona', 'Almacén', 'Condición envío', 'Entregas registradas', 'Entregas', 'Artículos completos', 'Artículos', 'Tiempo (días hábiles)', 'Plazo (días hábiles)', 'A tiempo', 'Completo', 'Estado', 'Monto pedido (Gs)']];
+      EXPORT_DET.forEach(function (o) {
+        var p = o.p, e = ESTADOS.filter(function (x) { return x[0] === estadoDe(o); })[0];
+        aoa.push([p.doc_vtas, fechaHora(p.fecha_carga), p.cliente_nombre || p.cliente_cod || '', p.vendedor_nombre || '', p.region_nombre || '', p.departamento, p.zona, p.almacen || '', p.cond_exp || '',
+          p.n_entregadas, p.n_entregas, p.n_completas, p.n_lineas, o.ciclo == null ? '' : Math.round(o.ciclo * 100) / 100, o.sla,
+          o.estado === 'evaluado' ? (o.ot ? 'Sí' : 'No') : '', o.estado === 'sin_despacho' ? '' : (o.inf ? 'Sí' : 'No'), e[1], +p.monto_pedido || 0]);
+      });
+      var wb = X.utils.book_new(), ws = X.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [12, 12, 32, 22, 18, 14, 9, 8, 9, 10, 8, 10, 8, 10, 10, 8, 9, 24, 14].map(function (w) { return { wch: w }; });
+      X.utils.book_append_sheet(wb, ws, 'Pedidos');
+      X.writeFile(wb, 'pedidos_otif_' + CUR + '.xlsx');
+      toast('Excel descargado · ' + nf(EXPORT_DET.length) + ' pedidos');
+    } catch (err) { console.error(err); toast('No se pudo exportar', true); }
+  }
+
+  /* ── Panel lateral del pedido: línea de tiempo + entregas + artículos ── */
+  async function abrirPedido(o) {
+    var p = o.p;
+    var bd = el('<div class="dw-bd"><aside class="dw" role="dialog" aria-label="Pedido ' + esc(p.doc_vtas) + '">' +
+      '<div class="dw-hd"><div><div class="dw-k">Pedido</div><h3>' + esc(p.doc_vtas) + '</h3><div class="dw-cli">' + esc(p.cliente_nombre || p.cliente_cod || '') + '</div></div>' +
+        '<button class="modal-x" type="button" aria-label="Cerrar"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>' +
+      '<div class="dw-body"><div class="dw-top">' + estadoChip(o) +
+        '<span class="dw-tag">' + esc(p.region_nombre || p.departamento) + ' · ' + esc(p.zona) + '</span><span class="dw-tag">' + esc(p.vendedor_nombre || '') + '</span><span class="dw-tag">Cond. ' + esc(p.cond_exp || '—') + ' · ' + esc(COND_TXT[p.cond_exp] || '') + '</span></div>' +
+        (o.ciclo != null ? '<div class="dw-plazo"><div class="dw-plazo__hd"><span>Ciclo carga → ' + (o.retiro ? 'factura (retira el cliente)' : 'entrega') + '</span><b class="' + (o.ot ? 'okt' : 'badt') + '">' + tiempo(o.ciclo) + '</b></div>' +
+          '<div class="dw-plazo__bar"><span style="background:' + (o.ot ? '#16a34a' : '#dc2626') + '" data-w="' + Math.min(100, o.ciclo / Math.max(o.sla * 1.6, o.ciclo) * 100).toFixed(1) + '"></span><em style="left:' + (o.sla / Math.max(o.sla * 1.6, o.ciclo) * 100).toFixed(1) + '%"><i>Plazo ' + plazo(o.sla) + '</i></em></div></div>' : '') +
+        '<div class="dw-sec">Línea de tiempo</div><div class="tl" id="dwTl"><div class="ot-loading" style="padding:24px"><div class="ot-loading__ring"></div></div></div>' +
+        '<div class="dw-sec">Entregas</div><div id="dwEnt"></div>' +
+        '<div class="dw-sec">Artículos</div><div id="dwLin"></div>' +
+      '</div></aside></div>');
+    document.body.appendChild(bd);
+    var dw = q('.dw', bd);
+    function cerrar() {
+      if (!GS) { bd.remove(); return; }
+      gsap.to(dw, { xPercent: 104, duration: .32, ease: 'power3.in' });
+      gsap.to(bd, { opacity: 0, duration: .3, delay: .08, onComplete: function () { bd.remove(); } });
+    }
+    q('.modal-x', bd).addEventListener('click', cerrar);
+    bd.addEventListener('click', function (e) { if (e.target === bd) cerrar(); });
+    document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', k); } });
+    if (GS) {
+      gsap.fromTo(bd, { opacity: 0 }, { opacity: 1, duration: .25 });
+      gsap.fromTo(dw, { xPercent: 104 }, { xPercent: 0, duration: .5, ease: 'power3.out' });
+      gsap.from(qa('.dw-top > *', bd), { opacity: 0, y: 6, duration: .3, stagger: .05, delay: .25, ease: 'power2.out', clearProps: 'transform,opacity' });
+      var pb = q('.dw-plazo__bar span', bd); if (pb) gsap.fromTo(pb, { width: '0%' }, { width: pb.dataset.w + '%', duration: .9, delay: .35, ease: 'power3.out' });
+    } else { var pb2 = q('.dw-plazo__bar span', bd); if (pb2) pb2.style.width = pb2.dataset.w + '%'; }
+
+    try {
+      var r = await Promise.all([
+        DB.from('otif_entregas').select('entrega,almacen,ult_etapa,etapa_desc,ts_creacion,ts_control,ts_empaque,ts_factura,nro_factura,ts_transporte,transporte,usuario_transp,ts_entrega,usuario_entrega').eq('doc_vtas', p.doc_vtas).order('entrega'),
+        DB.from('otif_lineas').select('pos,entrega,material,unidad,cant_pedida,cant_entregada,cant_facturada,motivo_rechazo').eq('doc_vtas', p.doc_vtas).order('pos')
+      ]);
+      if (r[0].error) throw r[0].error; if (r[1].error) throw r[1].error;
+      var ents = r[0].data, lins = r[1].data;
+      var mats = Array.from(new Set(lins.map(function (l) { return l.material; }).filter(Boolean)));
+      var desc = new Map();
+      if (mats.length) { var md = await DB.from('otif_materiales').select('material,descripcion').in('material', mats); if (!md.error) md.data.forEach(function (m) { desc.set(m.material, m.descripcion); }); }
+
+      // línea de tiempo (primera vez que ocurre cada etapa; entrega = la última)
+      var minOf = function (k) { var v = ents.map(function (e) { return e[k]; }).filter(Boolean).sort(); return v[0] || null; };
+      var maxOf = function (k) { var v = ents.map(function (e) { return e[k]; }).filter(Boolean).sort(); return v.length === ents.length && v.length ? v[v.length - 1] : null; };
+      var hitos = [['Pedido cargado', p.fecha_carga], ['Entrega creada', minOf('ts_creacion')], ['Control', minOf('ts_control')], ['Empaque', minOf('ts_empaque')], ['Factura', minOf('ts_factura')], ['Sale en transporte', minOf('ts_transporte')], ['Entregado al cliente', maxOf('ts_entrega')]];
+      var prev = null;
+      q('#dwTl', bd).innerHTML = hitos.map(function (h) {
+        var dlt = '';
+        if (h[1] && prev) { var j = CALC.jornadas(CALC.aMin(prev), CALC.aMin(h[1])); dlt = '<span class="tl-d">+' + tiempo(j, true) + '</span>'; }
+        if (h[1]) prev = h[1];
+        return '<div class="tl-it' + (h[1] ? ' on' : '') + '"><i></i><div class="tl-t">' + esc(h[0]) + '</div><div class="tl-w">' + (h[1] ? fechaHora(h[1]) : 'Pendiente') + '</div>' + dlt + '</div>';
+      }).join('');
+      q('#dwEnt', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Entrega</th><th>Alm.</th><th>Etapa</th><th>Chofer</th><th>Entregado</th></tr></thead><tbody>' +
+        ents.map(function (e) { return '<tr><td class="b">' + esc(e.entrega) + '</td><td>' + esc(e.almacen || '—') + '</td><td>' + etapaChip(e) + '</td><td>' + esc(e.usuario_transp || '—') + '</td><td>' + fechaHora(e.ts_entrega) + '</td></tr>'; }).join('') +
+        (ents.length ? '' : '<tr><td colspan="5" class="mute">Ninguna entrega: el pedido no se despachó.</td></tr>') + '</tbody></table>';
+      q('#dwLin', bd).innerHTML = '<table class="ot-tbl dw-tbl"><thead><tr><th>Pos</th><th>Artículo</th><th class="r">Pedido</th><th class="r">Fact.</th><th></th></tr></thead><tbody>' +
+        lins.map(function (l) {
+          var ok = l.entrega && l.cant_facturada >= l.cant_pedida;
+          return '<tr><td>' + l.pos + '</td><td class="art" title="' + esc(desc.get(l.material) || '') + '"><b>' + esc(desc.get(l.material) || l.material) + '</b><small>' + esc(l.material) + (!l.entrega ? ' · ' + esc(motivoTxt(l.motivo_rechazo)) : '') + '</small></td>' +
+            '<td class="r">' + nf(l.cant_pedida, l.cant_pedida % 1 ? 2 : 0) + '</td><td class="r">' + nf(l.cant_facturada, l.cant_facturada % 1 ? 2 : 0) + '</td><td>' + (ok ? '<span class="st-dot ok" title="Completo"></span>' : '<span class="st-dot bad" title="Faltante"></span>') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+      if (GS) {
+        gsap.from(qa('.tl-it', bd), { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' });
+        gsap.from(qa('#dwEnt tbody tr, #dwLin tbody tr', bd).slice(0, 30), { opacity: 0, y: 6, duration: .28, stagger: .02, delay: .2, ease: 'power2.out', clearProps: 'transform,opacity' });
+      }
+    } catch (err) { console.error(err); q('#dwTl', bd).innerHTML = '<div class="ot-soon" style="padding:20px">No se pudo traer el detalle.</div>'; }
   }
 
   /* ── Navegación ── */

@@ -65,6 +65,40 @@
     clock: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>'
   };
 
+  /* ── Íconos de etapas, motivos y zonas ── */
+  var SV = function (p) { return '<svg fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
+  var STG_ICO = {
+    lib: SV('<rect x="5" y="3.5" width="14" height="18" rx="2"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h4"/>'),
+    pre: SV('<path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8L12 12.5 20.5 8M12 12.5v8"/>'),
+    fac: SV('<path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
+    tra: SV('<path d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>'),
+    rep: SV('<path d="M3.5 11L12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="M9.5 15l2 2 3.5-4"/>')
+  };
+  var ZONA_ICO = {
+    Capital: SV('<path d="M3 21h18M5 21V8l5-3v16M10 21V3l9 4v14"/><path d="M13 9h3M13 13h3M13 17h3"/>'),
+    Interior: SV('<path d="M4 20L9 4M20 20L15 4M12 6v2M12 11v2M12 16v2"/>')
+  };
+  function motivoIco(m) {
+    var t = String(m || '').toLowerCase();
+    if (/cuenta/.test(t)) return SV('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>');
+    if (/stock/.test(t)) return SV('<path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M9 10l6 6M15 10l-6 6"/>');
+    if (/retirad/.test(t)) return SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>');
+    if (/facturad/.test(t)) return SV('<path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9 9h6M9 13h6"/>');
+    if (/desiste/.test(t)) return SV('<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16.5 9.5l4 4M20.5 9.5l-4 4"/>');
+    if (/mal cargado|error/.test(t)) return SV('<path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/>');
+    if (/borrar/.test(t)) return SV('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>');
+    if (/duplicad/.test(t)) return SV('<rect x="8" y="8" width="12.5" height="12.5" rx="2"/><path d="M15.5 8V5a1.5 1.5 0 00-1.5-1.5H5A1.5 1.5 0 003.5 5v9A1.5 1.5 0 005 15.5h3"/>');
+    return SV('<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01"/>');
+  }
+  // Estado respecto de la meta: en meta / cerca (hasta 10 pts abajo) / lejos
+  function estadoMeta(p, meta) {
+    if (p == null || isNaN(p)) return { c: 'na', t: 'Sin datos' };
+    if (p >= meta) return { c: 'ok', t: 'En meta' };
+    if (p >= meta - 10) return { c: 'warn', t: 'Cerca de la meta' };
+    return { c: 'bad', t: 'Lejos de la meta' };
+  }
+  function chipEstado(p, meta) { var e = estadoMeta(p, meta); return '<span class="st-meta ' + e.c + '"><i></i>' + e.t + ' · ' + pf(meta, 0) + '</span>'; }
+
   /* ── Estado ── */
   var DB = window.__otifDB;
   var CFG = null, CALC = null, IMPORTS = [], MONTHS = [], CUR = null;
@@ -265,6 +299,7 @@
     else if (VIEW === 'parametros') renderParametros(body, entrada);
     else if (VIEW === 'cargar') renderCargar(body, entrada);
     else renderPronto(body);
+    setTimeout(revelarAlBajar, 60);
   }
 
   function renderPronto(body) {
@@ -341,8 +376,8 @@
 
     body.innerHTML =
       '<div class="ot-top">' +
-        '<div class="ot-blue" id="cardOtif">' +
-          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + '<span class="meta">Meta ' + pf(meta, 0) + '</span>' + gapHtml(g, meta) + '</div>' +
+        '<div class="ot-blue st-' + estadoMeta(g.pOtif, meta).c + '" id="cardOtif">' +
+          '<div class="ot-lbl">Cumplimiento OTIF · ' + esc(mesLbl(CUR)) + chipEstado(g.pOtif, meta) + gapHtml(g, meta) + '</div>' +
           '<div class="ot-hero__body">' +
             '<div class="ot-gauge"><svg viewBox="0 0 172 172"><circle class="bg" cx="86" cy="86" r="74"/><circle class="fg" id="gFg" cx="86" cy="86" r="74" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '"/>' +
               '<line class="mk" x1="' + mkX1.toFixed(1) + '" y1="' + mkY1.toFixed(1) + '" x2="' + mkX2.toFixed(1) + '" y2="' + mkY2.toFixed(1) + '"><title>Meta ' + pf(meta, 0) + '</title></line></svg>' +
@@ -376,12 +411,11 @@
 
       '<div class="ot-grid2">' +
         '<div class="ot-card" id="cardTramos"><div class="ot-card__h"><h3>¿Dónde se pierde el tiempo?</h3><small>tiempo típico de cada etapa</small></div>' +
-          '<div class="ot-flow">' + TRAMOS.map(function (t) { var v = tm[t[0]] || 0, p = v / tSum * 100; return '<div class="ot-flow__seg" style="flex:' + Math.max(v, tSum * .015) + ' 1 0;background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '" title="' + esc(t[1]) + ' · ' + jd(tm[t[0]]) + '">' + (p >= 9 ? Math.round(p) + '%' : '') + '</div>'; }).join('') + '</div>' +
-          '<div class="ot-steps">' + TRAMOS.map(function (t) { var v = tm[t[0]]; return '<div class="ot-step' + (t[0] === tMax ? ' is-max' : '') + '"><i style="background:' + (t[0] === tMax ? '#dc2626' : t[3]) + '"></i><div class="ot-step__n">' + esc(t[1]) + '</div><span class="ot-step__h"></span><span class="ot-step__v">' + jd(v) + '</span></div>'; }).join('') + '</div>' +
+          '<div class="rt"><div class="rt-line"><span></span></div>' + TRAMOS.map(function (t) { var v = tm[t[0]], mx = t[0] === tMax; return '<div class="rt-n' + (mx ? ' is-max' : '') + '" title="' + esc(t[2]) + '"><div class="rt-i">' + STG_ICO[t[0]] + '</div><b>' + esc(t[1]) + '</b><span>' + jd(v) + '</span>' + (mx ? '<em>Cuello de botella</em>' : '') + '</div>'; }).join('') + '</div>' +
           '<div class="ot-legend">1 día = una jornada laboral · ' + esc(horarioTxt()) + '</div>' +
         '</div>' +
         '<div class="ot-card" id="cardMotivos"><div class="ot-card__h"><h3>¿Por qué no se entregaron?</h3><small>motivos principales</small></div>' +
-          (motL.length ? '<div class="ot-bars ot-bars--mot">' + motL.slice(0, 5).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' pedidos', m.n / mx * 100, '#0B5F8D', nf(m.n), null); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
+          (motL.length ? '<div class="ot-bars ot-bars--mot">' + motL.slice(0, 5).map(function (m) { var mx = motL[0].n || 1; return barRow(m.k, m.ped + ' pedidos', m.n / mx * 100, '#0B5F8D', nf(m.n), null, motivoIco(m.k)); }).join('') + '</div>' : '<div class="ot-soon" style="padding:24px">Sin artículos no entregados en este filtro.</div>') +
           '<div class="ot-legend">Cantidad de artículos que no salieron, según el motivo cargado en SAP</div>' +
         '</div>' +
       '</div>';
@@ -396,8 +430,8 @@
     return '<div class="ot-tile' + (id ? ' is-click' : '') + '"' + (id ? ' id="' + id + '" role="button" tabindex="0"' : '') + ' style="--c:' + color + '"><div class="ot-tile__h"><i></i>' + esc(lbl) + (accion ? '<span class="ot-tile__go">' + esc(accion) + ' →</span>' : '') + '</div><div class="ot-tile__v">' + valHtml + '</div>' +
       (typeof foot === 'string' ? '<div class="ot-tile__s">' + esc(foot) + '</div></div>' : '<div class="ot-tile__f">' + foot.map(function (f) { return '<div' + (f[2] ? ' class="wide"' : '') + '><b' + (f[2] ? ' class="num"' : '') + ' title="' + esc(String(f[0]).replace(/<[^>]+>/g, '')) + '">' + f[0] + '</b><span>' + esc(f[1]) + '</span></div>'; }).join('') + '</div></div>');
   }
-  function barRow(name, sub, pct, color, valTxt, meta) {
-    return '<div class="ot-bar"><div class="ot-bar__n" title="' + esc(name) + '">' + esc(name) + '<small>' + esc(sub) + '</small></div>' +
+  function barRow(name, sub, pct, color, valTxt, meta, ico) {
+    return '<div class="ot-bar' + (ico ? ' has-ico' : '') + '"><div class="ot-bar__n" title="' + esc(name) + '">' + (ico ? '<span class="ot-bar__ico">' + ico + '</span>' : '') + '<span class="ot-bar__tx">' + esc(name) + '<small>' + esc(sub) + '</small></span></div>' +
       '<div class="ot-bar__t"><span data-w="' + Math.max(0, Math.min(100, pct || 0)).toFixed(1) + '" style="background:' + color + '"></span>' + (meta != null ? '<em style="left:' + meta + '%"></em>' : '') + '</div>' +
       '<div class="ot-bar__v" style="color:' + color + '">' + valTxt + '</div></div>';
   }
@@ -431,8 +465,12 @@
     tl.fromTo('#bOt', { width: '0%' }, { width: (g.pOt || 0) + '%', duration: 1.1, ease: 'power2.out' }, .25);
     tl.fromTo('#bIn', { width: '0%' }, { width: (g.pIn || 0) + '%', duration: 1.1, ease: 'power2.out' }, .32);
     // flujo del proceso + barras
-    tl.from('#cardTramos .ot-flow__seg', { scaleX: 0, transformOrigin: '0% 50%', duration: .55, stagger: .08, ease: 'power3.out', clearProps: 'transform' }, .35);
-    tl.from('#cardTramos .ot-step', { opacity: 0, x: -10, duration: .35, stagger: .06, ease: 'power2.out', clearProps: 'transform,opacity' }, .45);
+    tl.fromTo('#cardTramos .rt-line span', { width: '0%' }, { width: '100%', duration: 1.1, ease: 'power2.inOut' }, .35);
+    tl.from('#cardTramos .rt-i', { scale: 0, rotate: -20, duration: .45, stagger: .16, ease: 'back.out(2.2)', clearProps: 'transform' }, .4);
+    tl.from('#cardTramos .rt-n b, #cardTramos .rt-n span, #cardTramos .rt-n em', { opacity: 0, y: 6, duration: .3, stagger: .05, ease: 'power2.out', clearProps: 'transform,opacity' }, .55);
+    tl.from('#cardMotivos .ot-bar__ico', { scale: 0, duration: .4, stagger: .06, ease: 'back.out(2.4)', clearProps: 'transform' }, .45);
+    // Festejo: si el OTIF llegó a la meta, el anillo late
+    if (g.pOtif != null && g.pOtif >= (+CFG.meta_otif || 85)) tl.fromTo('.ot-gauge', { scale: 1 }, { scale: 1.06, duration: .22, yoyo: true, repeat: 3, ease: 'power1.inOut', clearProps: 'transform' }, 1.5);
     qa('.ot-bar__t span').forEach(function (s, i) { gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .4 + i * .035, ease: 'power3.out' }); });
   }
 
@@ -658,8 +696,8 @@
 
     function zonaCard(z) {
       var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
-      return '<div class="ot-blue zn-card">' +
-        '<div class="ot-lbl">Zona ' + esc(z.clave) + ' · ' + esc(mesLbl(CUR)) + (f === 0 ? '<span class="meta ok">✓ En meta</span>' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos para el ' + pf(meta, 0) + '</span>') + '</div>' +
+      return '<div class="ot-blue zn-card st-' + estadoMeta(z.pOtif, meta).c + '">' +
+        '<div class="ot-lbl"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span>Zona ' + esc(z.clave) + ' · ' + esc(mesLbl(CUR)) + chipEstado(z.pOtif, meta) + (f === 0 ? '' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos</span>') + '</div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
         '<div class="ot-foot">' +
@@ -670,12 +708,14 @@
     }
     body.innerHTML =
       '<div class="ot-top zn-top">' + zonas.map(zonaCard).join('') + '</div>' +
+      '<div class="zn-mid">' +
+      '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa</h3><small>tocá un departamento</small></div><div class="zn-map__box" id="znMapBox"></div><div class="zn-tip" id="znTip" hidden></div></div>' +
       '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Departamentos</h3>' +
         '<div class="zn-sort" id="znSort"><button type="button" data-o="faltan">Más lejos de la meta</button><button type="button" data-o="otif">Peor %</button></div></div>' +
         '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
         '<div id="znRows"></div>' +
         '<div class="ot-legend"><span><i style="background:#16a34a"></i>En meta</span><span><i style="background:#d97706"></i>Cerca</span><span><i style="background:#dc2626"></i>Lejos</span></div>' +
-      '</div>';
+      '</div></div>';
 
     function fila(d, sub) {
       var c = semColor(d.pOtif);
@@ -726,10 +766,19 @@
     }
     qa('#znSort button').forEach(function (b) { b.addEventListener('click', function () { if (ZN.orden === b.dataset.o) return; ZN.orden = b.dataset.o; pintarFilas(true); }); });
     pintarFilas(entrada);
+    pintarMapa(deps, meta, entrada, function (dep) {
+      var r = qa('#znRows .zn-row[data-dep]').filter(function (x) { return x.dataset.dep === dep; })[0];
+      if (!r) return;
+      if (!r.parentNode.classList.contains('open')) toggleDep(r.parentNode, dep);
+      var st = q('#stage'), top = r.getBoundingClientRect().top - st.getBoundingClientRect().top + st.scrollTop - 90;
+      if (GS) gsap.to(st, { scrollTop: top, duration: .6, ease: 'power2.inOut' }); else st.scrollTop = top;
+      if (GS) gsap.fromTo(r, { backgroundColor: '#dbeafe' }, { backgroundColor: 'rgba(0,0,0,0)', duration: 1.4, delay: .4, ease: 'power1.out', clearProps: 'backgroundColor' });
+    });
 
     // animación de las tarjetas de zona
     qa('.zn-card').forEach(function (c, i) {
       var n = q('[data-p]', c), m = q('.zn-meter span', c);
+      if (GS) gsap.from(q('.zn-ico', c), { scale: 0, rotate: -25, duration: .5, delay: .1 + i * .1, ease: 'back.out(2.4)', clearProps: 'transform' });
       animCount(n, parseFloat(n.dataset.p), function (v) { return pf(v); }, 1.1);
       if (GS) gsap.fromTo(m, { width: '0%' }, { width: m.dataset.w + '%', duration: 1.1, delay: .15 + i * .1, ease: 'power3.out' }); else m.style.width = m.dataset.w + '%';
     });
@@ -821,7 +870,7 @@
         '<div class="ot-card" id="tpEtapas"><div class="ot-card__h"><h3>Cada etapa</h3><small>típico · los más lentos (1 de cada 10)</small></div>' +
           filas.map(function (f) {
             var w1 = (f.med || 0) / maxV * 100, w2 = (f.lento || 0) / maxV * 100, max = f === tMax;
-            return '<div class="tp-row' + (max ? ' is-max' : '') + '"><div class="tp-n">' + esc(f.t[1]) + '<small>' + esc(f.t[2]) + '</small></div>' +
+            return '<div class="tp-row' + (max ? ' is-max' : '') + '"><div class="tp-n"><span class="tp-ico">' + STG_ICO[f.t[0]] + '</span><span>' + esc(f.t[1]) + '<small>' + esc(f.t[2]) + '</small></span></div>' +
               '<div class="tp-bar"><span class="slow" data-w="' + w2.toFixed(1) + '"></span><span class="typ" data-w="' + w1.toFixed(1) + '" style="background:' + (max ? '#dc2626' : f.t[3]) + '"></span></div>' +
               '<div class="tp-v"><b>' + tiempo(f.med) + '</b><small>hasta ' + tiempo(f.lento, true) + '</small></div></div>';
           }).join('') +
@@ -972,6 +1021,54 @@
       renderShell();
       gsap.fromTo(st, { opacity: 0, y: -14, filter: 'blur(6px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .55, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
     } });
+  }
+
+  /* ── Mapa de Paraguay pintado por semáforo (Zonas) ── */
+  // Escala gradual para el mapa: rojo oscuro (lejos) → naranja → ámbar → verde (en meta)
+  function mapColor(p, meta) {
+    if (p == null || isNaN(p)) return '#e2e8f0';
+    var stops = [[meta - 45, [127, 29, 29]], [meta - 25, [220, 38, 38]], [meta - 10, [249, 115, 22]], [meta - 3, [234, 179, 8]], [meta, [22, 163, 74]]];
+    if (p <= stops[0][0]) return 'rgb(' + stops[0][1] + ')';
+    if (p >= meta) return 'rgb(' + stops[4][1] + ')';
+    for (var i = 1; i < stops.length; i++) if (p <= stops[i][0]) {
+      var a = stops[i - 1], b = stops[i], t = (p - a[0]) / (b[0] - a[0]);
+      return 'rgb(' + a[1].map(function (v, j) { return Math.round(v + (b[1][j] - v) * t); }).join(',') + ')';
+    }
+    return 'rgb(' + stops[4][1] + ')';
+  }
+  function pintarMapa(deps, meta, entrada, alTocar) {
+    var box = q('#znMapBox'), M = window.PY_MAPA;
+    if (!box || !M) { var c = q('#znMap'); if (c) c.remove(); return; }
+    var by = {}; deps.forEach(function (d) { by[d.clave] = d; });
+    var asu = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0];
+    box.innerHTML = '<svg viewBox="0 0 ' + M.w + ' ' + M.h + '" role="img" aria-label="Mapa de cumplimiento por departamento">' +
+      M.deptos.map(function (d) {
+        var x = by[d.k], col = x ? mapColor(x.pOtif, meta) : '#e2e8f0';
+        return '<path class="pm-d' + (x ? ' has' : '') + '" data-k="' + esc(d.k) + '" data-n="' + esc(d.n) + '" d="' + d.d + '" fill="' + col + '"/>';
+      }).join('') +
+      (asu ? '<circle class="pm-asu' + (by.Asuncion ? ' has' : '') + '" data-k="Asuncion" data-n="Asunción" cx="' + asu.cx + '" cy="' + asu.cy + '" r="15" fill="' + (by.Asuncion ? mapColor(by.Asuncion.pOtif, meta) : '#e2e8f0') + '"/>' : '') +
+      '</svg>' +
+      '<div class="pm-scale"><span style="background:linear-gradient(90deg,' + [meta - 45, meta - 25, meta - 10, meta - 3, meta].map(function (v) { return mapColor(v, meta); }).join(',') + ')"></span><div><small>' + pf(meta - 45, 0) + ' o menos</small><small>Meta ' + pf(meta, 0) + '</small></div></div>';
+    var tip = q('#znTip'), card = q('#znMap');
+    function mostrar(e, el) {
+      var x = by[el.dataset.k], n = el.dataset.n;
+      var grupo = el.dataset.k === 'Chaco' ? ' <small>(Chaco)</small>' : '';
+      tip.innerHTML = '<b>' + esc(n) + grupo + '</b>' + (x ? '<span style="color:' + mapColor(x.pOtif, meta) + '">' + pf(x.pOtif) + '</span><small>' + nf(x.evaluados) + ' pedidos' + (x.faltan ? ' · faltan ' + nf(x.faltan) : ' · en meta') + '</small>' : '<small>Sin pedidos este mes</small>');
+      tip.hidden = false;
+      var r = card.getBoundingClientRect();
+      tip.style.left = Math.min(r.width - 190, Math.max(8, e.clientX - r.left + 14)) + 'px';
+      tip.style.top = (e.clientY - r.top + 14) + 'px';
+      qa('[data-k="' + el.dataset.k + '"]', box).forEach(function (p) { p.classList.add('hov'); });
+    }
+    qa('.pm-d, .pm-asu', box).forEach(function (el) {
+      el.addEventListener('mousemove', function (e) { mostrar(e, el); });
+      el.addEventListener('mouseleave', function () { tip.hidden = true; qa('.hov', box).forEach(function (p) { p.classList.remove('hov'); }); });
+      if (by[el.dataset.k]) el.addEventListener('click', function () { alTocar(el.dataset.k); });
+    });
+    if (GS && entrada !== false) {
+      gsap.from(qa('.pm-d', box), { opacity: 0, scale: .92, transformOrigin: '50% 50%', duration: .5, stagger: .035, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(qa('.pm-asu', box), { scale: 0, transformOrigin: '50% 50%', duration: .5, delay: .6, ease: 'back.out(2.6)', clearProps: 'transform' });
+    }
   }
 
   /* ── Brecha a la meta (Resumen) ── */
@@ -1220,7 +1317,39 @@
       if (on && !was && GS) { var ic = b.querySelector('.nav-btn__ico'); if (ic) gsap.fromTo(ic, { scale: .7 }, { scale: 1, duration: .4, ease: 'back.out(2.2)', clearProps: 'transform' }); }
     });
   }
-  function ir(v) { VIEW = v; setNav(v); if (!q('#otBody')) { renderShell(); return; } renderPagina(true); }
+  function ir(v) {
+    var cambio = VIEW !== v;
+    VIEW = v; setNav(v);
+    var body = q('#otBody');
+    if (!body) { renderShell(); return; }
+    if (!GS || !cambio) { renderPagina(true); return; }
+    gsap.killTweensOf(body);
+    gsap.to(body, { opacity: 0, y: 10, filter: 'blur(5px)', duration: .2, ease: 'power2.in', onComplete: function () {
+      q('#stage').scrollTop = 0;
+      renderPagina(true);
+      gsap.fromTo(body, { opacity: 0, y: -10, filter: 'blur(5px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .42, ease: 'power3.out', clearProps: 'transform,opacity,filter' });
+    } });
+  }
+
+  /* Aparición al bajar: lo que está fuera de la vista se anima cuando llega */
+  var _revealObs = null;
+  function revelarAlBajar() {
+    if (!GS || !window.IntersectionObserver) return;
+    var st = q('#stage'); if (!st) return;
+    if (_revealObs) _revealObs.disconnect();
+    var limite = st.getBoundingClientRect().bottom;
+    var els = qa('#otBody .ot-card, #otBody .ot-tile, #otBody .ot-blue').filter(function (e) { return e.getBoundingClientRect().top > limite - 20; });
+    if (!els.length) return;
+    _revealObs = new IntersectionObserver(function (ents) {
+      ents.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        _revealObs.unobserve(en.target);
+        gsap.to(en.target, { opacity: 1, y: 0, duration: .6, ease: 'power3.out', clearProps: 'transform,opacity' });
+        qa('[data-w]', en.target).forEach(function (b, i) { gsap.fromTo(b, { width: '0%' }, { width: b.dataset.w + '%', duration: .8, delay: .1 + i * .03, ease: 'power3.out' }); });
+      });
+    }, { root: st, threshold: .12 });
+    els.forEach(function (e) { gsap.killTweensOf(e); gsap.set(e, { opacity: 0, y: 28 }); _revealObs.observe(e); });
+  }
 
   async function irMes(ym, dir) {
     CUR = ym;

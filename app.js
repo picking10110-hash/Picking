@@ -703,8 +703,10 @@
 
     function zonaCard(z) {
       var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
-      return '<div class="ot-blue zn-card st-' + estadoMeta(z.pOtif, meta).c + '">' +
-        '<div class="ot-lbl"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span>Zona ' + esc(z.clave) + ' · ' + esc(mesLbl(CUR)) + chipEstado(z.pOtif, meta) + (f === 0 ? '' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos</span>') + '</div>' +
+      var cap = z.clave === 'Capital';
+      return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + '">' +
+        '<div class="zn-top"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><div class="zn-name"><b>' + esc(z.clave) + '</b><small>' + (cap ? 'Asunción y Central' : 'Resto del país') + ' · ' + esc(mesLbl(CUR)) + '</small></div>' +
+          '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f === 0 ? '' : '<span class="meta gap">Faltan ' + nf(f) + ' pedidos</span>') + '</div></div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
         '<div class="ot-foot">' +
@@ -897,21 +899,13 @@
     var lentos = p90(g.ciclos), slaN = 0, slaS = 0;
     evs.forEach(function (o) { if (o.estado === 'evaluado') { slaS += o.sla; slaN++; } });
     var slaProm = slaN ? slaS / slaN : null;
-    var escala = Math.max(slaProm || 0, g.cicloMed || 0) * 1.25 || 1;
+    var thMarg = slaProm != null && g.cicloMed != null ? slaProm - g.cicloMed : null, thPos = slaProm ? Math.min(100, (g.cicloMed || 0) / slaProm * 100) : 0;
     body.innerHTML =
       '<div class="tp-page">' +
-      '<div class="ot-blue tp-hero" id="tpHero">' +
-        '<div class="tp-hero__main"><div class="ot-lbl">Velocidad de entrega · ' + esc(mesLbl(CUR)) + '</div>' +
-          '<div class="tp-hero__big"><small>La mitad de los pedidos llega en</small><b id="tpBig">' + tiempo(g.cicloMed) + '</b><small>o menos (horario laboral)</small></div></div>' +
-        '<div class="tp-hero__cmp">' +
-          '<div class="tp-cmp"><span>Tiempo habitual</span><div class="tp-cmp__bar"><i data-w="' + ((g.cicloMed || 0) / escala * 100).toFixed(1) + '"></i></div><b>' + tiempo(g.cicloMed) + '</b></div>' +
-          '<div class="tp-cmp is-sla"><span>Plazo promedio</span><div class="tp-cmp__bar"><i data-w="' + ((slaProm || 0) / escala * 100).toFixed(1) + '"></i></div><b>' + plazo(slaProm == null ? null : Math.round(slaProm * 10) / 10) + '</b></div>' +
-        '</div>' +
-        '<div class="ot-foot tp-hero__foot">' +
-          '<div class="ot-st"><b>' + nf(g.ciclos.length) + '</b><span>Pedidos entregados</span></div>' +
-          '<div class="ot-st"><b>' + tiempo(lentos) + '</b><span>1 de cada 10 tarda más de</span></div>' +
-          '<div class="ot-st"><b>' + pf(cnt[0] / tot * 100, 0) + '</b><span>Llega en menos de 1 día</span></div>' +
-        '</div>' +
+      '<div class="ot-blue tp-hero2" id="tpHero">' +
+        '<div class="th-main"><span class="th-ico">' + SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>') + '</span><div><span class="th-l">Tiempo habitual de entrega</span><b id="tpBig">' + tiempo(g.cicloMed) + '</b></div></div>' +
+        '<div class="th-track"><div class="th-bar"><i data-w="' + thPos.toFixed(1) + '"></i></div><div class="th-ends"><span>Carga del pedido</span><span>Plazo · ' + plazo(slaProm == null ? null : Math.round(slaProm * 10) / 10) + '</span></div></div>' +
+        '<div class="th-side">' + (thMarg == null ? '' : '<span class="st-meta ' + (thMarg >= 0 ? 'ok' : 'bad') + '"><i></i>' + tiempo(Math.abs(thMarg)) + (thMarg >= 0 ? ' antes del plazo' : ' después del plazo') + '</span>') + '<small>' + nf(g.ciclos.length) + ' pedidos entregados</small></div>' +
       '</div>' +
       '<div class="ot-grid2 tp-grid">' +
         '<div class="ot-card" id="tpEtapas"><div class="ot-card__h"><h3>Tiempo por etapa</h3><small>tocá una etapa para ver sus pedidos</small></div>' +
@@ -932,7 +926,7 @@
       '</div></div>';
     wireConfigHorario(body);
     wireEtapas(body, 'tiempos');
-    var bars = qa('#tpEtapas .tp-bar span, #tpDist .tp-col__bar span, #tpHero .tp-cmp__bar i');
+    var bars = qa('#tpEtapas .tp-bar span, #tpDist .tp-col__bar span, #tpHero .th-bar i');
     bars.forEach(function (s, i) { if (GS && entrada !== false) gsap.fromTo(s, { width: '0%' }, { width: s.dataset.w + '%', duration: .9, delay: .1 + i * .04, ease: 'power3.out' }); else s.style.width = s.dataset.w + '%'; });
     if (GS && entrada !== false) {
       gsap.from('#tpHero, .tp-grid .ot-card', { opacity: 0, y: 16, duration: .45, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
@@ -1267,7 +1261,7 @@
     }
     function volver() { foco(sel, false); ficha(sel, true); }   // seleccionado: solo borde, sin apagar al resto
 
-    var card = q('#znMap'), tip = el('<div class="pm-tip" hidden><b></b><span></span></div>');
+    var card = q('#znMap'), tip = el('<div class="pm-tip" hidden><b></b><span></span><em class="st-meta"></em></div>');
     card.appendChild(tip);
     var tipX = GS ? gsap.quickTo(tip, 'x', { duration: .25, ease: 'power3.out' }) : null, tipY = GS ? gsap.quickTo(tip, 'y', { duration: .25, ease: 'power3.out' }) : null;
     var tSalir = null, actual = null;
@@ -1278,7 +1272,7 @@
       var x = by[k], nombre = k === 'Chaco' ? 'Chaco' : (M.deptos.filter(function (d) { return d.k === k; })[0] || {}).n || k;
       q('b', tip).textContent = nombre;
       q('span', tip).textContent = ZN.lente === 'vol' ? nf(x.evaluados) + ' pedidos' : pf(x.pOtif);
-      q('span', tip).style.color = ZN.lente === 'vol' ? '#9FD3FF' : mapColor(x.pOtif, meta);
+      var stT = estadoMeta(x.pOtif, meta), emT = q('em', tip); emT.className = 'st-meta ' + stT.c; emT.innerHTML = '<i></i>' + (ZN.lente === 'vol' ? pf(x.pOtif) + ' a tiempo y completo' : stT.t);
       if (tip.hidden) { tip.hidden = false; if (GS) gsap.fromTo(tip, { opacity: 0, scale: .9 }, { opacity: 1, scale: 1, duration: .18, ease: 'power2.out' }); }
     }
     function salir() {

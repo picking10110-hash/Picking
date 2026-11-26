@@ -1220,3 +1220,57 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .rt-go{top:-4px;left:calc(50% + 18px);width:22px;height:22px;padding:0;display:grid;place-items:center;border-radius:50%;transform:scale(.4);z-index:2;border:2px solid #fff}
 .rt-go svg{width:12px;height:12px;stroke-width:2.6}
 .rt-n[data-etapa]:hover .rt-go,.rt-n[data-etapa]:focus-visible .rt-go{transform:scale(1)}
+
+/* Encabezado del KPI: valor + barra centrados en la franja */
+@media(min-width:1101px){
+  .kp-head{display:grid;grid-template-columns:1fr auto auto minmax(240px,360px) 1fr;column-gap:16px}
+  .kp-head .kp-back{grid-column:1;justify-self:start}
+  .kp-head .kp-sep{display:none}
+  .kp-head .kp-ico{grid-column:2}
+  .kp-head .kp-v{grid-column:3}
+  .kp-head .kp-meter{grid-column:4;max-width:none;margin-left:0}
+  .kp-head .kp-d{grid-column:5;justify-self:end;margin:0}
+}
+
+/* ===== Tiempos: franja simple (habitual · barra hacia el plazo · margen) ===== */
+.tp-hero2{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:36px;padding:18px 28px}
+.th-main{display:flex;align-items:center;gap:14px}
+.th-ico{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.15);color:#fff;flex:none}
+.th-ico svg{width:24px;height:24px}
+.th-l{display:block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.72)}
+.th-main b{display:block;font-family:Sora,Inter,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.8px;color:#fff;line-height:1.1;margin-top:3px}
+.th-bar{position:relative;height:10px;border-radius:99px;background:rgba(255,255,255,.16)}
+.th-bar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:99px;background:linear-gradient(90deg,#7CC4FF,#fff)}
+.th-bar i::after{content:'';position:absolute;right:-8px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.25),0 2px 8px rgba(0,0,0,.2)}
+.th-bar::after{content:'';position:absolute;right:0;top:-5px;bottom:-5px;width:3px;border-radius:2px;background:#FDE68A}
+.th-ends{display:flex;justify-content:space-between;margin-top:10px;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.75)}
+.th-ends span:last-child{color:#FDE68A}
+.th-side{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.th-side .st-meta{height:28px;font-size:12px;padding:0 12px}
+.th-side small{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.7)}
+@media(max-width:900px){.tp-hero2{grid-template-columns:1fr;gap:18px}.th-side{align-items:flex-start}}
+
+/* Etiqueta del mapa en azul ALAS */
+.pm-tip{gap:3px;min-width:150px;padding:10px 14px 11px;border-radius:13px;background:linear-gradient(135deg,#0B4F8A 0%,#1E6FBF 100%);border:1px solid rgba(255,255,255,.18);box-shadow:0 14px 30px -8px rgba(11,79,138,.55),0 2px 6px rgba(11,79,138,.25)}
+.pm-tip b{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.78)}
+.pm-tip span{font-size:22px;color:#fff;line-height:1.1}
+.pm-tip .st-meta{align-self:flex-start;margin-top:3px;height:20px;font-size:10.5px;font-style:normal}
+.pm-hl{stroke:#0B4F8A}
+
+/* ===== Zonas: Capital e Interior bien diferenciadas ===== */
+.zn-top{position:relative;display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.zn-top .zn-ico{width:40px;height:40px;border-radius:12px}
+.zn-top .zn-ico svg{width:21px;height:21px}
+.zn-name{display:flex;flex-direction:column;line-height:1.1}
+.zn-name b{font-family:Sora,Inter,sans-serif;font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.zn-name small{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.72);margin-top:3px}
+.zn-chips{margin:0 0 0 auto}
+/* Capital: azul ALAS profundo */
+.zn-card.zn-cap{background:linear-gradient(135deg,#072F55 0%,#0B4F8A 55%,#1565B0 100%)}
+.zn-card.zn-cap .zn-ico{background:#fff;color:#0B4F8A;box-shadow:0 6px 14px -4px rgba(0,0,0,.35)}
+/* Interior: azul petróleo */
+.zn-card.zn-int{background:linear-gradient(135deg,#063F4C 0%,#0E7490 55%,#1597A8 100%)}
+.zn-card.zn-int .zn-ico{background:#fff;color:#0E7490;box-shadow:0 6px 14px -4px rgba(0,0,0,.35)}
+.zn-card.zn-cap::after,.zn-card.zn-int::after{content:'';position:absolute;left:0;top:18px;bottom:18px;width:4px;border-radius:0 4px 4px 0}
+.zn-card.zn-cap::after{background:#7CC4FF}
+.zn-card.zn-int::after{background:#5EEAD4}

@@ -730,7 +730,7 @@
           '</div>' +
         '</div>' +
         '<div class="zn-right">' +
-          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
+          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-mfil-w" id="znMFilW"></div><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
             '<div class="zn-map__box" id="znMapBox"></div><div class="pm-scale" id="znMapLeg"></div><div class="md" id="znDet"></div></div>' +
         '</div>' +
       '</div>';
@@ -960,7 +960,10 @@
     var dis = adm ? '' : ' disabled';
     var DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     var MES3 = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    var deps = Object.keys(c.sla_departamento).sort(function (a, b) { return a.localeCompare(b, 'es'); });
+    var zonaDep = {}; EVS.forEach(function (o) { if (o.p.departamento && o.p.zona) zonaDep[o.p.departamento] = o.p.zona; });
+    var deps = Object.keys(Object.assign({}, zonaDep, c.sla_departamento)).filter(Boolean).sort(function (a, b) { return a.localeCompare(b, 'es'); });
+    var zonaDe = function (d) { return zonaDep[d] || (/^(asunci|central)/i.test(d) ? 'Capital' : 'Interior'); };
+    var usaZona = function (d) { return !(parseFloat(c.sla_departamento[d]) > 0); };
     var meta = +c.meta_otif || 85, R = 54, CR = 2 * Math.PI * R;
     var hoyOtif = CALC.resumen(EVS).pOtif;
     var hoyISO = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
@@ -1012,8 +1015,13 @@
           ['Capital', 'Interior'].map(function (z) { return '<div class="pf-z" data-box><span class="pf-z__ico">' + (ZONA_ICO[z] || '') + '</span><div class="pf-z__t"><b>' + z + '</b><small>plazo de entrega</small></div>' + stepper('data-zona="' + z + '"', c.sla_zona[z] || '', .5, .5, 30) + '</div>'; }).join('') +
           '<div class="pf-note2">' + SV('<circle cx="12" cy="12" r="8.5"/><path d="M12 8v4M12 16h.01"/>') + '<span>Retira el cliente / salón (' + esc((c.condiciones_retiro || ['08', '09']).join(', ')) + '): el plazo termina en la factura.</span></div>' +
         '</div>' +
-        '<div class="ot-card pf-dep"><div class="ot-card__h"><h3>Plazo por departamento</h3><small>días hábiles · tiene prioridad sobre la zona</small></div>' +
-          '<div class="pf-dgrid">' + deps.map(function (d) { return '<div class="pf-d" data-box><b>' + esc(d) + '</b>' + stepper('data-dep="' + esc(d) + '"', c.sla_departamento[d], .5, .5, 30) + '</div>'; }).join('') + '</div>' +
+        '<div class="ot-card pf-dep"><div class="ot-card__h"><h3>Plazo por departamento</h3><small>días hábiles · tiene prioridad sobre la zona, salvo los que usan el plazo de su zona</small></div>' +
+          '<div class="pf-dgrid">' + deps.map(function (d) {
+            var z = zonaDe(d), uz = usaZona(d);
+            return '<div class="pf-d' + (uz ? ' z' : '') + '" data-box data-z="' + esc(z) + '"><div class="pf-d__t"><b>' + esc(d) + '</b>' +
+              '<button type="button" class="pf-zbtn"' + dis + ' title="Usar el plazo de la zona ' + esc(z) + '"><i></i><span>Plazo de ' + esc(z) + '</span></button></div>' +
+              stepper('data-dep="' + esc(d) + '"', uz ? (c.sla_zona[z] || '') : c.sla_departamento[d], .5, .5, 30) + '</div>';
+          }).join('') + '</div>' +
         '</div>' +
         '<div class="ot-card pf-fer2"><div class="ot-card__h"><h3>Feriados</h3><small id="pfFerCnt">' + nf(c.feriados.length) + ' cargados · no cuentan como día laboral</small></div>' +
           (adm ? '<div class="pf-add2"><input type="date" id="pfFerD"/><button class="btn btn--primary btn--sm" type="button" id="pfFerAdd">' + SV('<path d="M12 5v14M5 12h14"/>') + ' Agregar feriado</button></div>' : '') +
@@ -1055,7 +1063,7 @@
       var a = [aMinHM(lvI[0].value), aMinHM(lvI[1].value)], s = [aMinHM(saI[0].value), aMinHM(saI[1].value)];
       x.calendario.dias = [null, a, a, a, a, a, (s[0] != null && s[1] != null && s[1] > s[0]) ? s : null];
       qa('[data-zona]').forEach(function (i) { var v = parseFloat(i.value); if (v > 0) x.sla_zona[i.dataset.zona] = v; });
-      qa('[data-dep]').forEach(function (i) { var v = parseFloat(i.value); if (v > 0) x.sla_departamento[i.dataset.dep] = v; });
+      qa('[data-dep]').forEach(function (i) { var box = i.closest('[data-box]'), v = parseFloat(i.value); if (box.classList.contains('z')) delete x.sla_departamento[i.dataset.dep]; else if (v > 0) x.sla_departamento[i.dataset.dep] = v; });
       x.feriados = c.feriados.slice().sort();
       return x;
     }
@@ -1065,7 +1073,7 @@
       // marcar las cajas que cambiaron
       var o = JSON.parse(orig);
       qa('[data-zona]').forEach(function (i) { i.closest('[data-box]').classList.toggle('chg', parseFloat(i.value) !== +o.sla_zona[i.dataset.zona]); });
-      qa('[data-dep]').forEach(function (i) { i.closest('[data-box]').classList.toggle('chg', parseFloat(i.value) !== +o.sla_departamento[i.dataset.dep]); });
+      qa('[data-dep]').forEach(function (i) { var box = i.closest('[data-box]'), antes = parseFloat(o.sla_departamento[i.dataset.dep]) > 0; box.classList.toggle('chg', box.classList.contains('z') ? antes : (!antes || parseFloat(i.value) !== +o.sla_departamento[i.dataset.dep])); });
       if (sucio && bar.hidden) { bar.hidden = false; if (GS) gsap.fromTo(bar, { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: .45, ease: 'back.out(1.5)' }); }
       else if (!sucio && !bar.hidden) { if (GS) gsap.to(bar, { y: 80, opacity: 0, duration: .25, ease: 'power2.in', onComplete: function () { bar.hidden = true; } }); else bar.hidden = true; }
     }
@@ -1086,6 +1094,20 @@
       q('#pfMetaTxt').textContent = Math.round(v) + '%'; anillo(v, 'rapido');
     });
     qa('[data-tl]').forEach(function (i) { i.addEventListener('input', function () { pintarFranja(i.dataset.tl, true); }); });
+    function bloquear(box, si) { qa('input, .stp-b', box).forEach(function (n) { n.disabled = si; }); }
+    qa('.pf-d.z').forEach(function (box) { bloquear(box, true); });
+    function zonaVal(z) { var i = q('[data-zona="' + z + '"]'); return i ? i.value : ''; }
+    qa('.pf-zbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var box = b.closest('.pf-d'), inp = q('input', box), z = box.dataset.z, a = !box.classList.contains('z');
+        if (a) { box.dataset.prev = inp.value; inp.value = zonaVal(z); }
+        else { inp.value = box.dataset.prev && box.dataset.prev !== zonaVal(z) ? box.dataset.prev : zonaVal(z); }
+        box.classList.toggle('z', a); bloquear(box, a);
+        if (GS) gsap.fromTo(q('.stp', box), { scale: .94 }, { scale: 1, duration: .35, ease: 'back.out(2.4)', clearProps: 'transform' });
+        revisar();
+      });
+    });
+    qa('[data-zona]').forEach(function (zi) { zi.addEventListener('input', function () { qa('.pf-d.z[data-z="' + zi.dataset.zona + '"] input').forEach(function (i) { i.value = zi.value; }); }); });
     qa('.pf2 input').forEach(function (i) { i.addEventListener('input', revisar); });
     function wireFer() {
       qa('#pfFerList [data-del]').forEach(function (b) {
@@ -1222,6 +1244,10 @@
     var asu = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0];
     box.innerHTML = '<svg viewBox="-10 -10 ' + (M.w + 20) + ' ' + (M.h + 20) + '" role="img" aria-label="Mapa de cumplimiento por departamento">' +
       '<defs><filter id="pmSh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0f172a" flood-opacity=".28"/></filter></defs>' +
+      '<g class="pm-ext">' + [6, 5, 4, 3, 2, 1].map(function (i) {
+        return '<g class="pm-x" style="--i:' + i + '">' + M.deptos.map(function (d) { return '<path data-k="' + esc(d.k) + '" d="' + d.d + '" fill="#cbd5e1"/>'; }).join('') +
+          (asu ? '<circle data-k="Asuncion" cx="' + asu.cx + '" cy="' + asu.cy + '" r="15" fill="#cbd5e1"/>' : '') + '</g>';
+      }).join('') + '</g>' +
       '<g class="pm-g">' + M.deptos.map(function (d) {
         return '<path class="pm-d' + (by[d.k] ? ' has' : '') + '" data-k="' + esc(d.k) + '" d="' + d.d + '" fill="#e2e8f0"/>';
       }).join('') +
@@ -1264,7 +1290,8 @@
       svg.classList.toggle('foco', !!k && apagar !== false);
       qa('.pm-d', svg).forEach(function (p) { p.classList.toggle('on', p.dataset.k === k); });
       var capa = q('.pm-o', svg);
-      capa.innerHTML = k ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', 'none'); return c.outerHTML; }).join('') : '';
+      capa.innerHTML = k ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', colorDe(k)); return c.outerHTML; }).join('') : '';
+      if (GS && k) gsap.fromTo(qa('.pm-hl', capa), { y: 0 }, { y: -9 * (ZOOM || 1), duration: .28, ease: 'back.out(2)' }); else qa('.pm-hl', capa).forEach(function (h) { h.setAttribute('transform', 'translate(0,' + (-9 * (ZOOM || 1)) + ')'); });
       qa('.pm-t', svg).forEach(function (t) { t.classList.toggle('on', t.dataset.k === k); });
       qa('#znRows .zn-row[data-dep]').forEach(function (r) { r.classList.toggle('hl', r.dataset.dep === k); });
     }
@@ -1313,6 +1340,7 @@
         ZN.lente = b.dataset.l;
         qa('#znLente button').forEach(function (x) { x.classList.toggle('on', x === b); });
         qa('.pm-d', svg).forEach(function (p, i) { var c = colorDe(p.dataset.k); if (GS) gsap.to(p, { attr: { fill: c }, duration: .55, delay: i * .015, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
+        pintarRelieve(true);
         qa('.pm-t', svg).forEach(function (t) {
           if (!GS) { t.textContent = textoDe(t.dataset.k); return; }
           gsap.to(t, { opacity: 0, duration: .15, onComplete: function () { t.textContent = textoDe(t.dataset.k); gsap.to(t, { opacity: 1, duration: .25 }); } });
@@ -1321,6 +1349,103 @@
       });
     });
     leyenda();
+
+    /* ── Relieve 3D: color del departamento, más oscuro (vía CSS) ── */
+    function oscuro(c) {   // mismo color, 42% más oscuro (sin filtros CSS: más fluido)
+      var m = String(c).match(/\d+/g); if (String(c)[0] === '#') { var h = c.slice(1); m = [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+      return m ? 'rgb(' + m.slice(0, 3).map(function (v) { return Math.round(v * .58); }).join(',') + ')' : c;
+    }
+    function pintarRelieve(anim) {
+      qa('.pm-ext [data-k]', svg).forEach(function (p) { var c = oscuro(by[p.dataset.k] ? colorDe(p.dataset.k) : '#cbd5e1'); if (GS && anim) gsap.to(p, { attr: { fill: c }, duration: .55, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
+    }
+    pintarRelieve(false);
+
+    /* ── Filtro de departamentos: muestra solo los elegidos y acerca el mapa ── */
+    var VB0 = [-10, -10, M.w + 20, M.h + 20], ZOOM = 1;
+    function nombreDe(k) { return k === 'Chaco' ? 'Chaco' : (M.deptos.filter(function (d) { return d.k === k; })[0] || {}).n || k; }
+    function aplicarFiltro(anim) {
+      var set = ZN.deps && ZN.deps.length ? ZN.deps.filter(function (k) { return by[k]; }) : null;
+      var vis = function (k) { return !set || set.indexOf(k) >= 0; };
+      qa('[data-k]', svg).forEach(function (n) {
+        var v = vis(n.dataset.k);
+        n.style.pointerEvents = v ? '' : 'none';
+        if (GS && anim) gsap.to(n, { opacity: v ? 1 : 0, duration: .45, ease: 'power2.inOut' }); else n.style.opacity = v ? 1 : 0;
+      });
+      // encuadre: caja de los elegidos (+ el relieve), con el mismo formato del mapa
+      var vb = VB0.slice();
+      if (set) {
+        var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+        qa('.pm-g [data-k]', svg).forEach(function (p) { if (!vis(p.dataset.k)) return; var b = p.getBBox(); x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y); x2 = Math.max(x2, b.x + b.width); y2 = Math.max(y2, b.y + b.height); });
+        if (x1 < Infinity) {
+          var pad = 40, w = x2 - x1 + pad * 2, h = y2 - y1 + pad * 2 + 20, ar = VB0[2] / VB0[3];
+          if (w / h > ar) h = w / ar; else w = h * ar;
+          w = Math.max(w, 260); h = w / ar;
+          var cx = (x1 + x2) / 2, cy = (y1 + y2) / 2 + 8;
+          vb = [cx - w / 2, cy - h / 2, w, h];
+        }
+      }
+      ZOOM = vb[2] / VB0[2];
+      var str = vb.map(function (v) { return v.toFixed(1); }).join(' ');
+      if (GS && anim) { gsap.to(svg, { attr: { viewBox: str }, '--z': ZOOM, duration: .85, ease: 'power3.inOut' }); }
+      else { svg.setAttribute('viewBox', str); svg.style.setProperty('--z', ZOOM); }
+      if (set && set.indexOf(sel) < 0) { var mejor = orden.filter(function (d) { return set.indexOf(d.clave) >= 0; })[0]; if (mejor) sel = ZN.sel = mejor.clave; }
+      volver();
+      pintarBotonFiltro();
+    }
+    var fw = q('#znMFilW');
+    function pintarBotonFiltro() {
+      if (!fw) return;
+      var n = ZN.deps && ZN.deps.length ? ZN.deps.length : 0;
+      var b = q('.zn-mfil', fw);
+      if (!b) { fw.innerHTML = '<button type="button" class="zn-mfil">' + SV('<path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/>') + '<span></span><em hidden></em>' + SV('<path d="M6 9l6 6 6-6"/>') + '</button>'; b = q('.zn-mfil', fw); b.addEventListener('click', abrirFiltro); }
+      q('span', b).textContent = n === 0 ? 'Todos los departamentos' : n === 1 ? nombreDe(ZN.deps[0]) : 'Departamentos';
+      var em = q('em', b); em.hidden = n < 2; em.textContent = n;
+      b.classList.toggle('on', n > 0);
+    }
+    function abrirFiltro(e) {
+      e.stopPropagation();
+      var vieja = q('.dd-pop', fw); if (vieja) { vieja._cerrar(); return; }
+      var lista = deps.slice().sort(function (a, b) { return b.evaluados - a.evaluados; });
+      var pop = el('<div class="dd-pop dd-pop--m zn-mfil-pop"><div class="dd-hd"><b>Departamentos</b><span class="dd-cnt"></span></div>' +
+        '<div class="dd-q">' + SV('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>') + '<input type="text" placeholder="Buscar departamento…"/></div>' +
+        '<div class="dd-list"></div><div class="dd-ft"><button type="button" class="dd-clr">Ver todos</button><button type="button" class="dd-ok">Listo</button></div></div>');
+      fw.appendChild(pop);
+      q('.zn-mfil', fw).classList.add('open');
+      var list = q('.dd-list', pop), inp = q('input', pop), cnt = q('.dd-cnt', pop);
+      function elegidos() { return (ZN.deps || []).slice(); }
+      function contar() { var n = elegidos().length; cnt.textContent = n ? n + (n === 1 ? ' elegido' : ' elegidos') : 'Todos'; cnt.classList.toggle('on', n > 0); }
+      function pintar(t) {
+        t = (t || '').toLowerCase().trim(); var e2 = elegidos();
+        list.innerHTML = lista.filter(function (d) { return !t || nombreDe(d.clave).toLowerCase().indexOf(t) >= 0; }).map(function (d) {
+          var on = e2.indexOf(d.clave) >= 0;
+          return '<button type="button" class="dd-o' + (on ? ' on' : '') + '" data-v="' + esc(d.clave) + '"><i class="dd-ck">' + SV('<path d="M20 6L9 17l-5-5"/>') + '</i><i class="zn-mfil-dot" style="background:' + mapColor(d.pOtif, meta) + '"></i><span>' + esc(nombreDe(d.clave)) + '</span><em>' + nf(d.evaluados) + '</em></button>';
+        }).join('');
+        qa('.dd-o', list).forEach(function (b2) {
+          b2.addEventListener('click', function () {
+            var l = elegidos(), i = l.indexOf(b2.dataset.v);
+            if (i >= 0) l.splice(i, 1); else l.push(b2.dataset.v);
+            ZN.deps = l; b2.classList.toggle('on', i < 0);
+            if (GS) gsap.fromTo(q('.dd-ck', b2), { scale: .5 }, { scale: 1, duration: .3, ease: 'back.out(3)', clearProps: 'transform' });
+            contar(); aplicarFiltro(true);
+          });
+        });
+      }
+      function cerrar() {
+        document.removeEventListener('click', fuera);
+        q('.zn-mfil', fw).classList.remove('open'); pop._cerrar = null;
+        if (GS) gsap.to(pop, { opacity: 0, y: -6, scale: .98, duration: .14, ease: 'power1.in', onComplete: function () { pop.remove(); } }); else pop.remove();
+      }
+      function fuera(ev) { if (!pop.contains(ev.target)) cerrar(); }
+      pop._cerrar = cerrar;
+      pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
+      q('.dd-clr', pop).addEventListener('click', function () { ZN.deps = []; pintar(inp.value); contar(); aplicarFiltro(true); });
+      q('.dd-ok', pop).addEventListener('click', cerrar);
+      inp.addEventListener('input', function () { pintar(inp.value); });
+      pintar(''); contar(); setTimeout(function () { inp.focus(); }, 30);
+      if (GS) { gsap.fromTo(pop, { opacity: 0, y: -8, scale: .97, transformOrigin: '100% 0%' }, { opacity: 1, y: 0, scale: 1, duration: .26, ease: 'back.out(1.6)', clearProps: 'transform' }); gsap.from(qa('.dd-o', list).slice(0, 12), { opacity: 0, x: -6, duration: .2, stagger: .015, ease: 'power2.out', clearProps: 'transform,opacity' }); }
+      setTimeout(function () { document.addEventListener('click', fuera); }, 0);
+    }
+    pintarBotonFiltro();
 
     // Entrada: los departamentos se pintan del peor al mejor
     var pathsPorK = {}; qa('.pm-d', svg).forEach(function (p) { (pathsPorK[p.dataset.k] = pathsPorK[p.dataset.k] || []).push(p); });
@@ -1333,7 +1458,7 @@
     } else {
       qa('.pm-d', svg).forEach(function (p) { p.setAttribute('fill', colorDe(p.dataset.k)); });
     }
-    setTimeout(volver, GS && entrada !== false ? 350 + orden2.length * 70 : 0);
+    setTimeout(function () { if (ZN.deps && ZN.deps.length) aplicarFiltro(true); else volver(); }, GS && entrada !== false ? 350 + orden2.length * 70 : 0);
     return {
       foco: function (k) {
         clearTimeout(tSalir);

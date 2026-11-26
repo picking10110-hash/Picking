@@ -728,7 +728,7 @@
     }
     body.innerHTML =
       // Diseño en dos columnas: [Capital · Interior · ranking] | [mapa fijo a la derecha]
-      '<div class="zn-stack zn-stack--top">' + zonas.map(zonaCard).join('') + '</div>' +
+      '<div class="zn-stack zn-stack--top zn-stack--col">' + zonas.map(zonaCard).join('') + '</div>' +
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
           '<div class="ot-card" id="znRank"><div class="ot-card__h"><h3>Ranking por departamento</h3>' +

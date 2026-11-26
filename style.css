@@ -1723,3 +1723,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 @media(max-width:1750px){.zn-stack--top .zn-card{grid-template-columns:auto 1fr;grid-template-areas:"top foot" "big meter"}.zn-stack--top .zn-chips .st-meta small{display:none}}
 @media(max-width:1600px){.zn-stack--top .zn-card{grid-template-areas:"top top" "big foot" "meter meter"}.zn-stack--top .ot-foot{justify-self:end;align-self:center}.zn-stack--top .zn-meter{margin-bottom:14px}}
 .zn-stack--top .ot-st{padding:0 16px;min-width:max-content}
+
+/* ===== Interior debajo de Capital (ancho completo, una fila cada una) ===== */
+.zn-stack--top.zn-stack--col{grid-template-columns:1fr;gap:10px}
+.zn-stack--top.zn-stack--col .zn-card{grid-template-columns:auto auto minmax(160px,1fr) auto;grid-template-areas:"top big meter foot";row-gap:0;column-gap:22px;padding:12px 20px}
+.zn-stack--top.zn-stack--col .zn-big{font-size:30px;flex-direction:row;align-items:baseline;gap:8px}
+.zn-stack--top.zn-stack--col .zn-meter{margin:0;align-self:center}
+.zn-stack--top.zn-stack--col .zn-meter em i{top:13px}
+.zn-stack--top.zn-stack--col .ot-foot{justify-self:end;align-self:center}
+.zn-stack--top.zn-stack--col .zn-chips .st-meta small{display:none}
+@media(max-width:1500px){.zn-stack--top.zn-stack--col .zn-card{grid-template-columns:auto 1fr auto;grid-template-areas:"top top foot" "big meter meter";row-gap:8px}}
+.zn-subh{justify-content:flex-start;gap:12px}.zn-subh .zn-vbtn{order:-1}

@@ -137,9 +137,14 @@
   // Trae todas las filas de a 1000 (límite de Supabase), 4 páginas en paralelo y en orden
   async function paginar(build, alPag) {
     var out = [], PAGE = 1000, PAR = 4;
-    var pagina = function (off) {
+    var pagina = function (off, intento) {
+      intento = intento || 0;
       return build().range(off, off + PAGE - 1).then(function (r) {
-        if (r.error) throw r.error;
+        if (r.error) {
+          var reintentar = intento < 3 && (r.error.code === '57014' || !r.error.code || /fetch|network|timeout/i.test(r.error.message || ''));
+          if (reintentar) return new Promise(function (ok) { setTimeout(ok, 400 * (intento + 1)); }).then(function () { return pagina(off, intento + 1); });
+          throw r.error;
+        }
         if (alPag) alPag((r.data || []).length);
         return r.data || [];
       });
@@ -155,6 +160,19 @@
       if (corta) break;
     }
     return out;
+  }
+  // Pedidos de la vista para [d1, d2) en tramos de 1 día (4 en paralelo), en orden de fecha y pedido
+  async function pedidosRango(d1, d2, alPag) {
+    var dias = [], a = new Date(d1), b = new Date(d2);
+    for (var t = a.getTime(); t < b.getTime(); t += 86400000) dias.push([new Date(t).toISOString(), new Date(Math.min(t + 86400000, b.getTime())).toISOString()]);
+    var partes = new Array(dias.length);
+    for (var i = 0; i < dias.length; i += 4) {
+      await Promise.all(dias.slice(i, i + 4).map(function (d, k) {
+        return paginar(function () { return DB.from('otif_v_pedidos').select(COLS).gte('fecha_carga', d[0]).lt('fecha_carga', d[1]).order('doc_vtas'); }, alPag)
+          .then(function (rows) { partes[i + k] = rows; });
+      }));
+    }
+    return [].concat.apply([], partes);
   }
   async function cargarBase() {
     var c = await DB.from('otif_config').select('data').eq('id', 1).maybeSingle();
@@ -179,11 +197,11 @@
     var hechas = 0, paginas = 0, total = null, fPed = 0;
     var avisar = function (n) {
       hechas += n; paginas++;
-      fPed = total ? Math.min(1, hechas / total) : 1 - Math.pow(.6, paginas);
+      fPed = total ? Math.min(1, hechas / total) : 1 - Math.pow(.93, paginas);
       if (alProg) alProg(Math.min(.99, fPed * .85));
     };
     if (alProg) qPed('doc_vtas', { count: 'exact', head: true }).then(function (c) { if (c.count != null) total = Math.max(1, c.count); }).catch(function () {});
-    var peds = await paginar(function () { return qPed(COLS).order('doc_vtas'); }, avisar);
+    var peds = await pedidosRango(r[0], r[1], avisar);
     // Antes: join otif_lineas ⨝ otif_pedidos filtrando por fecha → con 450.000 líneas se cortaba por tiempo (57014)
     var docs = peds.filter(function (p) { return +p.n_sin_entrega > 0; }).map(function (p) { return p.doc_vtas; });
     var LOTE = 120, lotes = [];
@@ -623,7 +641,7 @@
       if (MONTHS.indexOf(ym) < 0) continue;
       if (!TCACHE[ym]) {
         var r = rangoMes(ym);
-        var rows = await paginar(function () { return DB.from('otif_v_pedidos').select(COLS).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]).order('doc_vtas'); });
+        var rows = await pedidosRango(r[0], r[1]);
         TCACHE[ym] = rows.map(CALC.evaluar).filter(Boolean);
       }
       out = out.concat(TCACHE[ym]);
@@ -2699,17 +2717,21 @@
         if (t) ui.mensaje(t);
       });
       ui.paso(3); ui.mensaje('Recalculando indicadores…');
-      CUR = res.meta.carga_hasta.slice(0, 7);
-      await cargarBase(); CUR = res.meta.carga_hasta.slice(0, 7);
-      ui.ir(96, 1.2);
-      await cargarMes();
+      var refrescoOk = true;
+      try {
+        CUR = res.meta.carga_hasta.slice(0, 7);
+        await cargarBase(); CUR = res.meta.carga_hasta.slice(0, 7);
+        ui.ir(96, 1.2);
+        await cargarMes();
+      } catch (eR) { console.warn('[OTIF] Guardado OK, falló el refresco del tablero:', eR); refrescoOk = false; }
       var f = function (d) { return d ? d.slice(8) + '/' + d.slice(5, 7) : '—'; };
       ui.ok([
         ['Pedidos en el Excel', nf(res.meta.pedidos)],
         ['Pedidos nuevos', nf(out.nuevos), true],
         ['Pedidos actualizados', nf(out.actualizados)],
         ['Período (fecha de carga)', f(res.meta.carga_desde) + ' → ' + f(res.meta.carga_hasta) + '/' + res.meta.carga_hasta.slice(0, 4)]
-      ].concat(res.meta.repetidas ? [['Filas repetidas en el Excel (tomadas una vez)', nf(res.meta.repetidas)]] : []), irAlResumen);
+      ].concat(res.meta.repetidas ? [['Filas repetidas en el Excel (tomadas una vez)', nf(res.meta.repetidas)]] : [])
+       .concat(refrescoOk ? [] : [['Tablero', 'datos guardados · recargá la página para verlos']]), refrescoOk ? irAlResumen : function () { location.reload(); });
     } catch (e) {
       console.error(e);
       ui.fail('Error al guardar: ' + (e && e.message ? e.message : e) + '. Probá de nuevo: lo que ya se guardó no se duplica.');

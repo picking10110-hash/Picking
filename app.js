@@ -134,13 +134,25 @@
     while (y < y2 || (y === y2 && m <= m2)) { out.push(y + '-' + pad(m)); m++; if (m > 12) { m = 1; y++; } }
     return out;
   }
-  async function paginar(build) {
-    var out = [], PAGE = 1000;
-    for (var off = 0; ; off += PAGE) {
-      var r = await build().range(off, off + PAGE - 1);
-      if (r.error) throw r.error;
-      out = out.concat(r.data || []);
-      if (!r.data || r.data.length < PAGE) break;
+  // Trae todas las filas de a 1000 (límite de Supabase), 4 páginas en paralelo y en orden
+  async function paginar(build, alPag) {
+    var out = [], PAGE = 1000, PAR = 4;
+    var pagina = function (off) {
+      return build().range(off, off + PAGE - 1).then(function (r) {
+        if (r.error) throw r.error;
+        if (alPag) alPag((r.data || []).length);
+        return r.data || [];
+      });
+    };
+    var primera = await pagina(0);
+    out = primera;
+    if (primera.length < PAGE) return out;
+    for (var off = PAGE; ; off += PAGE * PAR) {
+      var lote = [];
+      for (var k = 0; k < PAR; k++) lote.push(pagina(off + k * PAGE));
+      var res = await Promise.all(lote), corta = false;
+      for (var j = 0; j < res.length && !corta; j++) { out = out.concat(res[j]); if (res[j].length < PAGE) corta = true; }
+      if (corta) break;
     }
     return out;
   }
@@ -159,15 +171,22 @@
     if (!CUR || MONTHS.indexOf(CUR) < 0) CUR = MONTHS[MONTHS.length - 1] || null;
   }
   var COLS = 'doc_vtas,fecha_carga,clase_doc,cond_exp,region_cod,region_nombre,departamento,zona,cliente_cod,cliente_nombre,vendedor_cod,vendedor_nombre,n_lineas,n_completas,n_sin_entrega,monto_pedido,n_entregas,n_entregadas,n_no_entregado,almacen,ts_factura,ts_creacion,ts_control,ts_transporte,ts_entrega,ult_etapa';
-  async function cargarMes() {
+  async function cargarMes(alProg) {
     if (!CUR) { ROWS = []; MOTIVOS = []; return; }
     var r = rangoMes(CUR);
+    var qPed = function (sel, o) { return DB.from('otif_v_pedidos').select(sel, o).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]); };
+    var qLin = function (sel, o) { return DB.from('otif_lineas').select(sel, o).is('entrega', null).gte('otif_pedidos.fecha_carga', r[0]).lt('otif_pedidos.fecha_carga', r[1]); };
+    // Progreso: filas recibidas / filas esperadas (si el conteo no llega, avanza por páginas)
+    var hechas = 0, paginas = 0, total = null;
+    var avisar = function (n) {
+      hechas += n; paginas++;
+      if (alProg) alProg(total ? Math.min(.99, hechas / total) : 1 - Math.pow(.6, paginas));
+    };
+    if (alProg) Promise.all([qPed('doc_vtas', { count: 'exact', head: true }), qLin('doc_vtas,otif_pedidos!inner(fecha_carga)', { count: 'exact', head: true })])
+      .then(function (c) { if (c[0].count != null && c[1].count != null) { total = Math.max(1, c[0].count + c[1].count); if (alProg && hechas) alProg(Math.min(.99, hechas / total)); } }).catch(function () {});
     var res = await Promise.all([
-      paginar(function () { return DB.from('otif_v_pedidos').select(COLS).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]).order('doc_vtas'); }),
-      paginar(function () {
-        return DB.from('otif_lineas').select('doc_vtas,motivo_rechazo,cant_pedida,precio,desc_pct,otif_pedidos!inner(fecha_carga)')
-          .is('entrega', null).gte('otif_pedidos.fecha_carga', r[0]).lt('otif_pedidos.fecha_carga', r[1]).order('doc_vtas').order('pos');
-      })
+      paginar(function () { return qPed(COLS).order('doc_vtas'); }, avisar),
+      paginar(function () { return qLin('doc_vtas,motivo_rechazo,cant_pedida,precio,desc_pct,otif_pedidos!inner(fecha_carga)').order('doc_vtas').order('pos'); }, avisar)
     ]);
     ROWS = res[0]; MOTIVOS = res[1];
     EVS = ROWS.map(CALC.evaluar).filter(Boolean);
@@ -2397,9 +2416,57 @@
   async function irMes(ym, dir) {
     CUR = ym;
     var cur = q('#mnCur'); if (cur) { cur.textContent = mesLbl(CUR); if (GS) gsap.fromTo(cur, { y: dir > 0 ? 8 : -8, opacity: .2 }, { y: 0, opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' }); }
-    var body = q('#otBody'); if (body) body.classList.add('ot-busy');
-    try { await cargarMes(); renderShell(); }
-    catch (e) { console.error(e); toast('No se pudo cargar el mes', true); if (body) body.classList.remove('ot-busy'); }
+    var ld = loaderMes(mesLbl(ym));
+    try { await cargarMes(ld.ir); await ld.fin(); renderShell(); ld.salir(); }
+    catch (e) { console.error(e); ld.salir(); toast('No se pudo cargar el mes', true); }
+  }
+
+  /* Loader redondo al cambiar de mes: anillo azul 0→100 % sobre el contenido */
+  function loaderMes(lbl) {
+    var R = 46, C = 2 * Math.PI * R, t0 = Date.now(), host = q('#otBody') || document.body, rc = host.getBoundingClientRect();
+    var ov = el('<div class="mload" role="status" aria-live="polite"><div class="mload__c">' +
+      '<div class="mload__ring"><svg viewBox="0 0 112 112"><circle class="halo" cx="56" cy="56" r="54"/><circle class="bg" cx="56" cy="56" r="' + R + '"/><circle class="fg" cx="56" cy="56" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
+      '<div class="mload__pct"><span>0</span><small>%</small></div></div>' +
+      '<div class="mload__t">Cargando pedidos</div><div class="mload__s">' + esc(lbl) + '</div></div></div>');
+    ov.style.left = rc.left + 'px'; ov.style.top = rc.top + 'px'; ov.style.width = rc.width + 'px'; ov.style.height = rc.height + 'px';
+    document.body.appendChild(ov);
+    var card = q('.mload__c', ov), fg = q('.fg', ov), num = q('.mload__pct span', ov), halo = q('.halo', ov), st = { v: 0 }, obj = 0, tw = null, giro = null;
+    var dibujar = function () { fg.setAttribute('stroke-dashoffset', (C * (1 - st.v / 100)).toFixed(2)); num.textContent = Math.round(st.v); };
+    var ir = function (p, dur) {
+      obj = Math.max(obj, Math.min(100, p));
+      if (!GS) { st.v = obj; dibujar(); return; }
+      if (tw) tw.kill();
+      tw = gsap.to(st, { v: obj, duration: dur || .45, ease: 'power2.out', onUpdate: dibujar });
+    };
+    if (GS) {
+      gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .22, ease: 'power1.out' });
+      gsap.fromTo(card, { opacity: 0, scale: .82, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: .45, ease: 'back.out(1.8)' });
+      gsap.set(halo, { transformOrigin: '50% 50%' });
+      giro = gsap.to(halo, { rotation: 360, duration: 6, ease: 'none', repeat: -1 });
+      gsap.from(qa('.mload__t, .mload__s', ov), { opacity: 0, y: 6, duration: .3, stagger: .06, delay: .12, ease: 'power2.out' });
+      tw = gsap.to(st, { v: 12, duration: .9, ease: 'power1.out', onUpdate: dibujar }); obj = 12;   // arranca solo mientras llega la primera página
+    }
+    return {
+      ir: function (f) { ir(12 + f * 84); },
+      // Completa a 100 % (con un mínimo visible para que no parpadee) y hace el "pulso" final
+      fin: function () {
+        return new Promise(function (ok) {
+          var resta = Math.max(0, 520 - (Date.now() - t0));
+          setTimeout(function () {
+            if (!GS) { st.v = 100; dibujar(); ok(); return; }
+            if (tw) tw.kill(); obj = 100;
+            tw = gsap.to(st, { v: 100, duration: .35, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
+              gsap.fromTo(q('.mload__ring', ov), { scale: 1 }, { scale: 1.07, duration: .14, yoyo: true, repeat: 1, ease: 'power1.inOut', onComplete: ok });
+            } });
+          }, resta);
+        });
+      },
+      salir: function () {
+        if (!GS) { ov.remove(); return; }
+        gsap.to(card, { opacity: 0, scale: .9, duration: .28, ease: 'power2.in' });
+        gsap.to(ov, { opacity: 0, duration: .32, delay: .06, ease: 'power1.in', onComplete: function () { if (giro) giro.kill(); if (tw) tw.kill(); ov.remove(); } });
+      }
+    };
   }
 
   async function refrescar() {

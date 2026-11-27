@@ -1767,3 +1767,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 /* ===== ¿Dónde se demora? filtro por zona ===== */
 .rt-zona button{height:28px;padding:0 12px;font-size:12px}
 .rt-sub{margin:-6px 0 14px;font-size:11.5px;font-weight:600;color:var(--alas-text-3)}
+
+/* Loader redondo al cambiar de mes */
+.mload{position:fixed;z-index:80;display:grid;place-items:center;background:rgba(241,246,252,.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border-radius:18px}
+.mload__c{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:6px;width:210px;padding:24px 20px 20px;border-radius:24px;background:var(--ot-grad);color:#fff;box-shadow:0 28px 70px rgba(6,40,80,.35),inset 0 1px 0 rgba(255,255,255,.14)}
+.mload__c::before{content:'';position:absolute;right:-70px;top:-90px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%);pointer-events:none}
+.mload__ring{position:relative;width:112px;height:112px;margin-bottom:8px}
+.mload__ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;transform:rotate(-90deg)}
+.mload__ring .bg{fill:none;stroke:rgba(255,255,255,.15);stroke-width:6}
+.mload__ring .fg{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(159,211,255,.8))}
+.mload__ring .halo{fill:none;stroke:rgba(159,211,255,.4);stroke-width:1;stroke-dasharray:2 7}
+.mload__pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Sora,Inter,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.mload__pct small{font-size:14px;font-weight:700;margin-left:2px;opacity:.8}
+.mload__t{position:relative;font-size:14.5px;font-weight:800;letter-spacing:.1px}
+.mload__s{position:relative;font-size:12px;font-weight:600;opacity:.75}

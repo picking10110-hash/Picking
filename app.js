@@ -174,6 +174,12 @@
     }
     return [].concat.apply([], partes);
   }
+  // Olvida meses de la memoria (todos si no se indica): se vuelven a pedir a la base
+  function limpiarMeses(lista) {
+    if (!lista) { MCACHE = {}; TCACHE = {}; INFL = {}; GEN++; return; }
+    lista.forEach(function (ym) { delete MCACHE[ym]; delete TCACHE[ym]; });
+    if (lista.some(function (ym) { return INFL[ym]; })) { INFL = {}; GEN++; }
+  }
   async function cargarBase() {
     var c = await DB.from('otif_config').select('data').eq('id', 1).maybeSingle();
     if (c.error) throw c.error;
@@ -182,7 +188,9 @@
     var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos,pedidos_nuevos,filas').order('cargado_en', { ascending: false });
     if (im.error) throw im.error;
     IMPORTS = im.data || [];
-    TCACHE = {}; MCACHE = {}; INFL = {}; GEN++;   // datos nuevos: se vuelven a pedir los meses
+    // Lo que ya está en memoria se re-evalúa con la configuración vigente (sin volver a pedirlo)
+    TCACHE = {};
+    Object.keys(MCACHE).forEach(function (ym) { var c = MCACHE[ym]; c.evs = c.rows.map(CALC.evaluar).filter(Boolean); TCACHE[ym] = c.evs; });
     var set = new Set();
     IMPORTS.forEach(function (i) { if (i.carga_desde && i.carga_hasta) mesesEntre(i.carga_desde, i.carga_hasta).forEach(function (m) { set.add(m); }); });
     MONTHS = Array.from(set).sort();
@@ -242,11 +250,15 @@
     var lista = MONTHS.filter(function (m) { return !MCACHE[m]; }).sort(function (a, b) { return a === CUR ? -1 : b === CUR ? 1 : a < b ? 1 : -1; });
     var N = lista.length, fr = {}, listos = 0;
     var avisar = function () { var t = 0; lista.forEach(function (m) { t += fr[m] || 0; }); if (alProg) alProg(N ? t / N : 1, listos, N); };
-    for (var i = 0; i < lista.length; i += 2) {
-      await Promise.all(lista.slice(i, i + 2).map(function (ym) {
-        return traerMes(ym, function (x) { fr[ym] = Math.max(fr[ym] || 0, x); avisar(); }).then(function () { fr[ym] = 1; listos++; avisar(); }, function () { listos++; });
-      }));
-    }
+    var cola = lista.slice(), fallos = [];
+    var obrero = function () {
+      var ym = cola.shift(); if (!ym) return Promise.resolve();
+      return traerMes(ym, function (x) { fr[ym] = Math.max(fr[ym] || 0, x); avisar(); })
+        .then(function () { fr[ym] = 1; listos++; avisar(); }, function (e) { fallos.push(ym); listos++; avisar(); console.warn('[OTIF] no se pudo precargar', ym, e); })
+        .then(obrero);
+    };
+    await Promise.all([obrero(), obrero(), obrero()]);
+    return fallos;
   }
 
   function enScope(o) {
@@ -2554,6 +2566,7 @@
     if (btn) btn.classList.add('is-busy');
     if (GS && icon) { gsap.set(icon, { transformOrigin: '50% 50%' }); spin = gsap.to(icon, { rotation: '+=360', duration: .8, ease: 'none', repeat: -1 }); }
     try {
+      limpiarMeses();
       await Promise.all([cargarBase().then(cargarMes), new Promise(function (r) { setTimeout(r, 600); })]);
       if (spin) spin.kill(); renderShell(); toast('Datos actualizados'); precargarFondo();
     } catch (e) { console.error(e); if (spin) spin.kill(); if (btn) btn.classList.remove('is-busy'); toast('No se pudo refrescar', true); }
@@ -2774,6 +2787,7 @@
       var refrescoOk = true;
       try {
         CUR = res.meta.carga_hasta.slice(0, 7);
+        limpiarMeses(mesesEntre(res.meta.carga_desde, res.meta.carga_hasta));
         await cargarBase(); CUR = res.meta.carga_hasta.slice(0, 7);
         ui.ir(96, 1.2);
         await cargarMes();
@@ -2794,41 +2808,97 @@
   }
 
   /* ── Init ── */
-  /* Pantalla de inicio: anillo azul 0→100 % mientras se precargan todos los meses */
+  /* Pantalla de inicio (tarjeta ancha): anillo 0→100 % a la izquierda; a la derecha título,
+     pasos que se tildan y barra de progreso ancha con brillo. Todo con GSAP. */
+  var PRE_PASOS = ['Conectando con la base', 'Leyendo la configuración', 'Cargando los pedidos de todos los meses', 'Calculando el cumplimiento'];
   function precargaInicio() {
-    var R = 54, C = 2 * Math.PI * R, t0 = Date.now();
-    q('#stage').innerHTML = '<div class="ot-loading ot-pre"><div class="mload__c ot-pre__c">' +
-      '<div class="mload__ring ot-pre__ring"><svg viewBox="0 0 128 128"><circle class="halo" cx="64" cy="64" r="62"/><circle class="bg" cx="64" cy="64" r="' + R + '"/><circle class="fg" cx="64" cy="64" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
-      '<div class="mload__pct"><span>0</span><small>%</small></div></div>' +
-      '<div class="mload__t">Preparando el tablero</div><div class="mload__s" id="preSub">Conectando con la base…</div>' +
-      '<div class="ot-pre__bar"><i id="preBar"></i></div></div></div>';
-    var root = q('#stage .ot-pre'), fg = q('.fg', root), num = q('.mload__pct span', root), sub = q('#preSub'), bar = q('#preBar'), halo = q('.halo', root);
-    var st = { v: 0 }, obj = 0, tw = null, giro = null;
+    var R = 60, C = 2 * Math.PI * R, t0 = Date.now(), host = q('#stage'), rc = host.getBoundingClientRect();
+    host.innerHTML = '';
+    var ov = el('<div class="pl-ov" role="status" aria-live="polite"><div class="pl-card">' +
+      '<div class="pl-glow"></div>' +
+      '<div class="pl-left"><div class="pl-ring"><svg viewBox="0 0 144 144"><circle class="halo" cx="72" cy="72" r="70"/><circle class="bg" cx="72" cy="72" r="' + R + '"/><circle class="fg" cx="72" cy="72" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
+        '<div class="pl-pct"><span>0</span><small>%</small></div>' +
+        '<svg class="pl-ok" viewBox="0 0 144 144"><circle cx="72" cy="72" r="50"/><path d="M50 74 l15 15 l30 -33"/></svg></div></div>' +
+      '<div class="pl-right">' +
+        '<div class="pl-eye">Pedidos en tiempo y forma</div>' +
+        '<div class="pl-tit">Preparando el tablero</div>' +
+        '<div class="pl-sub" id="plSub">Conectando…</div>' +
+        '<div class="pl-steps">' + PRE_PASOS.map(function (t) { return '<div class="pl-step"><span class="pl-step__i">' + SVG_OK + '</span><span class="pl-step__t">' + t + '</span></div>'; }).join('') + '</div>' +
+        '<div class="pl-bar"><i id="plBar"><b></b></i></div>' +
+      '</div></div></div>');
+    if (rc.width > 300) { ov.style.left = rc.left + 'px'; ov.style.top = rc.top + 'px'; ov.style.width = rc.width + 'px'; ov.style.height = rc.height + 'px'; }
+    document.body.appendChild(ov);
+    var card = q('.pl-card', ov), fg = q('.fg', ov), num = q('.pl-pct span', ov), sub = q('#plSub', ov), bar = q('#plBar', ov), halo = q('.halo', ov), steps = qa('.pl-step', ov);
+    var st = { v: 0 }, obj = 0, tw = null, twB = null, loops = [], pasoAct = -1;
     var dibujar = function () { fg.setAttribute('stroke-dashoffset', (C * (1 - st.v / 100)).toFixed(2)); num.textContent = Math.round(st.v); };
-    var ir = function (p, dur) { obj = Math.max(obj, Math.min(100, p)); if (!GS) { st.v = obj; dibujar(); return; } if (tw) tw.kill(); tw = gsap.to(st, { v: obj, duration: dur || .5, ease: 'power2.out', onUpdate: dibujar }); };
+    var ir = function (p, dur) {
+      obj = Math.max(obj, Math.min(100, p));
+      if (!GS) { st.v = obj; dibujar(); bar.style.width = obj + '%'; return; }
+      if (tw) tw.kill(); if (twB) twB.kill();
+      tw = gsap.to(st, { v: obj, duration: dur || .55, ease: 'power2.out', onUpdate: dibujar });
+      twB = gsap.to(bar, { width: obj + '%', duration: dur || .55, ease: 'power2.out' });
+    };
+    var paso = function (i) {
+      if (i <= pasoAct) return; pasoAct = i;
+      steps.forEach(function (sx, k) {
+        var was = sx.classList.contains('is-ok');
+        sx.classList.toggle('is-ok', k < i); sx.classList.toggle('is-on', k === i);
+        if (k < i && !was && GS) {
+          gsap.fromTo(q('.pl-step__i', sx), { scale: .5 }, { scale: 1, duration: .45, ease: 'back.out(2.8)', clearProps: 'transform' });
+          var pth = q('path', sx); gsap.fromTo(pth, { strokeDasharray: 24, strokeDashoffset: 24 }, { strokeDashoffset: 0, duration: .35, delay: .06, ease: 'power2.out' });
+        }
+        if (k === i && GS) gsap.fromTo(q('.pl-step__t', sx), { x: -4, opacity: .5 }, { x: 0, opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
+      });
+    };
+    var texto = function (t) {
+      if (sub.textContent === t) return;
+      if (!GS) { sub.textContent = t; return; }
+      gsap.to(sub, { opacity: 0, y: -4, duration: .14, ease: 'power1.in', onComplete: function () { sub.textContent = t; gsap.fromTo(sub, { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: .24, ease: 'power2.out' }); } });
+    };
     if (GS) {
-      gsap.fromTo(q('.ot-pre__c', root), { opacity: 0, scale: .86, y: 14 }, { opacity: 1, scale: 1, y: 0, duration: .55, ease: 'back.out(1.7)' });
-      gsap.set(halo, { transformOrigin: '50% 50%' }); giro = gsap.to(halo, { rotation: 360, duration: 6, ease: 'none', repeat: -1 });
-      gsap.from(qa('.mload__t, .mload__s, .ot-pre__bar', root), { opacity: 0, y: 6, duration: .35, stagger: .07, delay: .15, ease: 'power2.out' });
-      ir(6, 1);
+      gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.out' });
+      gsap.fromTo(card, { opacity: 0, y: 24, scale: .94 }, { opacity: 1, y: 0, scale: 1, duration: .65, ease: 'back.out(1.5)' });
+      gsap.from(q('.pl-ring', ov), { scale: .7, rotation: -40, opacity: 0, duration: .7, delay: .1, ease: 'back.out(1.7)' });
+      gsap.from(qa('.pl-eye, .pl-tit, .pl-sub', ov), { opacity: 0, x: 14, duration: .45, stagger: .07, delay: .18, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(steps, { opacity: 0, x: 14, duration: .4, stagger: .06, delay: .34, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-bar', ov), { opacity: 0, scaleX: .6, transformOrigin: '0 50%', duration: .5, delay: .55, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.set(halo, { transformOrigin: '50% 50%' });
+      loops.push(gsap.to(halo, { rotation: 360, duration: 7, ease: 'none', repeat: -1 }));
+      loops.push(gsap.fromTo(q('.pl-bar b', ov), { xPercent: -120 }, { xPercent: 260, duration: 1.4, ease: 'power1.inOut', repeat: -1, repeatDelay: .25 }));
+      loops.push(gsap.to(q('.pl-glow', ov), { x: 40, y: 18, scale: 1.15, duration: 3.2, ease: 'sine.inOut', yoyo: true, repeat: -1 }));
+      ir(5, 1);
     }
+    paso(0);
+    var cerrar = function (cb) {
+      if (!GS) { ov.remove(); if (cb) cb(); return; }
+      gsap.to(card, { opacity: 0, y: -10, scale: 1.03, duration: .32, ease: 'power2.in' });
+      gsap.to(ov, { opacity: 0, duration: .36, delay: .08, ease: 'power1.in', onComplete: function () { loops.forEach(function (l) { l.kill(); }); ov.remove(); if (cb) cb(); } });
+    };
     return {
-      mes: function (lbl) { sub.textContent = 'Cargando pedidos · ' + lbl; },
-      ir: function (fr) { ir(6 + fr * 92); if (bar) bar.style.width = (fr * 100).toFixed(1) + '%'; },
+      base: function () { paso(2); ir(12); },
+      ir: function (fr, listos, n) {
+        ir(12 + fr * 86);
+        texto(n ? 'Cargando pedidos · ' + listos + ' de ' + n + ' meses' : 'Cargando pedidos…');
+        if (n && listos >= n) paso(3);
+      },
       fin: function () {
         return new Promise(function (ok) {
           setTimeout(function () {
-            sub.textContent = 'Listo'; if (bar) bar.style.width = '100%';
-            if (!GS) { st.v = 100; dibujar(); ok(); return; }
-            if (tw) tw.kill(); obj = 100;
-            tw = gsap.to(st, { v: 100, duration: .35, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
-              gsap.fromTo(q('.mload__ring', root), { scale: 1 }, { scale: 1.07, duration: .14, yoyo: true, repeat: 1, ease: 'power1.inOut', onComplete: function () {
-                gsap.to(q('.ot-pre__c', root), { opacity: 0, scale: .94, y: -8, duration: .28, ease: 'power2.in', onComplete: function () { if (giro) giro.kill(); ok(); } });
-              } });
+            paso(4); texto('Listo');
+            if (!GS) { st.v = 100; dibujar(); cerrar(ok); return; }
+            if (tw) tw.kill(); if (twB) twB.kill(); obj = 100;
+            gsap.to(bar, { width: '100%', duration: .35, ease: 'power2.inOut' });
+            gsap.to(st, { v: 100, duration: .35, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
+              var tl = gsap.timeline({ onComplete: function () { setTimeout(function () { cerrar(); ok(); }, 120); } });
+              tl.to(q('.pl-pct', ov), { opacity: 0, scale: .7, duration: .18, ease: 'power2.in' })
+                .fromTo(q('.pl-ok', ov), { opacity: 0, scale: .4, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: .4, ease: 'back.out(2.2)' }, '-=.04')
+                .fromTo(q('.pl-ok path', ov), { strokeDasharray: 70, strokeDashoffset: 70 }, { strokeDashoffset: 0, duration: .32, ease: 'power2.out' }, '-=.22')
+                .to(q('.pl-ring', ov), { scale: 1.06, duration: .14, yoyo: true, repeat: 1, ease: 'power1.inOut' }, '-=.1');
             } });
-          }, Math.max(0, 600 - (Date.now() - t0)));
+          }, Math.max(0, 700 - (Date.now() - t0)));
         });
-      }
+      },
+      cerrar: function () { cerrar(); }
     };
   }
 
@@ -2840,12 +2910,13 @@
     var pl = precargaInicio();
     try {
       await cargarBase();
-      pl.mes(mesLbl(CUR));
-      await cargarMes(function (fr) { pl.ir(fr); });
+      pl.base();
+      var fallos = await precargarTodo(function (fr, listos, n) { pl.ir(fr, listos, n); });
+      await cargarMes();                       // el mes elegido ya está en memoria (si falló, se reintenta acá)
       await pl.fin();
       renderShell();
-      precargarFondo();
+      if (fallos && fallos.length) precargarFondo();   // reintenta en segundo plano los meses que fallaron
     }
-    catch (e) { console.error(e); q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>No se pudieron cargar los datos</h3><p>' + esc(e && e.message ? e.message : e) + '</p></div>'; }
+    catch (e) { console.error(e); pl.cerrar(); q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>No se pudieron cargar los datos</h3><p>' + esc(e && e.message ? e.message : e) + '</p></div>'; }
   };
 })();

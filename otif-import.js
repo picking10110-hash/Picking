@@ -18,6 +18,13 @@
   'use strict';
 
   var REQUERIDAS = ['Doc.vtas.', 'Pos', 'Entrega', 'Fecha Carga', 'Hora Carga', 'Ctd.ped.', 'Cant.Fact.'];
+  // Todas las columnas del export que lee el importador (el lector por partes descarta el resto)
+  var COLUMNAS = REQUERIDAS.concat(['%Desc', 'Almacén', 'Cant.Bultos', 'Cant.Entreg.', 'ClDoc', 'Cond.Real', 'Cond.exp.', 'Cond.pago', 'Creado',
+    'Denomin.', 'Denominación', 'Desc.Gr.Cli.', 'Descr. Etapa', 'Descr. Mot. Rech.', 'Factura', 'Fech.Creac.Entrega', 'Fech.Manif', 'Fech.Ult.Etapa',
+    'Fecha Control', 'Fecha Empaque', 'Fecha Entrega', 'Fecha Factura', 'Fecha Prep', 'Fecha Transp', 'GrVendedor', 'Hora Control', 'Hora Creac.Entrega',
+    'Hora Empaque', 'Hora Entrega', 'Hora Factura', 'Hora Manif', 'Hora Prep', 'Hora Transp', 'Hora Ult.Etapa', 'JquíaProd', 'Material', 'Mot.Ped',
+    'Motivo Etapa', 'Nombre', 'Nombre_1', 'Nro.Manif', 'Nº pers.', 'Ofic.vta.', 'Ped.Cliente', 'Precio', 'PuestExped', 'Region', 'Sector', 'Solic.',
+    'Transporte', 'Ult.Etapa', 'Unidad', 'Usuario Control', 'Usuario Empaque', 'Usuario Entrega', 'Usuario Transp']);
   var TZ = '-03:00';
 
   function txt(v) {
@@ -59,10 +66,14 @@
    */
   function parsear(XLSX, wb) {
     var ws = wb.Sheets[wb.SheetNames[0]];
-    if (!ws) return { ok: false, error: 'El archivo no tiene hojas.' };
-    var filas = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
+    if (!ws) return { ok: false, error: wb.SheetNames.length ? 'El Excel es demasiado grande para leerlo de una vez.' : 'El archivo no tiene hojas.' };
+    return parsearFilas(XLSX.utils.sheet_to_json(ws, { defval: null, raw: true }));
+  }
+
+  /** Igual que parsear, pero desde filas ya leídas (formato sheet_to_json raw). */
+  function parsearFilas(filas, columnas) {
     if (!filas.length) return { ok: false, error: 'La hoja está vacía.' };
-    var cols = Object.keys(filas[0]);
+    var cols = columnas || Object.keys(filas[0]);
     var faltan = REQUERIDAS.filter(function (c) { return cols.indexOf(c) < 0; });
     if (faltan.length) return { ok: false, error: 'No es el export de pedidos de SAP. Faltan las columnas: ' + faltan.join(', ') + '.' };
 
@@ -191,7 +202,7 @@
     return { importacion_id: imp.id, nuevos: res.meta.pedidos - ya, actualizados: ya };
   }
 
-  var api = { parsear: parsear, subir: subir, contarExistentes: contarExistentes, ts: ts, REQUERIDAS: REQUERIDAS };
+  var api = { parsear: parsear, parsearFilas: parsearFilas, COLUMNAS: COLUMNAS, subir: subir, contarExistentes: contarExistentes, ts: ts, REQUERIDAS: REQUERIDAS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OtifImport = api;
 })(typeof window !== 'undefined' ? window : this);

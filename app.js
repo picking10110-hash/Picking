@@ -2550,13 +2550,14 @@
 
   // Lee y procesa el Excel en un Web Worker (fluido). Si el navegador no
   // permite workers, cae a hacerlo en la página.
-  function procesarEnWorker(buf, alFase) {
+  function procesarEnWorker(buf, alFase, alProg) {
     return new Promise(function (resolve, reject) {
       var w;
       try { w = new Worker('otif-worker.js'); } catch (e) { reject(e); return; }
       w.onmessage = function (e) {
         var m = e.data;
         if (m.t === 'fase') alFase(m.fase);
+        else if (m.t === 'prog') { if (alProg) alProg(m.p); }
         else if (m.t === 'fin') { w.terminate(); resolve(m.res); }
         else if (m.t === 'error') { w.terminate(); reject(new Error(m.msg)); }
       };
@@ -2585,16 +2586,22 @@
       var res;
       try {
         res = await procesarEnWorker(buf.slice(0), function (fase) {
-          if (fase === 'leer') { ui.mensaje('Leyendo filas del Excel…'); ui.gotear(16, 9); }
+          if (fase === 'leer') { ui.mensaje('Leyendo filas del Excel…'); }
           if (fase === 'procesar') { ui.paso(1); ui.mensaje('Agrupando pedidos, entregas y artículos…'); ui.gotear(24, 4); }
-        });
+        }, function (p) { ui.ir(4 + p * 18, .5); });
       } catch (eW) {
         console.warn('[OTIF] Worker no disponible, proceso en la página:', eW);
         ui.mensaje('Leyendo filas del Excel…');
-        var X = await cargarXLSX(); await espera(40);
-        var wb = X.read(buf, { type: 'array' });
-        ui.paso(1); await espera(40);
-        res = OtifImport.parsear(X, wb);
+        if (window.OtifXlsx && OtifXlsx.soportado()) {
+          var lt = await OtifXlsx.leerFilas(file, { columnas: OtifImport.COLUMNAS, alProgreso: function (p) { ui.ir(4 + p * 18, .5); } });
+          ui.paso(1); await espera(40);
+          res = lt.ok ? OtifImport.parsearFilas(lt.filas, lt.columnas) : { ok: false, error: lt.error };
+        } else {
+          var X = await cargarXLSX(); await espera(40);
+          var wb = X.read(buf, { type: 'array' });
+          ui.paso(1); await espera(40);
+          res = OtifImport.parsear(X, wb);
+        }
       }
       if (!res.ok) { ui.fail(res.error); return; }
       ui.paso(1, nf(res.meta.pedidos) + ' pedidos');

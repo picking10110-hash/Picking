@@ -182,16 +182,34 @@
     var im = await DB.from('otif_importaciones').select('cargado_en,cargado_por,carga_desde,carga_hasta,archivo,pedidos,pedidos_nuevos,filas').order('cargado_en', { ascending: false });
     if (im.error) throw im.error;
     IMPORTS = im.data || [];
-    TCACHE = {};   // datos nuevos: la tendencia vuelve a pedir los meses
+    TCACHE = {}; MCACHE = {}; INFL = {}; GEN++;   // datos nuevos: se vuelven a pedir los meses
     var set = new Set();
     IMPORTS.forEach(function (i) { if (i.carga_desde && i.carga_hasta) mesesEntre(i.carga_desde, i.carga_hasta).forEach(function (m) { set.add(m); }); });
     MONTHS = Array.from(set).sort();
     if (!CUR || MONTHS.indexOf(CUR) < 0) CUR = MONTHS[MONTHS.length - 1] || null;
   }
   var COLS = 'doc_vtas,fecha_carga,clase_doc,cond_exp,region_cod,region_nombre,departamento,zona,cliente_cod,cliente_nombre,vendedor_cod,vendedor_nombre,n_lineas,n_completas,n_sin_entrega,monto_pedido,n_entregas,n_entregadas,n_no_entregado,almacen,ts_factura,ts_creacion,ts_control,ts_transporte,ts_entrega,ult_etapa';
+  // Caché por mes: { rows, mot, evs }. Se llena en la precarga inicial; cargarBase la vacía.
+  var MCACHE = {}, INFL = {}, GEN = 0;
   async function cargarMes(alProg) {
-    if (!CUR) { ROWS = []; MOTIVOS = []; return; }
-    var r = rangoMes(CUR);
+    if (!CUR) { ROWS = []; MOTIVOS = []; EVS = []; return; }
+    var c = await traerMes(CUR, alProg);
+    ROWS = c.rows; MOTIVOS = c.mot; EVS = c.evs;
+  }
+  function traerMes(ym, alProg) {
+    if (MCACHE[ym]) { if (alProg) alProg(1); return Promise.resolve(MCACHE[ym]); }
+    if (INFL[ym]) { if (alProg) INFL[ym].subs.push(alProg); return INFL[ym].p; }
+    var subs = alProg ? [alProg] : [], gen = GEN;
+    var avisa = function (x) { subs.forEach(function (fn) { try { fn(x); } catch (e) {} }); };
+    var p = traerMesRed(ym, avisa).then(function (c) {
+      if (gen === GEN) { MCACHE[ym] = c; TCACHE[ym] = c.evs; delete INFL[ym]; }
+      avisa(1); return c;
+    }, function (e) { if (gen === GEN) delete INFL[ym]; throw e; });
+    INFL[ym] = { p: p, subs: subs };
+    return p;
+  }
+  async function traerMesRed(ym, alProg) {
+    var r = rangoMes(ym);
     var qPed = function (sel, o) { return DB.from('otif_v_pedidos').select(sel, o).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]); };
     // Progreso: 85 % pedidos (filas recibidas / conteo del mes) + 15 % líneas con faltante
     var hechas = 0, paginas = 0, total = null, fPed = 0;
@@ -200,7 +218,7 @@
       fPed = total ? Math.min(1, hechas / total) : 1 - Math.pow(.93, paginas);
       if (alProg) alProg(Math.min(.99, fPed * .85));
     };
-    if (alProg) qPed('doc_vtas', { count: 'exact', head: true }).then(function (c) { if (c.count != null) total = Math.max(1, c.count); }).catch(function () {});
+    qPed('doc_vtas', { count: 'exact', head: true }).then(function (c) { if (c.count != null) total = Math.max(1, c.count); }).catch(function () {});
     var peds = await pedidosRango(r[0], r[1], avisar);
     // Antes: join otif_lineas ⨝ otif_pedidos filtrando por fecha → con 450.000 líneas se cortaba por tiempo (57014)
     var docs = peds.filter(function (p) { return +p.n_sin_entrega > 0; }).map(function (p) { return p.doc_vtas; });
@@ -213,9 +231,22 @@
           .then(function (rows) { mot[j + k] = rows; hechosL++; if (alProg) alProg(Math.min(.99, .85 + .15 * hechosL / lotes.length)); });
       }));
     }
-    var res = [peds, [].concat.apply([], mot)];
-    ROWS = res[0]; MOTIVOS = res[1];
-    EVS = ROWS.map(CALC.evaluar).filter(Boolean);
+    return { rows: peds, mot: [].concat.apply([], mot), evs: peds.map(CALC.evaluar).filter(Boolean) };
+  }
+  // Precarga de todos los meses (el elegido primero), 2 a la vez. alProg(fracción, meses listos, total)
+  function precargarFondo() {
+    var g = GEN;
+    setTimeout(function () { if (g === GEN) precargarTodo().catch(function (e) { console.warn('[OTIF] precarga de fondo incompleta', e); }); }, 600);
+  }
+  async function precargarTodo(alProg) {
+    var lista = MONTHS.filter(function (m) { return !MCACHE[m]; }).sort(function (a, b) { return a === CUR ? -1 : b === CUR ? 1 : a < b ? 1 : -1; });
+    var N = lista.length, fr = {}, listos = 0;
+    var avisar = function () { var t = 0; lista.forEach(function (m) { t += fr[m] || 0; }); if (alProg) alProg(N ? t / N : 1, listos, N); };
+    for (var i = 0; i < lista.length; i += 2) {
+      await Promise.all(lista.slice(i, i + 2).map(function (ym) {
+        return traerMes(ym, function (x) { fr[ym] = Math.max(fr[ym] || 0, x); avisar(); }).then(function () { fr[ym] = 1; listos++; avisar(); }, function () { listos++; });
+      }));
+    }
   }
 
   function enScope(o) {
@@ -362,9 +393,9 @@
      ════════════════════════════════════════════════════════════ */
   function semColor(p) { var meta = +CFG.meta_otif || 85; return p == null ? '#cbd5e1' : p >= meta ? '#16a34a' : p >= meta - 10 ? '#d97706' : '#dc2626'; }
 
-  function spark(vals, labels, meta) {
+  function spark(vals, labels, meta, tot, idx) {
     var W = 720, H = 92, n = vals.length, max = 100, min = Math.max(0, Math.min.apply(null, vals.concat([meta])) - 10);
-    var X = function (i) { return n < 2 ? W / 2 : 10 + (i / (n - 1)) * (W - 20); };
+    var X = tot ? function (i) { return sparkX(idx[i], tot); } : function (i) { return n < 2 ? W / 2 : 10 + (i / (n - 1)) * (W - 20); };
     var Y = function (v) { return H - 10 - ((v - min) / (max - min || 1)) * (H - 24); };
     var pts = vals.map(function (v, i) { return [X(i), Y(v)]; });
     var line = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' L ');
@@ -381,6 +412,8 @@
       '<line class="gspark__avg" x1="4" y1="' + Y(avg).toFixed(1) + '" x2="' + (W - 4) + '" y2="' + Y(avg).toFixed(1) + '"><title>Promedio · ' + pf(avg) + '</title></line>' +
       '<path class="gspark__line" d="' + line + '" fill="none" stroke="#CFE8FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' + dots + '</svg>';
   }
+
+  function sparkX(i, tot) { return 28 + (i / (tot - 1)) * 664; }   // mismo eje que spark (viewBox 720)
 
   function renderResumen(body, entrada) {
     var evs = EVS.filter(enScope), g = CALC.resumen(evs), meta = +CFG.meta_otif || 85;
@@ -623,7 +656,7 @@
   /* ════════════════════════════════════════════════════════════
      TENDENCIA — Día / Semana / Mes (botones en la tarjeta azul)
      Día = días del mes elegido · Semana = últimas 10 semanas ·
-     Mes = últimos 6 meses. Agrupa por fecha de carga del pedido.
+     Mes = enero a diciembre del año del mes elegido. Agrupa por fecha de carga del pedido.
      Los meses anteriores se traen solo cuando se piden (caché).
      ════════════════════════════════════════════════════════════ */
   var TMODE = 'mes', TCACHE = {};   // por defecto: tendencia mensual (pedido del usuario)
@@ -634,22 +667,18 @@
   }
   function mesMas(ym, n) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7) - 1 + n; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y + '-' + pad(m + 1); }
   async function evsDeMeses(yms) {
-    var out = [];
-    for (var i = 0; i < yms.length; i++) {
-      var ym = yms[i];
-      if (ym === CUR) { out = out.concat(EVS); continue; }
-      if (MONTHS.indexOf(ym) < 0) continue;
-      if (!TCACHE[ym]) {
-        var r = rangoMes(ym);
-        var rows = await pedidosRango(r[0], r[1]);
-        TCACHE[ym] = rows.map(CALC.evaluar).filter(Boolean);
-      }
-      out = out.concat(TCACHE[ym]);
+    var pend = yms.filter(function (ym) { return ym !== CUR && MONTHS.indexOf(ym) >= 0 && !TCACHE[ym]; });
+    for (var i = 0; i < pend.length; i += 2) {
+      await Promise.all(pend.slice(i, i + 2).map(function (ym) {
+        return traerMes(ym);
+      }));
     }
+    var out = [];
+    yms.forEach(function (ym) { if (ym === CUR) out = out.concat(EVS); else if (TCACHE[ym]) out = out.concat(TCACHE[ym]); });
     return out;
   }
   function mesesDelModo(m) {
-    if (m === 'mes') return [-5, -4, -3, -2, -1, 0].map(function (n) { return mesMas(CUR, n); });
+    if (m === 'mes') { var y = CUR.slice(0, 4); return MESES.map(function (x, i) { return y + '-' + pad(i + 1); }); }
     if (m === 'semana') return [-2, -1, 0].map(function (n) { return mesMas(CUR, n); });
     return [CUR];
   }
@@ -658,7 +687,7 @@
     evs.forEach(function (o) {
       if (o.estado !== 'evaluado' || !enScope(o)) return;
       var d = diaPY(o.p.fecha_carga);
-      if (d >= finMes) return;
+      if (m === 'mes' ? d.slice(0, 4) !== CUR.slice(0, 4) : d >= finMes) return;
       var k = m === 'mes' ? d.slice(0, 7) : m === 'semana' ? lunesDe(d) : d;
       if (!grp.has(k)) grp.set(k, [0, 0]);
       var x = grp.get(k); x[0]++; if (o.otif) x[1]++;
@@ -696,20 +725,25 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moverPill(false); });
     pintarTendencia(meta, false);
   }
-  async function pintarTendencia(meta, cambio) {
+  async function pintarTendencia(meta, cambio, completo) {
     var inner = q('#trInner'), tt = TXT[TMODE];
     if (!inner) return;
-    q('#trTitle').textContent = tt.tit + ' · ' + (TMODE === 'mes' ? 'últimos 6 meses' : TMODE === 'semana' ? 'últimas semanas' : mesLbl(CUR));
+    q('#trTitle').textContent = tt.tit + ' · ' + (TMODE === 'mes' ? 'enero a diciembre ' + CUR.slice(0, 4) : TMODE === 'semana' ? 'últimas semanas' : mesLbl(CUR));
     var yms = mesesDelModo(TMODE), faltan = yms.some(function (ym) { return ym !== CUR && MONTHS.indexOf(ym) >= 0 && !TCACHE[ym]; });
     var token = (pintarTendencia._t = (pintarTendencia._t || 0) + 1);
-    if (faltan) {
-      if (GS && cambio) gsap.to(inner, { opacity: .35, duration: .2 });
-      inner.insertAdjacentHTML('beforeend', '<div class="ot-trend__busy"><span></span></div>');
-    } else if (GS && cambio) {
+    if (GS && cambio) {
       await new Promise(function (r) { gsap.to(inner, { opacity: 0, y: 6, duration: .16, ease: 'power1.in', onComplete: r }); });
     }
     var evs;
-    try { evs = await evsDeMeses(yms); } catch (e) { console.error(e); toast('No se pudo traer la tendencia', true); evs = EVS; }
+    if (faltan) {
+      // Se dibuja ya con los meses que están en memoria; cuando llega el resto (precarga), se redibuja
+      evs = []; yms.forEach(function (ym) { if (ym === CUR) evs = evs.concat(EVS); else if (TCACHE[ym]) evs = evs.concat(TCACHE[ym]); });
+      evsDeMeses(yms).then(function () {
+        if (token === pintarTendencia._t && q('#trInner') === inner) pintarTendencia(meta, false, true);
+      }).catch(function (e) { console.error(e); if (token === pintarTendencia._t) toast('No se pudo traer la tendencia', true); });
+    } else {
+      try { evs = await evsDeMeses(yms); } catch (e) { console.error(e); toast('No se pudo traer la tendencia', true); evs = EVS; }
+    }
     if (token !== pintarTendencia._t) return;     // el usuario ya eligió otro modo
     var s = serie(evs, TMODE), n = s.length, vals = s.map(function (x) { return x.v; });
     var hay = n >= 2, ult = n ? s[n - 1] : null, ant = hay ? s[n - 2] : null;
@@ -723,14 +757,33 @@
     inner.innerHTML =
       '<div class="ot-trend__big">' + (ult ? '<i class="' + cls + '">' + (cls === 'up' ? '▲' : cls === 'down' ? '▼' : '●') + '</i><span id="tUlt">' + pf(ult.v) + '</span><small>' + detalle + '</small>' : '<span class="ot-trend__none">Sin datos suficientes</span>') + '</div>' +
       '<div class="ot-trend__ch">' + (hay
-        ? spark(vals, s.map(function (x) { return x.largo + ' · ' + nf(x.n) + ' ped.'; }), meta) + '<div class="gspark__x">' + s.map(function (x, i) { return '<span' + (i === n - 1 ? ' class="on"' : '') + (i % paso && i !== n - 1 ? ' style="visibility:hidden"' : '') + '>' + esc(x.corto) + '</span>'; }).join('') + '</div>'
-        : '<div class="ot-trend__msg">' + (n === 1 ? 'Hay un solo ' + tt.uno + ' con datos. ' : '') + 'Cargá más ' + tt.unos + ' para ver la tendencia.</div>') + '</div>' +
+        ? (TMODE === 'mes'
+          ? (function () {
+              var idx = s.map(function (x) { return +x.k.slice(5, 7) - 1; }), con = {}; idx.forEach(function (i) { con[i] = 1; });
+              var cur = +CUR.slice(5, 7) - 1;
+              return spark(vals, s.map(function (x) { return x.largo + ' · ' + nf(x.n) + ' ped.'; }), meta, 12, idx) +
+                '<div class="gspark__x gspark__x--anio">' + MESES.map(function (m, i) {
+                  var p = sparkX(i, 12) / 720 * 100;
+                  return '<span class="' + (i === cur ? 'on' : con[i] ? '' : 'off') + '" style="left:' + p.toFixed(2) + '%" title="' + m + '">' + MES_AB[i] + '</span>';
+                }).join('') + '</div>';
+            })()
+          : spark(vals, s.map(function (x) { return x.largo + ' · ' + nf(x.n) + ' ped.'; }), meta) + '<div class="gspark__x">' + s.map(function (x, i) { return '<span' + (i === n - 1 ? ' class="on"' : '') + (i % paso && i !== n - 1 ? ' style="visibility:hidden"' : '') + '>' + esc(x.corto) + '</span>'; }).join('') + '</div>')
+        : '<div class="ot-trend__msg">' + (faltan ? 'Preparando los demás ' + tt.unos + '…' : (n === 1 ? 'Hay un solo ' + tt.uno + ' con datos. ' : '') + 'Cargá más ' + tt.unos + ' para ver la tendencia.') + '</div>') + '</div>' +
       '<div class="ot-foot">' +
         '<div class="ot-st"><b>' + pf(prom) + '</b><span>' + tt.prom + '</span></div>' +
         '<div class="ot-st"><b>' + (n ? esc(s[iMax].corto) + ' · ' + pf(vals[iMax]) : '—') + '</b><span>' + tt.mejor + '</span></div>' +
         '<div class="ot-st"><b>' + (n ? esc(s[iMin].corto) + ' · ' + pf(vals[iMin]) : '—') + '</b><span>' + tt.peor + '</span></div>' +
       '</div>';
+    if (faltan) inner.insertAdjacentHTML('beforeend', '<div class="ot-trend__load"><span></span>Cargando meses…</div>');
     if (!GS) { inner.style.opacity = 1; return; }
+    if (completo) {   // llegaron los meses que faltaban: transición suave, sin repetir toda la entrada
+      gsap.fromTo(inner, { opacity: .55 }, { opacity: 1, duration: .45, ease: 'power2.out' });
+      var ln = q('.gspark__line', inner);
+      if (ln && ln.getTotalLength) { var L2 = ln.getTotalLength(); gsap.fromTo(ln, { strokeDasharray: L2, strokeDashoffset: L2 }, { strokeDashoffset: 0, duration: .9, ease: 'power2.inOut', onComplete: function () { ln.style.strokeDasharray = ''; ln.style.strokeDashoffset = ''; } }); }
+      gsap.from(qa('.gspark__dot', inner), { scale: 0, transformOrigin: '50% 50%', duration: .32, stagger: .04, delay: .15, ease: 'back.out(2.5)' });
+      if (ult) { var tu = q('#tUlt'); if (tu) tu.textContent = pf(ult.v); }
+      return;
+    }
     gsap.fromTo(inner, { opacity: cambio ? 0 : 1, y: cambio ? 6 : 0 }, { opacity: 1, y: 0, duration: .3, ease: 'power2.out', clearProps: 'transform' });
     var line = q('.gspark__line', inner);
     if (line && line.getTotalLength) {
@@ -2442,6 +2495,7 @@
   async function irMes(ym, dir) {
     CUR = ym;
     var cur = q('#mnCur'); if (cur) { cur.textContent = mesLbl(CUR); if (GS) gsap.fromTo(cur, { y: dir > 0 ? 8 : -8, opacity: .2 }, { y: 0, opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' }); }
+    if (MCACHE[ym]) { await cargarMes(); renderShell(); return; }
     var ld = loaderMes(mesLbl(ym));
     try { await cargarMes(ld.ir); await ld.fin(); renderShell(); ld.salir(); }
     catch (e) { console.error(e); ld.salir(); toast('No se pudo cargar el mes', true); }
@@ -2501,7 +2555,7 @@
     if (GS && icon) { gsap.set(icon, { transformOrigin: '50% 50%' }); spin = gsap.to(icon, { rotation: '+=360', duration: .8, ease: 'none', repeat: -1 }); }
     try {
       await Promise.all([cargarBase().then(cargarMes), new Promise(function (r) { setTimeout(r, 600); })]);
-      if (spin) spin.kill(); renderShell(); toast('Datos actualizados');
+      if (spin) spin.kill(); renderShell(); toast('Datos actualizados'); precargarFondo();
     } catch (e) { console.error(e); if (spin) spin.kill(); if (btn) btn.classList.remove('is-busy'); toast('No se pudo refrescar', true); }
   }
 
@@ -2723,6 +2777,7 @@
         await cargarBase(); CUR = res.meta.carga_hasta.slice(0, 7);
         ui.ir(96, 1.2);
         await cargarMes();
+        precargarFondo();
       } catch (eR) { console.warn('[OTIF] Guardado OK, falló el refresco del tablero:', eR); refrescoOk = false; }
       var f = function (d) { return d ? d.slice(8) + '/' + d.slice(5, 7) : '—'; };
       ui.ok([
@@ -2739,14 +2794,58 @@
   }
 
   /* ── Init ── */
+  /* Pantalla de inicio: anillo azul 0→100 % mientras se precargan todos los meses */
+  function precargaInicio() {
+    var R = 54, C = 2 * Math.PI * R, t0 = Date.now();
+    q('#stage').innerHTML = '<div class="ot-loading ot-pre"><div class="mload__c ot-pre__c">' +
+      '<div class="mload__ring ot-pre__ring"><svg viewBox="0 0 128 128"><circle class="halo" cx="64" cy="64" r="62"/><circle class="bg" cx="64" cy="64" r="' + R + '"/><circle class="fg" cx="64" cy="64" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
+      '<div class="mload__pct"><span>0</span><small>%</small></div></div>' +
+      '<div class="mload__t">Preparando el tablero</div><div class="mload__s" id="preSub">Conectando con la base…</div>' +
+      '<div class="ot-pre__bar"><i id="preBar"></i></div></div></div>';
+    var root = q('#stage .ot-pre'), fg = q('.fg', root), num = q('.mload__pct span', root), sub = q('#preSub'), bar = q('#preBar'), halo = q('.halo', root);
+    var st = { v: 0 }, obj = 0, tw = null, giro = null;
+    var dibujar = function () { fg.setAttribute('stroke-dashoffset', (C * (1 - st.v / 100)).toFixed(2)); num.textContent = Math.round(st.v); };
+    var ir = function (p, dur) { obj = Math.max(obj, Math.min(100, p)); if (!GS) { st.v = obj; dibujar(); return; } if (tw) tw.kill(); tw = gsap.to(st, { v: obj, duration: dur || .5, ease: 'power2.out', onUpdate: dibujar }); };
+    if (GS) {
+      gsap.fromTo(q('.ot-pre__c', root), { opacity: 0, scale: .86, y: 14 }, { opacity: 1, scale: 1, y: 0, duration: .55, ease: 'back.out(1.7)' });
+      gsap.set(halo, { transformOrigin: '50% 50%' }); giro = gsap.to(halo, { rotation: 360, duration: 6, ease: 'none', repeat: -1 });
+      gsap.from(qa('.mload__t, .mload__s, .ot-pre__bar', root), { opacity: 0, y: 6, duration: .35, stagger: .07, delay: .15, ease: 'power2.out' });
+      ir(6, 1);
+    }
+    return {
+      mes: function (lbl) { sub.textContent = 'Cargando pedidos · ' + lbl; },
+      ir: function (fr) { ir(6 + fr * 92); if (bar) bar.style.width = (fr * 100).toFixed(1) + '%'; },
+      fin: function () {
+        return new Promise(function (ok) {
+          setTimeout(function () {
+            sub.textContent = 'Listo'; if (bar) bar.style.width = '100%';
+            if (!GS) { st.v = 100; dibujar(); ok(); return; }
+            if (tw) tw.kill(); obj = 100;
+            tw = gsap.to(st, { v: 100, duration: .35, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
+              gsap.fromTo(q('.mload__ring', root), { scale: 1 }, { scale: 1.07, duration: .14, yoyo: true, repeat: 1, ease: 'power1.inOut', onComplete: function () {
+                gsap.to(q('.ot-pre__c', root), { opacity: 0, scale: .94, y: -8, duration: .28, ease: 'power2.in', onComplete: function () { if (giro) giro.kill(); ok(); } });
+              } });
+            } });
+          }, Math.max(0, 600 - (Date.now() - t0)));
+        });
+      }
+    };
+  }
+
   window.__initOtif = async function () {
     var nc = q('#navCargar'); if (nc && !isAdmin()) nc.remove();
     qa('[data-nav]').forEach(function (b) { b.addEventListener('click', function () { ir(b.dataset.nav); }); });
     q('#fileBase').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) subirExcel(f); });
     if (!DB) { q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>Sin conexión</h3><p>No se pudo conectar con la base de datos.</p></div>'; return; }
-    q('#stage').innerHTML = '<div class="ot-loading"><div class="ot-loading__ring"></div><b>Cargando pedidos</b><span>Calculando el cumplimiento del mes…</span></div>';
-    if (GS) gsap.from('#stage .ot-loading', { opacity: 0, y: 10, duration: .4, ease: 'power2.out', clearProps: 'transform,opacity' });
-    try { await cargarBase(); await cargarMes(); renderShell(); }
+    var pl = precargaInicio();
+    try {
+      await cargarBase();
+      pl.mes(mesLbl(CUR));
+      await cargarMes(function (fr) { pl.ir(fr); });
+      await pl.fin();
+      renderShell();
+      precargarFondo();
+    }
     catch (e) { console.error(e); q('#stage').innerHTML = '<div class="empty">' + IC.empty + '<h3>No se pudieron cargar los datos</h3><p>' + esc(e && e.message ? e.message : e) + '</p></div>'; }
   };
 })();

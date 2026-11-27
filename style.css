@@ -1781,3 +1781,21 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .mload__pct small{font-size:14px;font-weight:700;margin-left:2px;opacity:.8}
 .mload__t{position:relative;font-size:14.5px;font-weight:800;letter-spacing:.1px}
 .mload__s{position:relative;font-size:12px;font-weight:600;opacity:.75}
+
+/* Tendencia mensual: enero a diciembre (12 meses fijos, los sin datos en gris) */
+.gspark__x--anio{position:relative;display:block;height:14px;padding:0}
+.gspark__x--anio span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-size:9.5px;letter-spacing:.3px}
+
+.gspark__x--anio span.off{color:rgba(255,255,255,.26)}
+
+
+/* Precarga inicial */
+.ot-pre{padding:0}
+.ot-pre__c{width:250px;padding:28px 24px 22px;gap:7px}
+.ot-pre__ring{width:128px;height:128px}
+.ot-pre .mload__pct{font-size:34px}
+.ot-pre__bar{position:relative;width:100%;height:4px;margin-top:10px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden}
+.ot-pre__bar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:inherit;background:#fff;transition:width .45s cubic-bezier(.2,.8,.2,1)}
+
+.ot-trend__load{position:absolute;top:2px;right:0;display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:99px;background:rgba(255,255,255,.12);font-size:10.5px;font-weight:700;color:rgba(255,255,255,.8)}
+.ot-trend__load span{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:ldStepSpin .7s linear infinite}

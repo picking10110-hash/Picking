@@ -58,6 +58,17 @@
   }
   function minTs(a, b) { if (!a) return b; if (!b) return a; return a < b ? a : b; }
   function entregaDe(v) { var s = txt(v); return (!s || /^0+$/.test(s)) ? null : s; }
+  // Letra del código SAP → departamento y zona (misma regla que la carga inicial de otif_regiones)
+  var DEPTOS = { A: ['Asuncion', 'Capital'], S: ['Central', 'Capital'], B: ['Concepcion', 'Interior'], C: ['Amambay', 'Interior'], D: ['San Pedro', 'Interior'],
+    E: ['Canindeyu', 'Interior'], F: ['Alto Parana', 'Interior'], G: ['Caaguazu', 'Interior'], H: ['Cordillera', 'Interior'], I: ['Paraguari', 'Interior'],
+    J: ['Guaira', 'Interior'], K: ['Caazapa', 'Interior'], L: ['Itapua', 'Interior'], M: ['Misiones', 'Interior'], N: ['Neembucu', 'Interior'], R: ['Chaco', 'Interior'] };
+  // 'S11 -LUQUE' → { region_cod:'S11', nombre:'LUQUE', departamento, zona }  (null si la letra no es conocida)
+  function regionFila(v) {
+    var s = txt(v); if (!s) return null;
+    var m = s.match(/^([A-Z])(\d+)\s*-?\s*(.*)$/); if (!m || !DEPTOS[m[1]]) return null;
+    var d = DEPTOS[m[1]];
+    return { region_cod: m[1] + m[2], nombre: (m[3] || '').trim() || m[1] + m[2], departamento: d[0], zona: d[1] };
+  }
   function regionDe(v) { var s = txt(v); if (!s) return null; var m = s.match(/^([A-Z]\d+)/); return m ? m[1] : s.slice(0, 10); }
 
   /**
@@ -77,7 +88,7 @@
     var faltan = REQUERIDAS.filter(function (c) { return cols.indexOf(c) < 0; });
     if (faltan.length) return { ok: false, error: 'No es el export de pedidos de SAP. Faltan las columnas: ' + faltan.join(', ') + '.' };
 
-    var P = new Map(), E = new Map(), L = new Map(), M = new Map();
+    var P = new Map(), E = new Map(), L = new Map(), M = new Map(), RG = new Map();
     var desde = null, hasta = null, validas = 0, repetidas = 0;
 
     filas.forEach(function (r) {
@@ -89,6 +100,8 @@
       var dia = fc.slice(0, 10);
       if (!desde || dia < desde) desde = dia;
       if (!hasta || dia > hasta) hasta = dia;
+
+      var rg = regionFila(r['Region']); if (rg && !RG.has(rg.region_cod)) RG.set(rg.region_cod, rg);
 
       // ── Pedido (constante en todas sus líneas)
       if (!P.has(doc)) P.set(doc, {
@@ -153,7 +166,7 @@
     return {
       ok: true,
       pedidos: Array.from(P.values()), entregas: entregas,
-      lineas: Array.from(L.values()), materiales: Array.from(M.values()),
+      lineas: Array.from(L.values()), materiales: Array.from(M.values()), regiones: Array.from(RG.values()),
       meta: { filas: validas, repetidas: repetidas, pedidos: P.size, entregas: E.size, lineas: L.size, materiales: M.size, carga_desde: desde, carga_hasta: hasta }
     };
   }
@@ -183,6 +196,10 @@
       pedidos_nuevos: res.meta.pedidos - ya, carga_desde: res.meta.carga_desde, carga_hasta: res.meta.carga_hasta
     });
     var conId = function (arr) { return arr.map(function (x) { var o = Object.assign({}, x); o.importacion_id = imp.id; return o; }); };
+    if (res.regiones && res.regiones.length) {
+      prog(3, 'Registrando localidades…');
+      await db.upsert('otif_regiones', res.regiones, 'region_cod', true);
+    }
     var pasos = [
       ['otif_pedidos', conId(res.pedidos).map(function (p) { p.actualizado_en = new Date().toISOString(); return p; }), 'doc_vtas', 'pedidos'],
       ['otif_materiales', res.materiales, 'material', 'materiales'],
@@ -202,7 +219,7 @@
     return { importacion_id: imp.id, nuevos: res.meta.pedidos - ya, actualizados: ya };
   }
 
-  var api = { parsear: parsear, parsearFilas: parsearFilas, COLUMNAS: COLUMNAS, subir: subir, contarExistentes: contarExistentes, ts: ts, REQUERIDAS: REQUERIDAS };
+  var api = { parsear: parsear, parsearFilas: parsearFilas, regionFila: regionFila, COLUMNAS: COLUMNAS, subir: subir, contarExistentes: contarExistentes, ts: ts, REQUERIDAS: REQUERIDAS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OtifImport = api;
 })(typeof window !== 'undefined' ? window : this);

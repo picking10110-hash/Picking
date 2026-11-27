@@ -175,19 +175,27 @@
     if (!CUR) { ROWS = []; MOTIVOS = []; return; }
     var r = rangoMes(CUR);
     var qPed = function (sel, o) { return DB.from('otif_v_pedidos').select(sel, o).gte('fecha_carga', r[0]).lt('fecha_carga', r[1]); };
-    var qLin = function (sel, o) { return DB.from('otif_lineas').select(sel, o).is('entrega', null).gte('otif_pedidos.fecha_carga', r[0]).lt('otif_pedidos.fecha_carga', r[1]); };
-    // Progreso: filas recibidas / filas esperadas (si el conteo no llega, avanza por páginas)
-    var hechas = 0, paginas = 0, total = null;
+    // Progreso: 85 % pedidos (filas recibidas / conteo del mes) + 15 % líneas con faltante
+    var hechas = 0, paginas = 0, total = null, fPed = 0;
     var avisar = function (n) {
       hechas += n; paginas++;
-      if (alProg) alProg(total ? Math.min(.99, hechas / total) : 1 - Math.pow(.6, paginas));
+      fPed = total ? Math.min(1, hechas / total) : 1 - Math.pow(.6, paginas);
+      if (alProg) alProg(Math.min(.99, fPed * .85));
     };
-    if (alProg) Promise.all([qPed('doc_vtas', { count: 'exact', head: true }), qLin('doc_vtas,otif_pedidos!inner(fecha_carga)', { count: 'exact', head: true })])
-      .then(function (c) { if (c[0].count != null && c[1].count != null) { total = Math.max(1, c[0].count + c[1].count); if (alProg && hechas) alProg(Math.min(.99, hechas / total)); } }).catch(function () {});
-    var res = await Promise.all([
-      paginar(function () { return qPed(COLS).order('doc_vtas'); }, avisar),
-      paginar(function () { return qLin('doc_vtas,motivo_rechazo,cant_pedida,precio,desc_pct,otif_pedidos!inner(fecha_carga)').order('doc_vtas').order('pos'); }, avisar)
-    ]);
+    if (alProg) qPed('doc_vtas', { count: 'exact', head: true }).then(function (c) { if (c.count != null) total = Math.max(1, c.count); }).catch(function () {});
+    var peds = await paginar(function () { return qPed(COLS).order('doc_vtas'); }, avisar);
+    // Antes: join otif_lineas ⨝ otif_pedidos filtrando por fecha → con 450.000 líneas se cortaba por tiempo (57014)
+    var docs = peds.filter(function (p) { return +p.n_sin_entrega > 0; }).map(function (p) { return p.doc_vtas; });
+    var LOTE = 120, lotes = [];
+    for (var i = 0; i < docs.length; i += LOTE) lotes.push(docs.slice(i, i + LOTE));
+    var hechosL = 0, mot = new Array(lotes.length);
+    for (var j = 0; j < lotes.length; j += 4) {
+      await Promise.all(lotes.slice(j, j + 4).map(function (lt, k) {
+        return paginar(function () { return DB.from('otif_lineas').select('doc_vtas,motivo_rechazo,cant_pedida,precio,desc_pct').in('doc_vtas', lt).is('entrega', null).order('doc_vtas').order('pos'); })
+          .then(function (rows) { mot[j + k] = rows; hechosL++; if (alProg) alProg(Math.min(.99, .85 + .15 * hechosL / lotes.length)); });
+      }));
+    }
+    var res = [peds, [].concat.apply([], mot)];
     ROWS = res[0]; MOTIVOS = res[1];
     EVS = ROWS.map(CALC.evaluar).filter(Boolean);
   }
@@ -2611,7 +2619,7 @@
     return {
       insertImport: async function (row) { var r = await DB.from('otif_importaciones').insert(row).select('id').single(); if (r.error) throw r.error; return r.data; },
       existentes: async function (t, col, keys) { var r = await DB.from(t).select(col).in(col, keys); if (r.error) throw r.error; return r.data.map(function (x) { return x[col]; }); },
-      upsert: async function (t, rows, oc) { var r = await DB.from(t).upsert(rows, { onConflict: oc, returning: 'minimal' }); if (r.error) throw r.error; }
+      upsert: async function (t, rows, oc, ignorar) { var r = await DB.from(t).upsert(rows, { onConflict: oc, ignoreDuplicates: !!ignorar, returning: 'minimal' }); if (r.error) throw r.error; }
     };
   }
 

@@ -1896,3 +1896,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
   .pl-ov--py .pl-card{position:relative;z-index:1;max-width:440px}
 }
 @media (max-width:640px){.pl-card--bar{text-align:left;justify-items:stretch;padding:26px 22px}.pl-card--bar .pl-txt{align-items:flex-start}.pl-card--bar .pl-tit{font-size:26px}}
+
+/* Precarga v5 — minimalista claro: tarjeta blanca tipo vidrio que combina con el mapa */
+.pl-ov--py .pl-card--bar{background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:#0B2A4A;border:1px solid rgba(11,79,138,.10);box-shadow:0 30px 70px -20px rgba(11,62,110,.22),0 2px 6px rgba(11,62,110,.05);gap:28px;padding:30px 32px 28px;border-radius:24px}
+.pl-ov--py .pl-card--bar::after,.pl-ov--py .pl-card--bar .pl-glow{display:none}
+.pl-ov--py .pl-card--bar .pl-logo{background:linear-gradient(135deg,#0A4578,#1472BE);border:0;box-shadow:0 8px 18px -6px rgba(11,79,138,.55)}
+.pl-ov--py .pl-card--bar .pl-tit{color:#0B2A4A;letter-spacing:1px}
+.pl-ov--py .pl-card--bar .pl-cap{color:#64748B;font-weight:600}
+.pl-ov--py .pl-card--bar .pl-sub{color:#64748B;font-weight:600}
+.pl-ov--py .pl-card--bar .pl-num{color:#0B4F8A}
+.pl-ov--py .pl-card--bar .pl-num b{font-size:24px}
+.pl-ov--py .pl-card--bar .pl-num small{opacity:.55}
+.pl-ov--py .pl-card--bar .pl-bar{height:4px;background:#E6EEF7;overflow:visible}
+.pl-ov--py .pl-card--bar .pl-bar i{background:linear-gradient(90deg,#0B4F8A,#3B95E0);box-shadow:0 0 10px rgba(20,102,176,.35);overflow:hidden}
+.pl-ov--py .pl-card--bar .pl-bar i b{background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent)}

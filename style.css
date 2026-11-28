@@ -1980,3 +1980,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .zn-stack--duo .meta.gap{font-size:0;gap:5px}
 .zn-stack--duo .meta.gap b{font-size:11px}
 .zn-stack--duo .meta.gap::after{content:'p/ meta';font-size:10px;font-weight:700;opacity:.8}
+
+/* Scroll minimalista: barra fina sin flechas, se marca al pasar el mouse; bordes con fundido */
+.zn-dl-b,#znRows{scrollbar-width:thin;scrollbar-color:transparent transparent;transition:scrollbar-color .2s}
+.zn-dl-b:hover,#znRows:hover{scrollbar-color:#C9D8E8 transparent}
+.zn-dl-b::-webkit-scrollbar,#znRows::-webkit-scrollbar{width:4px}
+.zn-dl-b::-webkit-scrollbar-track,#znRows::-webkit-scrollbar-track{background:transparent}
+.zn-dl-b::-webkit-scrollbar-button,#znRows::-webkit-scrollbar-button{display:none;height:0}
+.zn-dl-b::-webkit-scrollbar-thumb,#znRows::-webkit-scrollbar-thumb{background:transparent;border-radius:99px}
+.zn-dl-b:hover::-webkit-scrollbar-thumb,#znRows:hover::-webkit-scrollbar-thumb{background:#C9D8E8}
+.zn-dl-b::-webkit-scrollbar-thumb:hover,#znRows::-webkit-scrollbar-thumb:hover{background:#9DB7D1}
+.zn-dl-b{-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(180deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent);padding-top:4px;padding-bottom:14px}

@@ -2174,3 +2174,78 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .zooming svg path,.zooming svg circle{shape-rendering:optimizeSpeed}
 .zooming .pm-d,.zooming .pm-ds,.zooming .pm-hl,.zooming .pm-glow{filter:none !important}
 .zooming .pm-dl{visibility:hidden}
+
+/* KPIs superiores de Zonas más finos: 2 renglones (etiqueta · % + barra + datos) */
+.zn-stack--duo .zn-card{padding:11px 16px 12px;row-gap:8px;border-radius:14px}
+.zn-stack--duo .zn-tag{height:26px}
+.zn-stack--duo .zn-ico{width:20px;height:20px}
+.zn-stack--duo .zn-big{font-size:27px;letter-spacing:-.8px}
+.zn-stack--duo .zn-big small{font-size:9.5px}
+.zn-stack--duo .zn-meter{height:6px;margin:0 0 10px}
+.zn-stack--duo .ot-st b{font-size:13px}
+.zn-stack--duo .ot-st span{font-size:8.5px}
+@media(min-width:1501px){
+  .zn-stack--duo .zn-card{grid-template-columns:auto minmax(80px,1fr) auto;grid-template-areas:"top top top" "big meter foot";column-gap:16px}
+  .zn-stack--duo .ot-foot{grid-area:foot;border-top:0;padding:0;display:flex;gap:0}
+  .zn-stack--duo .ot-st{padding:0 10px}
+  .zn-stack--duo .ot-st:first-child{padding-left:0;border-left:0}
+}
+@media(min-width:1181px) and (max-width:1500px){
+  .zn-stack--duo .zn-big{font-size:24px}
+  .zn-stack--duo .ot-foot{padding-top:7px}
+}
+
+/* KPIs de Zonas v3: [etiqueta · datos] / [% · barra] / [% · estado y faltantes] */
+@media(min-width:1181px){
+  .zn-stack--duo .zn-card{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"top foot" "big meter" "big chips";column-gap:18px;row-gap:6px;align-items:center;padding:11px 16px 11px}
+  .zn-stack--duo .zn-top{display:contents}
+  .zn-stack--duo .zn-tag{grid-area:top;justify-self:start}
+  .zn-stack--duo .zn-chips{grid-area:chips;justify-self:start;margin-top:8px}
+  .zn-stack--duo .zn-big{grid-area:big;align-self:center}
+  .zn-stack--duo .zn-meter{grid-area:meter;margin:6px 0 0;align-self:end}
+  .zn-stack--duo .ot-foot{grid-area:foot;justify-self:end;align-self:center;border-top:0;padding:0;margin:0;display:flex;gap:0}
+  .zn-stack--duo .ot-st{padding:0 12px;border-left:1px solid rgba(255,255,255,.16)}
+  .zn-stack--duo .ot-st:first-child{border-left:0;padding-left:0}
+  .zn-stack--duo .ot-st:last-child{padding-right:0}
+  .zn-stack--duo .zn-meter em i{top:-14px}
+}
+/* Tabla: sin botón "Ver detalles" (ya está en el panel del mapa) */
+.zn-row.sub[data-city]:hover .zn-vgo{position:static;transform:none;width:26px;height:26px;padding:0;box-shadow:none;background:none;color:#0B4F8A;display:grid}
+.zn-row.sub[data-city]:hover .zn-vgo em,.zn-vgo em{display:none}
+
+/* KPIs: la meta va en la etiqueta de estado (sin rótulo sobre la barra) */
+.zn-stack--duo .st-meta small{display:inline}
+.zn-stack--duo .zn-meter em i{display:none}
+/* Datos del distrito debajo del filtro de vistas */
+.pm-dtiles{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:3;display:flex;gap:8px;pointer-events:none}
+.pm-dtiles[hidden]{display:none}
+.pm-dtiles .zd-tile{flex-direction:row;align-items:center;gap:9px;padding:8px 12px 8px 9px;background:rgba(255,255,255,.94);border:1px solid #E3ECF6;box-shadow:0 8px 18px -10px rgba(11,62,110,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-radius:12px}
+.pm-dtiles .zd-tile i{margin:0;width:26px;height:26px;border-radius:8px}
+.pm-dtiles .zd-tile i svg{width:14px;height:14px}
+.zn-map__box .pm-dtiles svg{width:14px !important;height:14px !important;max-width:none;max-height:none;transform:none;filter:none}
+.pm-dtiles .zd-tile b{font-size:14px}
+.pm-dtiles .zd-tile small{font-size:9.5px;white-space:nowrap}
+/* Panel de distrito: vendedores por posición (lista con scroll) y "Ver detalles" al pie */
+#znDList{display:flex;flex-direction:column;min-height:0}
+#znDList .zn-det{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.zd-vend{flex:1;min-height:0;overflow-y:auto;padding-right:4px;margin-right:-4px;gap:9px;scrollbar-width:thin;scrollbar-color:transparent transparent}
+.zd-vend:hover{scrollbar-color:#C9D8E8 transparent}
+.zd-vend::-webkit-scrollbar{width:4px}.zd-vend::-webkit-scrollbar-thumb{background:transparent;border-radius:99px}.zd-vend:hover::-webkit-scrollbar-thumb{background:#C9D8E8}
+.zd-v{display:grid;grid-template-columns:20px 1fr;column-gap:8px;align-items:center}
+.zd-v__n{grid-row:span 2;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#EEF2F7;color:#64748B;font-style:normal;font-size:10px;font-weight:800}
+.zd-v__n.top{background:linear-gradient(135deg,#0A4578,#1472BE);color:#fff}
+.zd-v__r,.zd-v__b{grid-column:2}
+.zn-det__go{flex:none;margin-top:auto;width:100%}
+.zd-sec{flex:none}
+.pm-dtiles .zd-tile > div{display:flex;flex-direction:column;line-height:1.15}.pm-dtiles .zd-tile small{margin-top:1px}
+@media(min-width:1181px) and (max-width:1500px){
+  .zn-stack--duo .ot-foot{flex-wrap:nowrap}
+  .zn-stack--duo .ot-st{padding:0 8px;min-width:0}
+  .zn-stack--duo .ot-st b{font-size:12px;white-space:nowrap}
+  .zn-stack--duo .ot-st span{font-size:8px;white-space:nowrap}
+  .zn-stack--duo .ot-st:nth-child(3){display:none}
+  .zn-stack--duo .zn-tag b{font-size:13px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .zn-stack--duo .st-meta small{display:none}
+  .zn-stack--duo .zn-chips{max-width:100%}
+}
+@media(min-width:1181px) and (max-width:1500px){.zn-stack--duo .meta.gap::after{content:"";display:none}.zn-stack--duo .zn-chips{gap:4px}}

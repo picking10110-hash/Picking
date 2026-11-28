@@ -874,7 +874,7 @@
              : '<div class="zn-name zn-name--d"><i class="zn-dico">' + SV('<path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>') + '</i><span>' + esc(d.clave) + '<small>' + nf(d.evaluados) + ' pedidos</small></span></div>') +
         '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, d.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(d.pOtif) + '<small class="zn-dif">' + (d.pOtif >= meta ? '+' : '−') + nf(Math.abs(d.pOtif - meta), 1) + ' pts</small></b></div>' +
         '<div class="r">' + (d.faltan === 0 ? '<span class="st-chip ok">En meta</span>' : nf(d.faltan)) + '</div>' +
-        '<div class="zn-chev">' + (sub ? '<span class="zn-vgo"><em>Ver detalles</em>' + SV('<path d="M9 6l6 6-6 6"/>') + '</span>' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
+        '<div class="zn-chev">' + (sub ? '<span class="zn-vgo">' + SV('<path d="M9 6l6 6-6 6"/>') + '</span>' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
     }
     function ordenar() {
       var k = ZN.orden;
@@ -925,7 +925,7 @@
       if (window.OtifGeo) { if (OtifGeo.listo()) marcarGeo(); else OtifGeo.cargar().then(marcarGeo).catch(function () {}); }
       qa('.zn-row[data-city]', box).forEach(function (r) {
         var vend = function () { var c = r.dataset.city; abrirVendedores(tCase(c), dep + ' · ' + (zonaDe[dep] || ''), evDep.filter(function (o) { return (o.p.region_nombre || o.p.region_cod || '—') === c; }), { dep: dep, city: c }); };
-        var vgo = q('.zn-vgo', r); if (vgo) { vgo.title = 'Ver detalles: vendedores y pedidos de ' + tCase(r.dataset.city); vgo.addEventListener('click', function (e) { e.stopPropagation(); vend(); }); }
+
         var go = function () { var g = r.dataset.geo; if (g && mapApi && mapApi.distrito) { var p = g.split('|'); mapApi.distrito(p[1], p[0]); } else vend(); };
         r.addEventListener('mouseenter', function () { var g = r.dataset.geo; if (g && mapApi && mapApi.focoDist) mapApi.focoDist(g.split('|')[1]); });
         r.addEventListener('mouseleave', function () { if (mapApi && mapApi.focoDist) mapApi.focoDist(null); });
@@ -1776,7 +1776,19 @@
     var DR = { k: null, g: null, grupos: {}, evs: {}, maxN: 1, maxF: 1, pend: null };
     var NS = 'http://www.w3.org/2000/svg';
     var crumb = el('<div class="pm-crumb" hidden></div>'); box.appendChild(crumb);
+    var dtiles = el('<div class="pm-dtiles" hidden></div>'); box.appendChild(dtiles);
+    function tilesMapa(n) {
+      var x = n && DR.grupos[n];
+      if (!x) { if (!dtiles.hidden) { if (GS) gsap.to(dtiles, { opacity: 0, y: -6, duration: .18, ease: 'power1.in', onComplete: function () { dtiles.hidden = true; } }); else dtiles.hidden = true; } return; }
+      dtiles.innerHTML =
+        '<div class="zd-tile"><i>' + SV('<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>') + '</i><div><b>' + nf(x.evaluados) + '</b><small>Pedidos</small></div></div>' +
+        '<div class="zd-tile' + (x.faltan ? ' warn' : ' ok') + '"><i>' + SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5M12 16h.01"/>') + '</i><div><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'Faltan p/ ' + pf(meta, 0) : 'En meta') + '</small></div></div>' +
+        '<div class="zd-tile"><i>' + SV('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>') + '</i><div><b>' + tiempo(x.cicloMed, true) + '</b><small>Tiempo habitual</small></div></div>';
+      var era = dtiles.hidden; dtiles.hidden = false;
+      if (GS) { if (era) gsap.fromTo(dtiles, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: .32, ease: 'power3.out', clearProps: 'transform' }); else gsap.set(dtiles, { opacity: 1 }); gsap.from(qa('.zd-tile', dtiles), { opacity: 0, y: -4, duration: .26, stagger: .05, ease: 'power2.out', clearProps: 'transform,opacity' }); }
+    }
     function pintarCrumb() {
+      crumb.hidden = true; return;   // pedido: sin migas sobre el mapa
       if (!DR.k) { crumb.hidden = true; return; }
       crumb.innerHTML = '<button type="button" data-c="pais">' + SV('<path d="M15 18l-6-6 6-6"/>') + 'Paraguay</button><i>›</i>' +
         (ZN.dist ? '<button type="button" data-c="dep">' + esc(nombreDe(DR.k)) + '</button><i>›</i><b>' + esc(tCase(ZN.dist)) + '</b>' : '<b>' + esc(nombreDe(DR.k)) + '</b>');
@@ -1829,7 +1841,7 @@
     function quitarCapa() { if (DR.g) { DR.g.remove(); DR.g = null; } svg.classList.remove('drill', 'dfoco'); }
     function quitarDistritos(soloCapa) {
       if (!DR.k) return;
-      var g = DR.g; DR.g = null; DR.k = null; ZN.dist = null;
+      var g = DR.g; DR.g = null; DR.k = null; ZN.dist = null; tilesMapa(null);
       svg.classList.remove('drill', 'dfoco');
       if (g) { if (GS) gsap.to(g, { opacity: 0, duration: .25, ease: 'power1.in', onComplete: function () { g.remove(); } }); else g.remove(); }
       pintarCrumb();
@@ -1840,7 +1852,7 @@
       if (!DR.g) return;
       qa('.pm-ds.has', DR.g).forEach(function (p) { var c = colorG(DR.grupos[p.dataset.n], DR.maxN, DR.maxF); if (GS && anim) gsap.to(p, { attr: { fill: c }, duration: .5, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
       qa('.pm-dt__v', DR.g).forEach(function (t) { t.textContent = textoG(DR.grupos[t.parentNode.dataset.n]); });
-      if (ZN.dist) panelDetalle(ZN.dist, false); else panelDistritos(false);
+      if (ZN.dist) { panelDetalle(ZN.dist, false); tilesMapa(ZN.dist); } else panelDistritos(false);
     }
     function fichaHtml(nombre, sub, x) {
       var col = mapColor(x.pOtif, meta), stT = estadoMeta(x.pOtif, meta);
@@ -1885,12 +1897,14 @@
       qa('.pm-dt', DR.g).forEach(function (t) { t.classList.toggle('on', t.dataset.n === n); });
       if (GS) gsap.fromTo(p, { opacity: .6 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'opacity' });
       panelDetalle(n, true);
+      tilesMapa(n);
       pintarCrumb();
       if (ZN._alDrill) ZN._alDrill(DR.k, { nombre: n, g: DR.grupos[n], evs: DR.evs[n] });
     }
     function salirDistrito() {
       ZN.dist = null; svg.classList.remove('dfoco');
       if (DR.g) { qa('.pm-ds', DR.g).forEach(function (x) { x.classList.remove('sel', 'on'); }); qa('.pm-dt', DR.g).forEach(function (t) { t.classList.remove('on'); }); }
+      tilesMapa(null);
       aplicarFiltro(true);       // vuelve al encuadre del departamento
       panelDistritos(true); pintarCrumb();
       if (ZN._alDrill) ZN._alDrill(DR.k, null);
@@ -1901,16 +1915,16 @@
       var gl = Object.keys(DR.grupos).map(function (n) { return DR.grupos[n]; }).sort(function (a, b) { return vol ? b.evaluados - a.evaluados : fa ? (b.faltan || 0) - (a.faltan || 0) : (b.pOtif - a.pOtif); });
       var peor = gl.slice().sort(function (a, b) { return a.pOtif - b.pOtif; })[0], mejor = gl.slice().sort(function (a, b) { return b.pOtif - a.pOtif; })[0];
       dl.innerHTML = '<div class="zn-dl-h"><span>Distritos · ' + esc(nombreDe(DR.k)) + '</span><button type="button" class="zn-dl-back">' + SV('<path d="M15 18l-6-6 6-6"/>') + 'País</button></div>' +
-        (gl.length > 1 ? '<div class="zn-dd-best"><span class="ok" title="Mejor cumplimiento">▲ ' + esc(tCase(mejor.clave)) + ' <b>' + pf(mejor.pOtif, 0) + '</b></span><span class="bad" title="Peor cumplimiento">▼ ' + esc(tCase(peor.clave)) + ' <b>' + pf(peor.pOtif, 0) + '</b></span></div>' : '') +
         '<div class="zn-dl-b">' + gl.map(function (x) { var c = colorG(x, DR.maxN, DR.maxF); return '<button type="button" class="zn-di zn-dd" data-n="' + esc(x.clave) + '"><i style="background:' + c + '"></i><span>' + esc(tCase(x.clave)) + '</span><b style="color:' + (vol ? '#0B4F8A' : fa ? '#B91C1C' : c) + '">' + textoG(x) + '</b></button>'; }).join('') +
         (DR.pend && DR.pend.n ? '<div class="zn-pend" title="' + esc(DR.pend.loc.slice(0, 12).map(function (l) { return tCase(l[0]) + ' (' + l[1] + ')'; }).join(', ')) + '"><b>' + nf(DR.pend.n) + '</b> pedidos en ' + nf(DR.pend.loc.length) + ' localidad' + (DR.pend.loc.length === 1 ? '' : 'es') + ' sin ubicar en el mapa</div>' : '') + '</div>';
+      dl.classList.remove('filtra');   // los distritos se ven con su color pleno
       q('.zn-dl-back', dl).addEventListener('click', function () { ZN.deps = []; aplicarFiltro(true, true); });
       qa('.zn-dd', dl).forEach(function (b) {
         b.addEventListener('mouseenter', function () { entrarDist(b.dataset.n); tip.hidden = true; });
         b.addEventListener('mouseleave', salirDist);
         b.addEventListener('click', function () { seleccionarDistrito(b.dataset.n); });
       });
-      if (GS && anim) gsap.from(qa('.zn-dl-h, .zn-dd-best, .zn-dd, .zn-pend', dl).slice(0, 18), { opacity: 0, x: 10, duration: .3, stagger: .025, ease: 'power2.out', clearProps: 'transform,opacity' });
+      if (GS && anim) gsap.from(qa('.zn-dl-h, .zn-dd, .zn-pend', dl).slice(0, 18), { opacity: 0, x: 10, duration: .3, stagger: .025, ease: 'power2.out', clearProps: 'transform,opacity' });
     }
     function panelDetalle(n, anim) {
       if (!dl) return;
@@ -1929,25 +1943,20 @@
             '<div class="zd-pct"><span>' + pf(x.pOtif) + '</span><small>en tiempo y forma</small></div>' +
             '<div class="zd-meter"><span data-w="' + Math.min(100, x.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
           '</div>' +
-          '<div class="zd-tiles">' +
-            '<div class="zd-tile"><i>' + ICO.ped + '</i><b>' + nf(x.evaluados) + '</b><small>Pedidos</small></div>' +
-            '<div class="zd-tile' + (x.faltan ? ' warn' : ' ok') + '"><i>' + ICO.fal + '</i><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'Faltan p/ ' + pf(meta, 0) : 'En meta') + '</small></div>' +
-            '<div class="zd-tile"><i>' + ICO.tie + '</i><b>' + tiempo(x.cicloMed, true) + '</b><small>Tiempo habitual</small></div>' +
-          '</div>' +
           '<div class="zd-sec"><span>Vendedores</span><em>' + nf(vend.length) + '</em></div>' +
-          '<div class="zd-vend">' + vend.slice(0, 5).map(function (v) {
+          '<div class="zd-vend">' + vend.map(function (v, i) {
             var c2 = semColor(v.pOtif);
-            return '<div class="zd-v"><div class="zd-v__r"><span>' + esc(tCase(v.clave)) + '</span><em>' + nf(v.evaluados) + ' ped.</em><b style="color:' + c2 + '">' + pf(v.pOtif, 0) + '</b></div>' +
+            return '<div class="zd-v"><i class="zd-v__n' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</i><div class="zd-v__r"><span>' + esc(tCase(v.clave)) + '</span><em>' + nf(v.evaluados) + ' ped.</em><b style="color:' + c2 + '">' + pf(v.pOtif, 0) + '</b></div>' +
               '<div class="zd-v__b"><span data-w="' + Math.min(100, v.pOtif || 0).toFixed(1) + '" style="background:' + c2 + '"></span></div></div>';
           }).join('') + '</div>' +
           '<button type="button" class="zn-det__go">Ver detalles' + SV('<path d="M9 6l6 6-6 6"/>') + '</button>' +
-          '<div class="zd-locs"><span>Localidades SAP</span>' + Object.keys(locs).map(function (l) { return '<em>' + esc(tCase(l)) + '</em>'; }).join('') + '</div>' +
         '</div>';
       q('.zn-dl-back', dl).addEventListener('click', salirDistrito);
       q('.zn-det__go', dl).addEventListener('click', function () { abrirVendedores(tCase(n), 'Distrito · ' + nombreDe(DR.k), lista, { dep: DR.k }); });
-      var barras = [q('.zd-meter span', dl)].concat(qa('.zd-v__b span', dl));
+      var barras = [q('.zd-meter span', dl)].concat(qa('.zd-v__b span', dl).slice(0, 12));
+      crecer(qa('.zd-v__b span', dl).slice(12), { anim: false });
       if (GS && anim) {
-        gsap.from(qa('.zn-dl-h, .zd-hero, .zd-tile, .zd-sec, .zd-v, .zn-det__go, .zd-locs', dl), { opacity: 0, y: 8, duration: .34, stagger: .035, ease: 'power2.out', clearProps: 'transform,opacity' });
+        gsap.from(qa('.zn-dl-h, .zd-hero, .zd-sec, .zn-det__go', dl).concat(qa('.zd-v', dl).slice(0, 10)), { opacity: 0, y: 8, duration: .34, stagger: .035, ease: 'power2.out', clearProps: 'transform,opacity' });
         animCount(q('.zd-pct span', dl), x.pOtif, function (v) { return pf(v); }, .8);
       }
       crecer(barras, { anim: !!(GS && anim), dur: .8, delay: .15, stagger: .05 });

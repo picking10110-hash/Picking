@@ -1873,3 +1873,26 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .pl-map{opacity:.38}
 .pl-map__ruta-bg{stroke:rgba(11,79,138,.10);stroke-width:1.2;stroke-dasharray:2 7}
 .pl-map__ruta{stroke-width:1.6}
+
+/* Precarga v4: Paraguay en puntos + arcos desde el depósito */
+.pl-ov--py .pl-stage{position:relative;display:grid;grid-template-columns:minmax(0,440px) minmax(0,520px);align-items:center;gap:clamp(30px,6vw,90px);width:min(1080px,100%);padding:0 24px}
+.pl-ov--py .pl-card{order:1;width:100%}
+.pl-py{order:2;position:relative;height:min(78vh,640px);aspect-ratio:1040/1120;justify-self:center}
+.pl-py__svg{width:100%;height:100%;overflow:visible}
+.pl-py__land pattern circle,#plDots circle{fill:rgba(11,79,138,.28)}
+.pl-py__deps path{fill:none;stroke:rgba(11,79,138,.10);stroke-width:1.2}
+.pl-py__arcs path{fill:none;stroke:url(#plArc);stroke-width:2.6;stroke-linecap:round;opacity:0}
+.pl-py__dot{fill:#1466B0}
+.pl-py__pulse{fill:none;stroke:#1466B0;stroke-width:2;opacity:0}
+.pl-py__pin path{fill:#0B4F8A}
+.pl-py__pin circle{fill:#fff}
+.pl-py__pin{opacity:0}
+.pl-py__hubdot{fill:#0B4F8A;stroke:#fff;stroke-width:3}
+.pl-py__hubring{fill:none;stroke:#0B4F8A;stroke-width:2}
+.pl-ov--py.pl-ov--map::before{-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 20%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 50%,#000 20%,transparent 70%);opacity:.6}
+@media (max-width:980px){
+  .pl-ov--py .pl-stage{grid-template-columns:1fr;justify-items:center}
+  .pl-py{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);height:90vh;opacity:.35}
+  .pl-ov--py .pl-card{position:relative;z-index:1;max-width:440px}
+}
+@media (max-width:640px){.pl-card--bar{text-align:left;justify-items:stretch;padding:26px 22px}.pl-card--bar .pl-txt{align-items:flex-start}.pl-card--bar .pl-tit{font-size:26px}}

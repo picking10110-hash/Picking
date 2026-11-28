@@ -2810,53 +2810,67 @@
   /* ── Init ── */
   /* Pantalla de inicio: logo + OTIF + "Pedidos en tiempo y forma" y una barra 0→100 %.
      Precarga todos los meses; animaciones GSAP (entrada escalonada, barra con brillo, cierre). */
-  // Recorrido de reparto de fondo (lienzo 1000×600): paradas repartidas, tramos curvos
-  var RUTA = [[110, 130], [250, 210], [190, 380], [330, 470], [470, 540], [560, 70], [700, 140], [790, 300], [900, 210], [880, 470], [740, 530]];
+  // Mapa de Paraguay en puntos (PY_MAPA) con arcos de reparto desde el depósito (Asunción)
   var PIN = '<path d="M12 22s-7.5-7.1-7.5-12.6a7.5 7.5 0 0115 0C19.5 14.9 12 22 12 22z"/><circle cx="12" cy="9.4" r="2.8"/>';
-  function tramo(p0, p1, k) {   // curva suave entre dos paradas (se arquea alternando de lado)
-    var mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2, dx = p1[0] - p0[0], dy = p1[1] - p0[1], sg = k % 2 ? 1 : -1;
-    return 'M' + p0[0] + ' ' + p0[1] + ' Q' + (mx - dy * .22 * sg).toFixed(1) + ' ' + (my + dx * .22 * sg).toFixed(1) + ' ' + p1[0] + ' ' + p1[1];
-  }
+  var PY_DEST = ['Central', 'Cordillera', 'Paraguari', 'Neembucu', 'Misiones', 'Itapua', 'Caazapa', 'Guaira', 'Alto Parana', 'Caaguazu', 'Canindeyu', 'San Pedro', 'Amambay', 'Concepcion'];
   function mapaFondo() {
-    var tr = '', bg = '';
-    for (var i = 1; i < RUTA.length; i++) { var d = tramo(RUTA[i - 1], RUTA[i], i); bg += '<path class="pl-map__ruta-bg" d="' + d + '"/>'; tr += '<path class="pl-map__ruta" d="' + d + '"/>'; }
-    return '<svg class="pl-map" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' + bg + tr +
-      RUTA.map(function (p) {
-        return '<g class="pl-map__p" transform="translate(' + p[0] + ' ' + p[1] + ')"><circle class="pl-map__pulse" r="6"/><circle class="pl-map__dot" r="2.6"/>' +
-          '<g class="pl-map__pin" transform="translate(-9.6 -21) scale(.8)">' + PIN + '</g></g>';
-      }).join('') + '</svg>';
-  }
-  // Cada tramo se dibuja hasta la próxima parada; el pin cae y late al llegar. Se repite.
-  function animarRuta(ov) {
-    var trs = qa('.pl-map__ruta', ov), ps = qa('.pl-map__p', ov); if (!ps.length) return { kill: function () {} };
-    var lens = trs.map(function (t) { return t.getTotalLength(); });
-    var pins = ps.map(function (p) { return q('.pl-map__pin', p); }), pul = ps.map(function (p) { return q('.pl-map__pulse', p); }), dots = ps.map(function (p) { return q('.pl-map__dot', p); });
-    var tl = gsap.timeline({ repeat: -1, delay: .4 });
-    tl.set(trs, { opacity: 1 });
-    trs.forEach(function (t, k) { tl.set(t, { strokeDasharray: lens[k], strokeDashoffset: lens[k] }, 0); });
-    tl.set(pins, { opacity: 0, y: -10, transformOrigin: '50% 100%' }, 0)
-      .set(dots, { scale: 0, opacity: 1, transformOrigin: '50% 50%' }, 0)
-      .set(pul, { opacity: 0, transformOrigin: '50% 50%' }, 0);
-    ps.forEach(function (p, k) {
-      if (k > 0) tl.to(trs[k - 1], { strokeDashoffset: 0, duration: lens[k - 1] / 300, ease: 'sine.inOut' });
-      tl.to(dots[k], { scale: 1, duration: .25, ease: 'back.out(3)' }, '>-.05')
-        .to(pins[k], { opacity: 1, y: 0, duration: .5, ease: 'bounce.out' }, '<')
-        .fromTo(pul[k], { scale: .5, opacity: .5 }, { scale: 3.4, opacity: 0, duration: 1.1, ease: 'power2.out' }, '<');
+    var M = window.PY_MAPA; if (!M || !M.deptos) return '';
+    var dep = M.deptos.filter(function (d) { return d.k === 'Asuncion'; })[0] || { cx: 600, cy: 782 };
+    var O = [dep.cx, dep.cy], siluetas = M.deptos.map(function (d) { return '<path d="' + d.d + '"/>'; }).join('');
+    var dests = [];
+    PY_DEST.forEach(function (k) { var d = M.deptos.filter(function (x) { return x.k === k; })[0]; if (d) dests.push([d.cx, d.cy]); });
+    M.deptos.filter(function (x) { return x.k === 'Chaco'; }).forEach(function (d) { dests.push([d.cx, d.cy]); });
+    var arcos = dests.map(function (p) {
+      var dx = p[0] - O[0], dy = p[1] - O[1], L = Math.hypot(dx, dy) || 1, h = Math.min(120, L * .28);
+      var cx = (O[0] + p[0]) / 2 - dy / L * h, cy = (O[1] + p[1]) / 2 + dx / L * h * (dx < 0 ? -1 : 1);
+      if (cy > Math.min(O[1], p[1])) cy = Math.min(O[1], p[1]) - h * .6;   // siempre arqueado hacia arriba
+      return 'M' + O[0] + ' ' + O[1] + ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + p[0] + ' ' + p[1];
     });
-    tl.to({}, { duration: 1.2 })
-      .to(trs.concat(pins, dots), { opacity: 0, duration: .7, ease: 'power1.inOut' });
-    return tl;
+    return '<div class="pl-py"><svg class="pl-py__svg" viewBox="-20 -20 1040 1120" aria-hidden="true">' +
+      '<defs><pattern id="plDots" width="11" height="11" patternUnits="userSpaceOnUse"><circle cx="5.5" cy="5.5" r="2.1"/></pattern>' +
+        '<clipPath id="plClip">' + siluetas + '</clipPath>' +
+        '<linearGradient id="plArc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1466B0" stop-opacity=".25"/><stop offset="1" stop-color="#1466B0"/></linearGradient></defs>' +
+      '<g class="pl-py__land"><rect x="-20" y="-20" width="1040" height="1120" fill="url(#plDots)" clip-path="url(#plClip)"/></g>' +
+      '<g class="pl-py__deps">' + siluetas + '</g>' +
+      '<g class="pl-py__arcs">' + arcos.map(function (d) { return '<path d="' + d + '"/>'; }).join('') + '</g>' +
+      '<g class="pl-py__dest">' + dests.map(function (p) {
+        return '<g transform="translate(' + p[0] + ' ' + p[1] + ')"><circle class="pl-py__pulse" r="8"/><circle class="pl-py__dot" r="4"/><g class="pl-py__pin" transform="translate(-14.4 -31.5) scale(1.2)">' + PIN + '</g></g>';
+      }).join('') + '</g>' +
+      '<g class="pl-py__hub" transform="translate(' + O[0] + ' ' + O[1] + ')"><circle class="pl-py__hubring" r="16"/><circle class="pl-py__hubdot" r="8"/></g>' +
+      '</svg></div>';
+  }
+  // Arcos que salen del depósito uno tras otro; al llegar cae el pin y late. En bucle.
+  function animarRuta(ov) {
+    var py = q('.pl-py', ov); if (!py) return { kill: function () {} };
+    var arcs = qa('.pl-py__arcs path', ov), dest = qa('.pl-py__dest > g', ov), hub = q('.pl-py__hubring', ov);
+    var lens = arcs.map(function (p) { return p.getTotalLength(); });
+    var pins = dest.map(function (g) { return q('.pl-py__pin', g); }), pul = dest.map(function (g) { return q('.pl-py__pulse', g); }), dots = dest.map(function (g) { return q('.pl-py__dot', g); });
+    gsap.from(py, { opacity: 0, x: 30, duration: .9, delay: .2, ease: 'power3.out', clearProps: 'transform' });
+    gsap.from(q('.pl-py__land', ov), { opacity: 0, scale: .96, transformOrigin: '50% 50%', duration: 1.1, delay: .25, ease: 'power2.out' });
+    var hubTw = gsap.fromTo(hub, { scale: .6, opacity: .7, transformOrigin: '50% 50%' }, { scale: 2.6, opacity: 0, duration: 1.6, ease: 'power2.out', repeat: -1 });
+    var tl = gsap.timeline({ repeat: -1, delay: .9, repeatDelay: .2 });
+    arcs.forEach(function (p, k) { tl.set(p, { strokeDasharray: lens[k], strokeDashoffset: lens[k], opacity: 1 }, 0); });
+    tl.set(pins, { opacity: 0, y: -12, transformOrigin: '50% 100%' }, 0).set(dots, { scale: 0, transformOrigin: '50% 50%', opacity: 1 }, 0).set(pul, { opacity: 0, transformOrigin: '50% 50%' }, 0);
+    arcs.forEach(function (p, k) {
+      var t = k * .32, dur = .55 + lens[k] / 900;
+      tl.to(p, { strokeDashoffset: 0, duration: dur, ease: 'power2.inOut' }, t)
+        .to(dots[k], { scale: 1, duration: .25, ease: 'back.out(3)' }, t + dur - .05)
+        .to(pins[k], { opacity: 1, y: 0, duration: .5, ease: 'bounce.out' }, t + dur - .05)
+        .fromTo(pul[k], { scale: .5, opacity: .6 }, { scale: 3, opacity: 0, duration: 1, ease: 'power2.out' }, t + dur - .05);
+    });
+    tl.to({}, { duration: 1.4 }).to(arcs.concat(pins, dots), { opacity: 0, duration: .6, ease: 'power1.inOut' });
+    return { kill: function () { tl.kill(); hubTw.kill(); } };
   }
   function precargaInicio() {
     var t0 = Date.now(), host = q('#stage'), rc = host.getBoundingClientRect();
     host.innerHTML = '';
-    var ov = el('<div class="pl-ov pl-ov--map" role="status" aria-live="polite">' + mapaFondo() + '<div class="pl-card pl-card--bar">' +
+    var ov = el('<div class="pl-ov pl-ov--map pl-ov--py" role="status" aria-live="polite"><div class="pl-stage">' + mapaFondo() + '<div class="pl-card pl-card--bar">' +
       '<div class="pl-glow"></div>' +
       '<div class="pl-brand"><span class="pl-logo"><img src="logo-icon.png" alt="ALAS" draggable="false"></span>' +
         '<span class="pl-txt"><span class="pl-tit">OTIF</span><span class="pl-cap">Pedidos en tiempo y forma</span></span></div>' +
       '<div class="pl-prog"><div class="pl-row"><span class="pl-sub" id="plSub">Conectando…</span><span class="pl-num"><b id="plPct">0</b><small>%</small></span></div>' +
         '<div class="pl-bar"><i id="plBar"><b></b></i></div></div>' +
-      '</div></div>');
+      '</div></div></div>');
     if (rc.width > 300) { ov.style.left = rc.left + 'px'; ov.style.top = rc.top + 'px'; ov.style.width = rc.width + 'px'; ov.style.height = rc.height + 'px'; }
     document.body.appendChild(ov);
     var card = q('.pl-card', ov), num = q('#plPct', ov), sub = q('#plSub', ov), bar = q('#plBar', ov);

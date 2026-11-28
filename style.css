@@ -1910,3 +1910,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .pl-ov--py .pl-card--bar .pl-bar{height:4px;background:#E6EEF7;overflow:visible}
 .pl-ov--py .pl-card--bar .pl-bar i{background:linear-gradient(90deg,#0B4F8A,#3B95E0);box-shadow:0 0 10px rgba(20,102,176,.35);overflow:hidden}
 .pl-ov--py .pl-card--bar .pl-bar i b{background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent)}
+
+/* Precarga v6 — sin tarjeta: tipografía estilo saludo del Launcher + logo como depósito del mapa */
+.pl-ov--py .pl-hero{background:none;border:0;box-shadow:none;padding:0;width:100%;max-width:460px;color:#0B2A4A;display:flex;flex-direction:column;gap:0;opacity:0}
+.pl-h{margin:0;font-family:Inter,system-ui,sans-serif;font-size:clamp(40px,4.6vw,60px);line-height:1.04;letter-spacing:-1.6px;font-weight:300}
+.pl-h__a{color:#94A3B8;font-weight:300;display:inline-block}
+.pl-h__b{color:#0B2A4A;font-weight:600;display:inline-block}
+.pl-tag{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:11.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#94A3B8}
+.pl-tag i{width:7px;height:7px;border-radius:50%;background:#22C55E;flex:none}
+.pl-hero .pl-prog{margin-top:44px}
+.pl-hero .pl-row{margin-bottom:12px}
+.pl-hero .pl-sub{margin:0;font-size:12.5px;font-weight:600;color:#64748B}
+.pl-hero .pl-num{color:#0B2A4A}
+.pl-hero .pl-num b{font-size:26px;font-weight:700}
+.pl-hero .pl-num small{opacity:.45}
+.pl-hero .pl-bar{position:relative;height:9px;border-radius:99px;background:#E4ECF5;overflow:hidden;margin:0}
+.pl-hero .pl-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,#0A4578,#1472BE 60%,#4FA5EA);box-shadow:0 0 14px rgba(20,114,190,.35);overflow:hidden}
+.pl-hero .pl-bar i b{position:absolute;top:0;bottom:0;width:28%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent)}
+.pl-py__hubdot{fill:#0B4F8A;stroke:#fff;stroke-width:5;filter:drop-shadow(0 8px 14px rgba(11,79,138,.35))}
+.pl-py__hubring{fill:none;stroke:#1466B0;stroke-width:2.5}
+@media (max-width:980px){.pl-ov--py .pl-hero{max-width:420px;padding:0 6px}.pl-h{font-size:40px}}
+.pl-ov--py .pl-hero{align-items:stretch;text-align:left;grid-template-columns:none}.pl-hero .pl-tag{align-self:flex-start}
+@media (max-width:980px){.pl-ov--py .pl-hero{position:relative}.pl-ov--py .pl-hero::before{content:"";position:absolute;inset:-40px -30px;z-index:-1;background:radial-gradient(ellipse at 50% 50%,rgba(247,250,253,.94) 45%,rgba(247,250,253,0) 75%)}}

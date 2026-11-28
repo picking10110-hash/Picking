@@ -2836,18 +2836,20 @@
       '<g class="pl-py__dest">' + dests.map(function (p) {
         return '<g transform="translate(' + p[0] + ' ' + p[1] + ')"><circle class="pl-py__pulse" r="8"/><circle class="pl-py__dot" r="4"/><g class="pl-py__pin" transform="translate(-14.4 -31.5) scale(1.2)">' + PIN + '</g></g>';
       }).join('') + '</g>' +
-      '<g class="pl-py__hub" transform="translate(' + O[0] + ' ' + O[1] + ')"><circle class="pl-py__hubring" r="16"/><circle class="pl-py__hubdot" r="8"/></g>' +
+      '<g class="pl-py__hub" transform="translate(' + O[0] + ' ' + O[1] + ')"><circle class="pl-py__hubring" r="34"/><circle class="pl-py__hubring pl-py__hubring--2" r="34"/>' +
+        '<circle class="pl-py__hubdot" r="34"/><image href="logo-icon.png" x="-20" y="-20" width="40" height="40" preserveAspectRatio="xMidYMid meet"/></g>' +
       '</svg></div>';
   }
   // Arcos que salen del depósito uno tras otro; al llegar cae el pin y late. En bucle.
   function animarRuta(ov) {
     var py = q('.pl-py', ov); if (!py) return { kill: function () {} };
-    var arcs = qa('.pl-py__arcs path', ov), dest = qa('.pl-py__dest > g', ov), hub = q('.pl-py__hubring', ov);
+    var arcs = qa('.pl-py__arcs path', ov), dest = qa('.pl-py__dest > g', ov), hub = qa('.pl-py__hubring', ov), hubG = q('.pl-py__hub', ov);
     var lens = arcs.map(function (p) { return p.getTotalLength(); });
     var pins = dest.map(function (g) { return q('.pl-py__pin', g); }), pul = dest.map(function (g) { return q('.pl-py__pulse', g); }), dots = dest.map(function (g) { return q('.pl-py__dot', g); });
     gsap.from(py, { opacity: 0, x: 30, duration: .9, delay: .2, ease: 'power3.out', clearProps: 'transform' });
     gsap.from(q('.pl-py__land', ov), { opacity: 0, scale: .96, transformOrigin: '50% 50%', duration: 1.1, delay: .25, ease: 'power2.out' });
-    var hubTw = gsap.fromTo(hub, { scale: .6, opacity: .7, transformOrigin: '50% 50%' }, { scale: 2.6, opacity: 0, duration: 1.6, ease: 'power2.out', repeat: -1 });
+    gsap.from(hubG, { scale: 0, rotation: -30, transformOrigin: '50% 50%', duration: .8, delay: .5, ease: 'back.out(2)' });
+    var hubTw = gsap.fromTo(hub, { scale: 1, opacity: .5, transformOrigin: '50% 50%' }, { scale: 2.4, opacity: 0, duration: 2, ease: 'power2.out', repeat: -1, stagger: { each: 1, repeat: -1 } });
     var tl = gsap.timeline({ repeat: -1, delay: .9, repeatDelay: .2 });
     arcs.forEach(function (p, k) { tl.set(p, { strokeDasharray: lens[k], strokeDashoffset: lens[k], opacity: 1 }, 0); });
     tl.set(pins, { opacity: 0, y: -12, transformOrigin: '50% 100%' }, 0).set(dots, { scale: 0, transformOrigin: '50% 50%', opacity: 1 }, 0).set(pul, { opacity: 0, transformOrigin: '50% 50%' }, 0);
@@ -2864,10 +2866,9 @@
   function precargaInicio() {
     var t0 = Date.now(), host = q('#stage'), rc = host.getBoundingClientRect();
     host.innerHTML = '';
-    var ov = el('<div class="pl-ov pl-ov--map pl-ov--py" role="status" aria-live="polite"><div class="pl-stage">' + mapaFondo() + '<div class="pl-card pl-card--bar">' +
-      '<div class="pl-glow"></div>' +
-      '<div class="pl-brand"><span class="pl-logo"><img src="logo-icon.png" alt="ALAS" draggable="false"></span>' +
-        '<span class="pl-txt"><span class="pl-tit">OTIF</span><span class="pl-cap">Pedidos en tiempo y forma</span></span></div>' +
+    var ov = el('<div class="pl-ov pl-ov--map pl-ov--py" role="status" aria-live="polite"><div class="pl-stage">' + mapaFondo() + '<div class="pl-card pl-hero">' +
+      '<h1 class="pl-h"><span class="pl-h__a">Preparando</span> <span class="pl-h__b">OTIF</span></h1>' +
+      '<div class="pl-tag"><i></i>Pedidos en tiempo y forma</div>' +
       '<div class="pl-prog"><div class="pl-row"><span class="pl-sub" id="plSub">Conectando…</span><span class="pl-num"><b id="plPct">0</b><small>%</small></span></div>' +
         '<div class="pl-bar"><i id="plBar"><b></b></i></div></div>' +
       '</div></div></div>');
@@ -2889,19 +2890,21 @@
     };
     if (GS) {
       gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.out' });
-      gsap.fromTo(card, { opacity: 0, y: 22, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: .65, ease: 'back.out(1.5)' });
-      gsap.from(q('.pl-logo', ov), { opacity: 0, scale: .5, rotation: -25, duration: .6, delay: .15, ease: 'back.out(2.2)', clearProps: 'transform,opacity' });
-      gsap.from(q('.pl-tit', ov), { opacity: 0, x: 14, letterSpacing: '10px', duration: .65, delay: .25, ease: 'power3.out', clearProps: 'transform,opacity,letterSpacing' });
-      gsap.from(q('.pl-cap', ov), { opacity: 0, x: 10, duration: .5, delay: .38, ease: 'power3.out', clearProps: 'transform,opacity' });
-      gsap.from(q('.pl-prog', ov), { opacity: 0, y: 8, duration: .5, delay: .5, ease: 'power2.out', clearProps: 'transform,opacity' });
-      loops.push(gsap.fromTo(q('.pl-bar b', ov), { xPercent: -120 }, { xPercent: 320, duration: 1.5, ease: 'power1.inOut', repeat: -1, repeatDelay: .2 }));
-      loops.push(gsap.to(q('.pl-glow', ov), { x: 50, y: 20, scale: 1.18, duration: 3.4, ease: 'sine.inOut', yoyo: true, repeat: -1 }));
+      gsap.set(card, { opacity: 1 });
+      gsap.from(q('.pl-h__a', ov), { opacity: 0, y: 26, duration: .8, delay: .1, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-h__b', ov), { opacity: 0, y: 26, duration: .8, delay: .22, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-tag', ov), { opacity: 0, x: -10, duration: .55, delay: .42, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-tag i', ov), { scale: 0, duration: .4, delay: .55, ease: 'back.out(3)', clearProps: 'transform' });
+      loops.push(gsap.to(q('.pl-tag i', ov), { boxShadow: '0 0 0 6px rgba(34,197,94,0)', duration: 1.4, ease: 'power1.out', repeat: -1, startAt: { boxShadow: '0 0 0 0 rgba(34,197,94,.45)' } }));
+      gsap.from(q('.pl-prog', ov), { opacity: 0, y: 12, duration: .6, delay: .6, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-bar', ov), { scaleX: 0, transformOrigin: '0 50%', duration: .8, delay: .65, ease: 'power3.inOut', clearProps: 'transform' });
+      loops.push(gsap.fromTo(q('.pl-bar b', ov), { xPercent: -120 }, { xPercent: 340, duration: 1.6, ease: 'power1.inOut', repeat: -1, repeatDelay: .25 }));
       ir(4, 1.2);
       loops.push(animarRuta(ov));
     }
     var cerrar = function (cb) {
       if (!GS) { ov.remove(); if (cb) cb(); return; }
-      gsap.to(card, { opacity: 0, y: -10, scale: 1.02, duration: .32, ease: 'power2.in' });
+      gsap.to(card, { opacity: 0, y: -14, duration: .34, ease: 'power2.in' });
       gsap.to(ov, { opacity: 0, duration: .36, delay: .08, ease: 'power1.in', onComplete: function () { loops.forEach(function (l) { l.kill(); }); ov.remove(); if (cb) cb(); } });
     };
     return {

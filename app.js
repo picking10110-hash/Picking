@@ -850,7 +850,6 @@
       // Diseño en dos columnas: [Capital · Interior · ranking] | [mapa fijo a la derecha]
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
-          '<div class="zn-stack zn-stack--top zn-stack--col">' + zonas.map(zonaCard).join('') + '</div>' +
           '<div class="ot-card" id="znRank"><div class="ot-card__h"><div class="zn-rk-t"><h3>Ranking por departamento</h3></div>' +
             '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Más pedidos faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor cumplimiento</button></div></div></div>' +
             '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
@@ -859,8 +858,9 @@
           '</div>' +
         '</div>' +
         '<div class="zn-right">' +
+          '<div class="zn-stack zn-stack--top zn-stack--duo">' + zonas.map(zonaCard).join('') + '</div>' +
           '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
-            '<div class="zn-map__wrap"><div class="zn-map__box" id="znMapBox"></div><div class="zn-dlist" id="znDList"></div></div><div class="pm-scale" id="znMapLeg"></div><div class="md" id="znDet"></div></div>' +
+            '<div class="zn-map__wrap"><div class="zn-map__box" id="znMapBox"></div><div class="zn-dlist" id="znDList"></div></div><div class="pm-scale" id="znMapLeg"></div></div>' +
         '</div>' +
       '</div>';
 
@@ -1457,7 +1457,7 @@
     }
     function volver() { foco(sel, false); ficha(sel, true); }   // seleccionado: solo borde, sin apagar al resto
 
-    var card = q('#znMap'), tip = el('<div class="pm-tip" hidden><b></b><span></span><em class="st-meta"></em></div>');
+    var card = q('#znMap'), tip = el('<div class="pm-tip pm-tip--full" hidden></div>');
     card.appendChild(tip);
     var tipX = GS ? gsap.quickTo(tip, 'left', { duration: .25, ease: 'power3.out', modifiers: { left: function (v) { return Math.round(parseFloat(v)) + 'px'; } } }) : null, tipY = GS ? gsap.quickTo(tip, 'top', { duration: .25, ease: 'power3.out', modifiers: { top: function (v) { return Math.round(parseFloat(v)) + 'px'; } } }) : null;
     var tSalir = null, actual = null;
@@ -1466,9 +1466,16 @@
       if (actual === k) return;
       actual = k; foco(k); ficha(k, false, true);
       var x = by[k], nombre = k === 'Chaco' ? 'Chaco' : (M.deptos.filter(function (d) { return d.k === k; })[0] || {}).n || k;
-      q('b', tip).textContent = nombre;
-      q('span', tip).textContent = ZN.lente === 'vol' ? nf(x.evaluados) + ' pedidos' : pf(x.pOtif);
-      var stT = estadoMeta(x.pOtif, meta), emT = q('em', tip); emT.className = 'st-meta ' + stT.c; emT.innerHTML = '<i></i>' + (ZN.lente === 'vol' ? pf(x.pOtif) + ' a tiempo y completo' : stT.t);
+      var col = mapColor(x.pOtif, meta), mayor = orden[0] && orden[0].clave === k, stT = estadoMeta(x.pOtif, meta);
+      tip.innerHTML =
+        '<div class="pt-h"><i style="background:' + col + '"></i><div><b>' + esc(nombre) + '</b><small>' + (mayor ? 'Donde más se puede mejorar' : esc(x.zona || '')) + '</small></div></div>' +
+        '<div class="pt-k"><b style="color:' + col + '">' + pf(x.pOtif) + '</b><small>en tiempo y forma</small></div>' +
+        '<div class="pt-s">' +
+          '<span><b>' + nf(x.evaluados) + '</b><small>pedidos</small></span>' +
+          '<span><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'faltan p/ ' + pf(meta, 0) : 'en meta') + '</small></span>' +
+          '<span><b>' + tiempo(x.cicloMed, true) + '</b><small>tiempo habitual</small></span>' +
+        '</div>' +
+        '<em class="st-meta ' + stT.c + '"><i></i>' + stT.t + '</em>';
       if (tip.hidden) { tip.hidden = false; if (GS) gsap.fromTo(tip, { opacity: 0, scale: .92 }, { opacity: 1, scale: 1, duration: .18, ease: 'power2.out', clearProps: 'transform' }); }
     }
     function salir() {

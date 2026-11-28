@@ -1932,3 +1932,51 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 @media (max-width:980px){.pl-ov--py .pl-hero{max-width:420px;padding:0 6px}.pl-h{font-size:40px}}
 .pl-ov--py .pl-hero{align-items:stretch;text-align:left;grid-template-columns:none}.pl-hero .pl-tag{align-self:flex-start}
 @media (max-width:980px){.pl-ov--py .pl-hero{position:relative}.pl-ov--py .pl-hero::before{content:"";position:absolute;inset:-40px -30px;z-index:-1;background:radial-gradient(ellipse at 50% 50%,rgba(247,250,253,.94) 45%,rgba(247,250,253,0) 75%)}}
+
+/* Zonas: ficha flotante completa (reemplaza la franja de abajo del mapa) */
+.pm-tip--full{min-width:250px;padding:13px 15px 12px;gap:10px;border-radius:14px;background:rgba(255,255,255,.97);color:var(--alas-text-1);border:1px solid #dbe8f5;box-shadow:0 18px 40px -10px rgba(11,62,110,.28),0 2px 6px rgba(11,62,110,.06);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pt-h{display:flex;align-items:center;gap:9px}
+.pt-h i{flex:none;width:11px;height:11px;border-radius:4px}
+.pt-h b{display:block;font-size:13.5px;font-weight:800;line-height:1.2}
+.pt-h small,.pt-k small,.pt-s small{display:block;font-size:10.5px;font-weight:700;color:var(--alas-text-3);white-space:nowrap}
+.pt-k b{display:block;font-family:Sora,Inter,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.6px;line-height:1.05}
+.pt-s{display:grid;grid-template-columns:repeat(3,auto);gap:14px;padding-top:9px;border-top:1px solid #eef2f7}
+.pt-s b{display:block;font-family:Sora,Inter,sans-serif;font-size:13.5px;font-weight:800;white-space:nowrap}
+.pm-tip--full .st-meta{align-self:flex-start}
+
+/* Zonas: Capital e Interior arriba del mapa, lado a lado y compactas */
+.zn-right{display:flex;flex-direction:column;gap:14px}
+.zn-right .zn-map{flex:1}
+.zn-layout.fit .zn-right .zn-map{height:auto;flex:1;min-height:0}
+.zn-stack--duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0}
+.zn-stack--duo .zn-card{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"top top" "big meter" "foot foot";align-items:center;column-gap:16px;row-gap:10px;padding:14px 16px 12px;border-radius:16px}
+.zn-stack--duo .zn-top{grid-area:top;margin:0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap}
+.zn-stack--duo .zn-tag{height:28px}
+.zn-stack--duo .zn-chips{display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.zn-stack--duo .zn-chips .st-meta,.zn-stack--duo .zn-chips .meta{height:22px;font-size:10px;white-space:nowrap}
+.zn-stack--duo .zn-big{grid-area:big;font-size:32px;flex-direction:column;align-items:flex-start;gap:1px;margin:0}
+.zn-stack--duo .zn-big small{font-size:10px}
+.zn-stack--duo .zn-meter{grid-area:meter;margin:0 0 12px;height:8px}
+.zn-stack--duo .zn-meter em i{top:12px;font-size:9px}
+.zn-stack--duo .ot-foot{grid-area:foot;margin:0;padding:9px 0 0;border-top:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.zn-stack--duo .ot-st{padding:0 10px;border-left:1px solid rgba(255,255,255,.14)}
+.zn-stack--duo .ot-st:first-child{padding-left:0;border-left:0}
+.zn-stack--duo .ot-st b{font-size:14px;white-space:nowrap}
+.zn-stack--duo .ot-st span{font-size:9px;white-space:nowrap}
+@media(max-width:1100px){.zn-stack--duo{grid-template-columns:1fr}}
+/* chips de estado legibles sobre la ficha blanca del mapa */
+.pm-tip--full .st-meta.ok{background:#DCFCE7;color:#15803D}
+.pm-tip--full .st-meta.warn{background:#FEF3C7;color:#B45309}
+.pm-tip--full .st-meta.bad{background:#FEE2E2;color:#B91C1C}
+.pm-tip--full .st-meta i{box-shadow:none}
+/* ficha blanca: textos oscuros (pisan el estilo de la ficha oscura) */
+.pm-tip--full b{font-size:13.5px;font-weight:800;text-transform:none;letter-spacing:0;color:var(--alas-text-1)}
+.pm-tip--full span{font-family:inherit;font-size:inherit;color:inherit;line-height:normal}
+.pm-tip--full .pt-k b{font-size:26px;letter-spacing:-.6px}
+.pm-tip--full .pt-s b{font-size:13.5px;color:var(--alas-text-1)}
+.pm-tip--full .pt-s span{display:block}
+/* tarjetas Capital/Interior compactas: chips cortos para que no se corten */
+.zn-stack--duo .st-meta small{display:none}
+.zn-stack--duo .meta.gap{font-size:0;gap:5px}
+.zn-stack--duo .meta.gap b{font-size:11px}
+.zn-stack--duo .meta.gap::after{content:'p/ meta';font-size:10px;font-weight:700;opacity:.8}

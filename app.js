@@ -2820,10 +2820,8 @@
         '<div class="pl-pct"><span>0</span><small>%</small></div>' +
         '<svg class="pl-ok" viewBox="0 0 144 144"><circle cx="72" cy="72" r="50"/><path d="M50 74 l15 15 l30 -33"/></svg></div></div>' +
       '<div class="pl-right">' +
-        '<div class="pl-eye">Pedidos en tiempo y forma</div>' +
-        '<div class="pl-tit">Preparando el tablero</div>' +
+        '<div class="pl-brand"><span class="pl-logo"><img src="logo-icon.png" alt="ALAS" draggable="false"></span><span class="pl-tit">OTIF</span></div>' +
         '<div class="pl-sub" id="plSub">Conectando…</div>' +
-        '<div class="pl-steps">' + PRE_PASOS.map(function (t) { return '<div class="pl-step"><span class="pl-step__i">' + SVG_OK + '</span><span class="pl-step__t">' + t + '</span></div>'; }).join('') + '</div>' +
         '<div class="pl-bar"><i id="plBar"><b></b></i></div>' +
       '</div></div></div>');
     if (rc.width > 300) { ov.style.left = rc.left + 'px'; ov.style.top = rc.top + 'px'; ov.style.width = rc.width + 'px'; ov.style.height = rc.height + 'px'; }
@@ -2859,8 +2857,9 @@
       gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.out' });
       gsap.fromTo(card, { opacity: 0, y: 24, scale: .94 }, { opacity: 1, y: 0, scale: 1, duration: .65, ease: 'back.out(1.5)' });
       gsap.from(q('.pl-ring', ov), { scale: .7, rotation: -40, opacity: 0, duration: .7, delay: .1, ease: 'back.out(1.7)' });
-      gsap.from(qa('.pl-eye, .pl-tit, .pl-sub', ov), { opacity: 0, x: 14, duration: .45, stagger: .07, delay: .18, ease: 'power3.out', clearProps: 'transform,opacity' });
-      gsap.from(steps, { opacity: 0, x: 14, duration: .4, stagger: .06, delay: .34, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-logo', ov), { opacity: 0, scale: .5, rotation: -25, duration: .6, delay: .2, ease: 'back.out(2.2)', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-tit', ov), { opacity: 0, x: 16, letterSpacing: '8px', duration: .6, delay: .3, ease: 'power3.out', clearProps: 'transform,opacity,letterSpacing' });
+      gsap.from(q('.pl-sub', ov), { opacity: 0, y: 6, duration: .4, delay: .45, ease: 'power2.out', clearProps: 'transform,opacity' });
       gsap.from(q('.pl-bar', ov), { opacity: 0, scaleX: .6, transformOrigin: '0 50%', duration: .5, delay: .55, ease: 'power3.out', clearProps: 'transform,opacity' });
       gsap.set(halo, { transformOrigin: '50% 50%' });
       loops.push(gsap.to(halo, { rotation: 360, duration: 7, ease: 'none', repeat: -1 }));
@@ -2878,7 +2877,7 @@
       base: function () { paso(2); ir(12); },
       ir: function (fr, listos, n) {
         ir(12 + fr * 86);
-        texto(n ? 'Cargando pedidos · ' + listos + ' de ' + n + ' meses' : 'Cargando pedidos…');
+        texto(n ? listos + ' de ' + n + ' meses' : 'Cargando…');
         if (n && listos >= n) paso(3);
       },
       fin: function () {

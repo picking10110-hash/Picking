@@ -1827,3 +1827,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .pl-bar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:inherit;background:linear-gradient(90deg,#9FD3FF,#fff);box-shadow:0 0 12px rgba(159,211,255,.8);overflow:hidden}
 .pl-bar i b{position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent)}
 @media (max-width:640px){.pl-card{grid-template-columns:1fr;justify-items:center;text-align:center;gap:20px;padding:28px 24px}.pl-right{align-items:stretch;width:100%}.pl-steps{align-items:flex-start;text-align:left}}
+
+/* Precarga minimalista: logo + OTIF */
+.pl-card{width:min(520px,100%);gap:30px;padding:30px 36px}
+.pl-ring{width:132px;height:132px}
+.pl-pct{font-size:34px}
+.pl-brand{display:flex;align-items:center;gap:12px}
+.pl-logo{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.pl-logo img{width:24px;height:24px;object-fit:contain}
+.pl-tit{margin:0;font-size:34px;letter-spacing:1px;line-height:1}
+.pl-sub{margin-top:12px;font-size:12.5px;color:rgba(255,255,255,.7)}
+.pl-bar{margin-top:12px;height:5px}

@@ -831,12 +831,15 @@
     deps.forEach(function (d) { d.faltan = faltanParaMeta(d, meta); d.zona = zonaDe[d.clave]; });
     var slaProm = function (lista) { var s = 0, n = 0; lista.forEach(function (o) { if (o.estado === 'evaluado') { s += o.sla; n++; } }); return n ? s / n : null; };
     var mapApi = null;
+    ZN._evs = evs; ZN._meta = meta; ZN._zonaDe = zonaDe; ZN._slaProm = slaProm; ZN.dist = null; ZN._pendDist = null;
 
-    function zonaCard(z) {
-      var f = faltanParaMeta(z, meta), lista = evs.filter(function (o) { return o.p.zona === z.clave; });
-      var cap = z.clave === 'Capital';
-      return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + '">' +
-        '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(z.clave) + '</b></span>' +
+    var ICO_DEP = SV('<path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>'), ICO_PIN = SV('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.2"/>');
+    function zonaCard(z, op) {
+      op = op || {};
+      var f = faltanParaMeta(z, meta), lista = op.lista || evs.filter(function (o) { return o.p.zona === z.clave; });
+      var cap = op.clase ? op.clase === 'cap' : z.clave === 'Capital';
+      return '<div class="ot-blue zn-card ' + (cap ? 'zn-cap' : 'zn-int') + ' st-' + estadoMeta(z.pOtif, meta).c + (op.zona ? ' zn-card--z" data-zona="' + esc(z.clave) + '" role="button" tabindex="0" title="Ver solo los departamentos de ' + esc(z.clave) + '"' : '"') + '>' +
+        '<div class="zn-top"><span class="zn-tag"><span class="zn-ico">' + (op.ico || ZONA_ICO[z.clave] || ZONA_ICO.Interior) + '</span><b>' + esc(op.titulo || z.clave) + '</b></span>' +
           '<div class="ot-lbl zn-chips">' + chipEstado(z.pOtif, meta) + (f == null ? '' : chipFaltan(f, meta, true)) + '</div></div>' +
         '<div class="zn-big"><span data-p="' + z.pOtif + '">0%</span><small>en tiempo y forma</small></div>' +
         '<div class="zn-meter"><span data-w="' + Math.min(100, z.pOtif || 0).toFixed(1) + '"></span><em style="left:' + meta + '%"><i>' + pf(meta, 0) + '</i></em></div>' +
@@ -851,15 +854,15 @@
       '<div class="zn-layout">' +
         '<div class="zn-left">' +
           '<div class="ot-card" id="znRank"><div class="ot-card__h"><div class="zn-rk-t"><h3>Ranking por departamento</h3></div>' +
-            '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Más pedidos faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor cumplimiento</button></div></div></div>' +
+            '<div class="ord"><span class="ord__l">Ordenar por</span><div class="zn-sort" id="znSort"><button type="button" data-o="faltan" title="Primero los que más pedidos necesitan recuperar para llegar a la meta">Faltantes</button><button type="button" data-o="otif" title="Primero los de porcentaje más bajo">Menor %</button><button type="button" data-o="otifD" title="Primero los de mejor desempeño">Mayor %</button><button type="button" data-o="pedidos" title="Primero los de más pedidos">Volumen</button></div></div></div>' +
             '<div class="zn-head"><span>Departamento</span><span>% en tiempo y forma</span><span class="r">Faltan p/ ' + pf(meta, 0) + '</span><span></span></div>' +
             '<div class="zn-finfo" id="znFInfo" hidden></div>' +
             '<div id="znRows"></div>' +
           '</div>' +
         '</div>' +
         '<div class="zn-right">' +
-          '<div class="zn-stack zn-stack--top zn-stack--duo">' + zonas.map(zonaCard).join('') + '</div>' +
-          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button></div></div>' +
+          '<div class="zn-stack zn-stack--top zn-stack--duo" id="znDuo">' + zonas.map(function (z) { return zonaCard(z, { zona: true }); }).join('') + '</div>' +
+          '<div class="ot-card zn-map" id="znMap"><div class="ot-card__h"><h3>Mapa de cumplimiento</h3><div class="zn-sort" id="znLente"><button type="button" data-l="cumpl">Cumplimiento</button><button type="button" data-l="vol">Volumen</button><button type="button" data-l="falt">Faltantes</button></div></div>' +
             '<div class="zn-map__wrap"><div class="zn-map__box" id="znMapBox"></div><div class="zn-dlist" id="znDList"></div></div><div class="pm-scale" id="znMapLeg"></div></div>' +
         '</div>' +
       '</div>';
@@ -869,13 +872,13 @@
       return '<div class="zn-row' + (sub ? ' sub' : '') + '"' + (sub ? ' data-city="' + esc(d.clave) + '" role="button" tabindex="0" title="Ver quiénes vendieron en ' + esc(tCase(d.clave)) + '"' : ' data-dep="' + esc(d.clave) + '" role="button" tabindex="0"') + '>' +
         (sub ? '<div class="zn-name zn-name--c"><i class="zn-cico">' + SV('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.2"/>') + '</i><span>' + esc(tCase(d.clave)) + '<small>' + nf(d.evaluados) + ' pedidos</small></span></div>'
              : '<div class="zn-name zn-name--d"><i class="zn-dico">' + SV('<path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>') + '</i><span>' + esc(d.clave) + '<small>' + nf(d.evaluados) + ' pedidos</small></span></div>') +
-        '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, d.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(d.pOtif) + '</b></div>' +
+        '<div class="zn-bar"><div class="ot-bar__t"><span data-w="' + Math.min(100, d.pOtif || 0).toFixed(1) + '" style="background:' + c + '"></span><em style="left:' + meta + '%"></em></div><b style="color:' + c + '">' + pf(d.pOtif) + '<small class="zn-dif">' + (d.pOtif >= meta ? '+' : '−') + nf(Math.abs(d.pOtif - meta), 1) + ' pts</small></b></div>' +
         '<div class="r">' + (d.faltan === 0 ? '<span class="st-chip ok">En meta</span>' : nf(d.faltan)) + '</div>' +
         '<div class="zn-chev">' + (sub ? '<span class="zn-vgo">' + SV('<path d="M9 6l6 6-6 6"/>') + '</span>' : '<svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>') + '</div></div>';
     }
     function ordenar() {
       var k = ZN.orden;
-      deps.sort(function (a, b) { return k === 'otif' ? (a.pOtif - b.pOtif) : k === 'pedidos' ? (b.evaluados - a.evaluados) : (b.faltan - a.faltan || b.evaluados - a.evaluados); });
+      deps.sort(function (a, b) { return k === 'otif' ? (a.pOtif - b.pOtif) : k === 'otifD' ? (b.pOtif - a.pOtif) : k === 'pedidos' ? (b.evaluados - a.evaluados) : (b.faltan - a.faltan || b.evaluados - a.evaluados); });
       qa('#znSort button').forEach(function (b) { b.classList.toggle('on', b.dataset.o === k); });
     }
     function pintarFilas(animar) {
@@ -893,7 +896,11 @@
       qa('#znRows .zn-row[data-dep]').forEach(function (r) {
         r.addEventListener('mouseenter', function () { if (mapApi) mapApi.foco(r.dataset.dep); });
         r.addEventListener('mouseleave', function () { if (mapApi) mapApi.foco(null); });
-        var go = function () { toggleDep(r.parentNode, r.dataset.dep); };
+        var go = function () {
+          var dep = r.dataset.dep;
+          if (mapApi && mapApi.filtro) { var l = ZN.deps || []; mapApi.filtro(l.length === 1 && l[0] === dep ? [] : [dep]); }
+          else toggleDep(r.parentNode, dep);
+        };
         r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       });
       if (ZN.abierto) { var g = qa('#znRows .zn-grp').filter(function (x) { return x.classList.contains('open'); })[0]; if (g) llenarSub(g, ZN.abierto, false); }
@@ -906,8 +913,19 @@
       box.innerHTML = '<div class="zn-subh"><span>Ciudades de <b>' + esc(dep) + '</b> · ' + nf(subs.length) + '</span><button type="button" class="zn-vbtn">' + SV('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.6a3.5 3.5 0 010 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>') + 'Vendedores de ' + esc(dep) + '<em class="zn-vbtn__n">' + nf(new Set(evDep.map(function (o) { return o.p.vendedor_nombre || o.p.vendedor_cod; }).filter(Boolean)).size) + '</em></button></div>' +
         subs.map(function (c) { return fila(c, true); }).join('');
       q('.zn-vbtn', box).addEventListener('click', function (e) { e.stopPropagation(); abrirVendedores(dep, 'Departamento · ' + (zonaDe[dep] || ''), evDep, { dep: dep }); });
+      var marcarGeo = function () {
+        qa('.zn-row[data-city]', box).forEach(function (r) {
+          var m = window.OtifGeo && OtifGeo.distritoDe(r.dataset.city, dep);
+          r.dataset.geo = m ? m.dep + '|' + m.n : '';
+          var nm = q('.zn-name--c span', r);
+          if (nm && !m && !q('.zn-nogeo', nm)) nm.insertAdjacentHTML('beforeend', '<em class="zn-nogeo" title="Esta localidad de SAP no coincide con un distrito oficial: no se ubica en el mapa">sin ubicar</em>');
+        });
+      };
+      if (window.OtifGeo) { if (OtifGeo.listo()) marcarGeo(); else OtifGeo.cargar().then(marcarGeo).catch(function () {}); }
       qa('.zn-row[data-city]', box).forEach(function (r) {
-        var go = function () { var c = r.dataset.city; abrirVendedores(tCase(c), dep + ' · ' + (zonaDe[dep] || ''), evDep.filter(function (o) { return (o.p.region_nombre || o.p.region_cod || '—') === c; }), { dep: dep, city: c }); };
+        var vend = function () { var c = r.dataset.city; abrirVendedores(tCase(c), dep + ' · ' + (zonaDe[dep] || ''), evDep.filter(function (o) { return (o.p.region_nombre || o.p.region_cod || '—') === c; }), { dep: dep, city: c }); };
+        var vgo = q('.zn-vgo', r); if (vgo) { vgo.title = 'Ver vendedores'; vgo.addEventListener('click', function (e) { e.stopPropagation(); vend(); }); }
+        var go = function () { var g = r.dataset.geo; if (g && mapApi && mapApi.distrito) { var p = g.split('|'); mapApi.distrito(p[1], p[0]); } else vend(); };
         r.addEventListener('click', go); r.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       });
       var barras = qa('.zn-bar span', box);
@@ -968,6 +986,40 @@
       var st = q('#stage'); if (st && st.scrollTop > 0) { if (GS) gsap.to(st, { scrollTop: 0, duration: .5, ease: 'power3.inOut' }); else st.scrollTop = 0; }
       if (GS) gsap.fromTo('#znFInfo', { backgroundColor: '#CFE4FA' }, { backgroundColor: '#EEF5FC', duration: 1.2, ease: 'power1.out', clearProps: 'backgroundColor' });
     };
+    // ── Indicadores superiores sincronizados con el mapa: país → zonas; departamento → depto + su zona; distrito → distrito + depto
+    var duoNivel = 'pais';
+    function animarDuo(cards, entrar) {
+      cards.forEach(function (c, i) {
+        var n = q('[data-p]', c), m = q('.zn-meter span', c);
+        if (GS) gsap.from(q('.zn-ico', c), { scale: 0, rotate: -25, duration: .5, delay: .1 + i * .1, ease: 'back.out(2.4)', clearProps: 'transform' });
+        animCount(n, parseFloat(n.dataset.p), function (v) { return pf(v); }, entrar ? 1.1 : .8);
+        crecer([m], { dur: entrar ? 1.1 : .8, delay: .15 + i * .1 });
+      });
+    }
+    function enlazarZonas() {
+      qa('#znDuo .zn-card--z').forEach(function (c) {
+        var go = function () { var z = c.dataset.zona, l = deps.filter(function (d) { return d.zona === z; }).map(function (d) { return d.clave; }); if (mapApi && mapApi.filtro) mapApi.filtro(l); };
+        c.addEventListener('click', go); c.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+    }
+    ZN._alDrill = function (dep, dist) {
+      var duo = q('#znDuo'); if (!duo) return;
+      var nivel = dist ? 'dist:' + dist.nombre : dep ? 'dep:' + dep : 'pais';
+      if (nivel === duoNivel) return; duoNivel = nivel;
+      var html;
+      if (dist) {
+        var gd = deps.filter(function (d) { return d.clave === dep; })[0];
+        html = zonaCard(dist.g, { titulo: tCase(dist.nombre), ico: ICO_PIN, clase: 'cap', lista: dist.evs }) +
+          (gd ? zonaCard(gd, { titulo: dep, ico: ICO_DEP, clase: 'int', lista: evs.filter(function (o) { return o.p.departamento === dep; }) }) : '');
+      } else if (dep) {
+        var gd2 = deps.filter(function (d) { return d.clave === dep; })[0], z = gd2 && zonas.filter(function (x) { return x.clave === gd2.zona; })[0];
+        html = gd2 ? zonaCard(gd2, { titulo: dep, ico: ICO_DEP, clase: 'cap', lista: evs.filter(function (o) { return o.p.departamento === dep; }) }) + (z ? zonaCard(z, { zona: true }) : '') : null;
+      }
+      if (!html) html = zonas.map(function (z2) { return zonaCard(z2, { zona: true }); }).join('');
+      var poner = function () { duo.innerHTML = html; enlazarZonas(); var cs = qa('.zn-card', duo); animarDuo(cs, false); if (GS) gsap.fromTo(cs, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .4, stagger: .07, ease: 'power3.out', clearProps: 'transform,opacity' }); };
+      if (GS) gsap.to(qa('.zn-card', duo), { opacity: 0, y: -8, duration: .18, stagger: .04, ease: 'power1.in', onComplete: poner, overwrite: true }); else poner();
+    };
+    enlazarZonas();
     ajustarAltoZonas();
     pintarFilas(entrada);
     setTimeout(function () { if (!q('#znMapBox') || VIEW !== 'zonas') return; mapApi = pintarMapa(deps, meta, entrada, function (dep) {
@@ -980,12 +1032,7 @@
     }); }, GS && entrada !== false ? 380 : 0);   // el mapa se dibuja cuando termina la entrada de la página
 
     // animación de las tarjetas de zona
-    qa('.zn-card').forEach(function (c, i) {
-      var n = q('[data-p]', c), m = q('.zn-meter span', c);
-      if (GS) gsap.from(q('.zn-ico', c), { scale: 0, rotate: -25, duration: .5, delay: .1 + i * .1, ease: 'back.out(2.4)', clearProps: 'transform' });
-      animCount(n, parseFloat(n.dataset.p), function (v) { return pf(v); }, 1.1);
-      crecer([m], { dur: 1.1, delay: .15 + i * .1 });
-    });
+    animarDuo(qa('#znDuo .zn-card'), true);
     if (GS && entrada !== false) {
       gsap.from('.zn-card', { opacity: 0, y: 18, duration: .5, stagger: .08, ease: 'power3.out', clearProps: 'transform,opacity' });
       gsap.from('#znRank', { opacity: 0, y: 16, duration: .5, delay: .15, ease: 'power3.out', clearProps: 'transform,opacity' });
@@ -1395,8 +1442,18 @@
       var t = Math.sqrt(n / maxN), a = [207, 226, 246], b = [11, 79, 138];
       return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
     }
-    function colorDe(k) { var x = by[k]; if (!x) return '#e2e8f0'; return ZN.lente === 'vol' ? volColor(x.evaluados) : mapColor(x.pOtif, meta); }
-    function textoDe(k) { var x = by[k]; if (!x) return ''; return ZN.lente === 'vol' ? nf(x.evaluados) : Math.round(x.pOtif) + '%'; }
+    var maxF = Math.max.apply(null, deps.map(function (d) { return d.faltan || 0; })) || 1;
+    // Faltantes: de rosa pálido (pocos) a rojo profundo (muchos); en meta = verde suave
+    function faltColor(fa, mx) {
+      if (fa == null) return '#e2e8f0'; if (!fa) return '#BBF7D0';
+      var t = Math.sqrt(fa / (mx || maxF)), a = [254, 215, 215], b = [153, 27, 27];
+      return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')';
+    }
+    function colorG(x, mxN, mxF) { if (!x) return '#e2e8f0'; return ZN.lente === 'vol' ? volColorM(x.evaluados, mxN || maxN) : ZN.lente === 'falt' ? faltColor(x.faltan, mxF || maxF) : mapColor(x.pOtif, meta); }
+    function textoG(x) { if (!x) return ''; return ZN.lente === 'vol' ? nf(x.evaluados) : ZN.lente === 'falt' ? (x.faltan ? nf(x.faltan) : '✓') : Math.round(x.pOtif) + '%'; }
+    function volColorM(n, mx) { if (!n) return '#e2e8f0'; var t = Math.sqrt(n / mx), a = [207, 226, 246], b = [11, 79, 138]; return 'rgb(' + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(',') + ')'; }
+    function colorDe(k) { return colorG(by[k]); }
+    function textoDe(k) { return textoG(by[k]); }
     // Etiquetas: una por departamento con datos (el Chaco, una sola sobre Pdte. Hayes)
     var etiquetas = [], vistos = {};
     M.deptos.forEach(function (d) {
@@ -1421,7 +1478,9 @@
 
     function leyenda() {
       var lg = q('#znMapLeg'); if (!lg) return;
-      lg.innerHTML = ZN.lente === 'vol'
+      lg.innerHTML = ZN.lente === 'falt'
+        ? '<span style="background:linear-gradient(90deg,#BBF7D0,' + faltColor(1, 100) + ',' + faltColor(100, 100) + ')"></span><div><small>En meta</small><small>Más pedidos faltantes p/ ' + pf(meta, 0) + '</small></div>'
+        : ZN.lente === 'vol'
         ? '<span style="background:linear-gradient(90deg,' + volColor(1) + ',' + volColor(maxN) + ')"></span><div><small>Pocos pedidos</small><small>Muchos pedidos</small></div>'
         : '<span style="background:linear-gradient(90deg,' + [meta - 45, meta - 25, meta - 10, meta - 3, meta].map(function (v) { return mapColor(v, meta); }).join(',') + ')"></span><div><small>' + pf(meta - 45, 0) + ' o menos</small><small>Meta ' + pf(meta, 0) + '</small></div>';
     }
@@ -1450,7 +1509,7 @@
       svg.classList.toggle('foco', !!k && apagar !== false);
       qa('.pm-d', svg).forEach(function (p) { p.classList.toggle('on', p.dataset.k === k); });
       var capa = q('.pm-o', svg);
-      capa.innerHTML = k ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', colorDe(k)); var g = p.cloneNode(false); g.removeAttribute('data-k'); g.setAttribute('class', 'pm-glow'); g.setAttribute('fill', 'none'); return g.outerHTML + c.outerHTML; }).join('') : '';
+      capa.innerHTML = k && !(typeof DR !== 'undefined' && DR && DR.k) ? qa('.pm-d[data-k="' + k + '"]', svg).map(function (p) { var c = p.cloneNode(false); c.removeAttribute('data-k'); c.setAttribute('class', 'pm-hl'); c.setAttribute('fill', colorDe(k)); var g = p.cloneNode(false); g.removeAttribute('data-k'); g.setAttribute('class', 'pm-glow'); g.setAttribute('fill', 'none'); return g.outerHTML + c.outerHTML; }).join('') : '';
       if (GS && k) { gsap.fromTo(qa('.pm-hl', capa), { scale: 1 }, { scale: 1.035, transformOrigin: '50% 50%', duration: .32, ease: 'power3.out' }); gsap.fromTo(qa('.pm-glow', capa), { opacity: 0, scale: 1 }, { opacity: 1, scale: 1.035, transformOrigin: '50% 50%', duration: .32, ease: 'power3.out' }); }
       qa('.pm-t', svg).forEach(function (t) { t.classList.toggle('on', t.dataset.k === k); });
       qa('#znRows .zn-row[data-dep]').forEach(function (r) { r.classList.toggle('hl', r.dataset.dep === k); });
@@ -1494,9 +1553,10 @@
       el2.addEventListener('mouseleave', salir);
       var el = el2;
       if (by[k]) el.addEventListener('click', function () {
-        sel = ZN.sel = k; volver();
+        sel = ZN.sel = k;
         if (GS) gsap.fromTo(qa('.pm-d[data-k="' + k + '"]', svg), { scale: 1 }, { scale: 1.035, transformOrigin: '50% 50%', duration: .16, yoyo: true, repeat: 1, ease: 'power1.inOut', clearProps: 'transform' });
-        alTocar(k);
+        var l = ZN.deps || [];
+        if (!(l.length === 1 && l[0] === k)) { ZN.deps = [k]; aplicarFiltro(true, true); }
       });
     });
     // Lente: Cumplimiento / Volumen
@@ -1509,6 +1569,7 @@
         qa('.pm-d', svg).forEach(function (p, i) { var c = colorDe(p.dataset.k); if (GS) gsap.to(p, { attr: { fill: c }, duration: .55, delay: i * .015, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
         pintarRelieve(true);
         refrescarLista(true);
+        if (DR.k) repintarDistritos(true);
         setTimeout(volver, 560);   // el realce toma el color de la nueva vista
         qa('.pm-t', svg).forEach(function (t) {
           if (!GS) { t.textContent = textoDe(t.dataset.k); return; }
@@ -1557,9 +1618,9 @@
         var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
         qa('.pm-g [data-k]', svg).forEach(function (p) { if (!vis(p.dataset.k)) return; var b = p.getBBox(); x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y); x2 = Math.max(x2, b.x + b.width); y2 = Math.max(y2, b.y + b.height); });
         if (x1 < Infinity) {
-          var pad = 40, w = x2 - x1 + pad * 2, h = y2 - y1 + pad * 2 + 20, ar = VB0[2] / VB0[3];
+          var pad = set.length === 1 ? 18 : 40, w = x2 - x1 + pad * 2, h = y2 - y1 + pad * 2 + 20, ar = VB0[2] / VB0[3];
           if (w / h > ar) h = w / ar; else w = h * ar;
-          w = Math.max(w, 260); h = w / ar;
+          w = Math.max(w, set.length === 1 ? 150 : 260); h = w / ar;
           var cx = (x1 + x2) / 2, cy = (y1 + y2) / 2 + 8;
           vb = [cx - w / 2, cy - h / 2, w, h];
         }
@@ -1575,7 +1636,9 @@
         etiq.forEach(function (t) { if (!vis(t.dataset.k)) t.style.opacity = 0; });
         if (GS && anim) gsap.fromTo(ve, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .3, stagger: .03, ease: 'power2.out', overwrite: true, clearProps: 'transform' }); else ve.forEach(function (t) { t.style.opacity = 1; });
         if (usuario && ZN._alFiltrar) requestAnimationFrame(function () { ZN._alFiltrar(); });
+        if (set && set.length === 1) mostrarDistritos(set[0]); else quitarDistritos();
       };
+      if (!(set && set.length === 1)) quitarDistritos(true);
       if (GS && anim) {
         var mapa = svg.closest('.zn-map__box');
         gsap.to(svg, { attr: { viewBox: str }, duration: .7, delay: .1, ease: 'power3.inOut', overwrite: true, onStart: function () { mapa.classList.add('zooming'); }, onComplete: function () { mapa.classList.remove('zooming'); alTerminar(); } });
@@ -1584,12 +1647,12 @@
     var fw = q('#znMFilW');
     var dl = q('#znDList'), LISTA = deps.slice();
     function ordenLista() {   // Cumplimiento: mayor % primero · Volumen: más pedidos primero
-      var vol = ZN.lente === 'vol';
-      LISTA.sort(function (a, b) { return vol ? (b.evaluados - a.evaluados) : ((b.pOtif || 0) - (a.pOtif || 0) || b.evaluados - a.evaluados); });
+      var vol = ZN.lente === 'vol', fa = ZN.lente === 'falt';
+      LISTA.sort(function (a, b) { return vol ? (b.evaluados - a.evaluados) : fa ? ((b.faltan || 0) - (a.faltan || 0)) : ((b.pOtif || 0) - (a.pOtif || 0) || b.evaluados - a.evaluados); });
     }
-    function valItem(d) { return ZN.lente === 'vol' ? nf(d.evaluados) : Math.round(d.pOtif) + '%'; }
+    function valItem(d) { return textoG(d); }
     function refrescarLista(anim) {
-      if (!dl || !q('.zn-di', dl)) return;
+      if (!dl || !q('.zn-dl-all', dl)) return;
       var cont = q('.zn-dl-b', dl), antes = {};
       qa('.zn-di', cont).forEach(function (bt) { antes[bt.dataset.dk] = bt.getBoundingClientRect().top; });
       ordenLista();
@@ -1610,7 +1673,7 @@
     function pintarBotonFiltro() {   // (ahora: lista fija a la derecha del mapa)
       if (!dl) return;
       var e2 = ZN.deps || [];
-      if (!q('.zn-di', dl)) {
+      if (!q('.zn-dl-all', dl)) {
         dl.innerHTML = '<div class="zn-dl-h"><span>Departamentos</span><button type="button" class="zn-dl-all">Todos</button></div><div class="zn-dl-b">' +
           LISTA.map(function (d) {
             return '<button type="button" class="zn-di" data-dk="' + esc(d.clave) + '"><i style="background:' + colorDe(d.clave) + '"></i><span>' + esc(nombreDe(d.clave)) + '</span><b style="color:' + colorDe(d.clave) + '">' + valItem(d) + '</b></button>';
@@ -1692,7 +1755,181 @@
       qa('.pm-d', svg).forEach(function (p) { p.setAttribute('fill', colorDe(p.dataset.k)); });
     }
     setTimeout(function () { if (ZN.deps && ZN.deps.length) aplicarFiltro(true); else volver(); }, GS && entrada !== false ? 650 : 0);
+    /* ═══ Nivel 2/3: distritos del departamento y detalle de un distrito ═══ */
+    var DR = { k: null, g: null, grupos: {}, evs: {}, maxN: 1, maxF: 1, pend: null };
+    var NS = 'http://www.w3.org/2000/svg';
+    var crumb = el('<div class="pm-crumb" hidden></div>'); box.appendChild(crumb);
+    function pintarCrumb() {
+      if (!DR.k) { crumb.hidden = true; return; }
+      crumb.innerHTML = '<button type="button" data-c="pais">' + SV('<path d="M15 18l-6-6 6-6"/>') + 'Paraguay</button><i>›</i>' +
+        (ZN.dist ? '<button type="button" data-c="dep">' + esc(nombreDe(DR.k)) + '</button><i>›</i><b>' + esc(tCase(ZN.dist)) + '</b>' : '<b>' + esc(nombreDe(DR.k)) + '</b>');
+      if (crumb.hidden) { crumb.hidden = false; if (GS) gsap.fromTo(crumb, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: .3, ease: 'power2.out' }); }
+      qa('button', crumb).forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.c === 'pais') { ZN.deps = []; aplicarFiltro(true, true); } else salirDistrito(); }); });
+    }
+    function geoDe(o) { return window.OtifGeo ? OtifGeo.distritoDe(o.p.region_nombre || '', o.p.departamento) : null; }
+    function mostrarDistritos(k) {
+      if (!window.OtifGeo) return;
+      if (DR.k === k && DR.g && !ZN._pendDist) return;
+      OtifGeo.cargar().then(function (D) {
+        if ((ZN.deps || []).length !== 1 || ZN.deps[0] !== k) return;      // el usuario ya cambió
+        var lista = (D || {})[k] || [], evsAll = (ZN._evs || []);
+        var porN = {}, pendLoc = {}, pendN = 0;
+        evsAll.forEach(function (o) {
+          var m = geoDe(o);
+          if (m && m.dep === k) (porN[m.n] = porN[m.n] || []).push(o);
+          else if (!m && o.p.departamento === k) { pendN++; var ln = o.p.region_nombre || o.p.region_cod || '—'; pendLoc[ln] = (pendLoc[ln] || 0) + 1; }
+        });
+        DR.grupos = {}; DR.evs = porN;
+        Object.keys(porN).forEach(function (n) { var g = CALC.resumen(porN[n]); g.clave = n; g.faltan = faltanParaMeta(g, meta); if (g.evaluados) DR.grupos[n] = g; });
+        var gl = Object.keys(DR.grupos).map(function (n) { return DR.grupos[n]; });
+        DR.maxN = Math.max.apply(null, gl.map(function (g) { return g.evaluados; }).concat([1]));
+        DR.maxF = Math.max.apply(null, gl.map(function (g) { return g.faltan || 0; }).concat([1]));
+        DR.pend = { n: pendN, loc: Object.keys(pendLoc).sort(function (a, b) { return pendLoc[b] - pendLoc[a]; }).map(function (l) { return [l, pendLoc[l]]; }) };
+        quitarCapa();
+        DR.k = k;
+        var g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'pm-dist');
+        g.innerHTML = lista.map(function (d) { var x = DR.grupos[d.n]; return '<path class="pm-ds' + (x ? ' has' : '') + '" data-n="' + esc(d.n) + '" d="' + d.d + '" fill="' + (x ? colorG(x, DR.maxN, DR.maxF) : '#EEF2F7') + '"/>'; }).join('') +
+          '<g class="pm-dl">' + lista.filter(function (d) { return DR.grupos[d.n]; }).map(function (d) {
+            var top = Object.keys(DR.grupos).sort(function (a, b) { return DR.grupos[b].evaluados - DR.grupos[a].evaluados; }).slice(0, 7).indexOf(d.n) >= 0;
+            return '<text class="pm-dt' + (top ? ' top' : '') + '" data-n="' + esc(d.n) + '" x="' + d.cx + '" y="' + d.cy + '"><tspan class="pm-dt__v" x="' + d.cx + '" dy="0">' + textoG(DR.grupos[d.n]) + '</tspan><tspan class="pm-dt__n" x="' + d.cx + '" dy="1.25em">' + esc(tCase(d.n)) + '</tspan></text>';
+          }).join('') + '</g>';
+        q('.pm-o', svg).innerHTML = '';                 // sin realce del departamento encima de sus distritos
+        var ref = q('.pm-l', svg); svg.insertBefore(g, ref);
+        DR.g = g; svg.classList.add('drill');
+        qa('.pm-ds', g).forEach(function (p) {
+          var n = p.dataset.n;
+          p.addEventListener('mouseenter', function () { if (DR.grupos[n]) entrarDist(n); });
+          p.addEventListener('mouseleave', salirDist);
+          if (DR.grupos[n]) p.addEventListener('click', function () { seleccionarDistrito(n); });
+        });
+        if (GS) {
+          gsap.fromTo(qa('.pm-ds', g), { opacity: 0 }, { opacity: 1, duration: .45, stagger: { each: .012, from: 'center' }, ease: 'power2.out', clearProps: 'opacity' });
+          gsap.from(qa('.pm-dt', g), { opacity: 0, y: 4, duration: .35, stagger: .02, delay: .25, ease: 'power2.out', clearProps: 'opacity,transform' });
+        }
+        panelDistritos(true);
+        pintarCrumb();
+        if (ZN._alDrill) ZN._alDrill(k, null);
+        if (ZN._pendDist) { var pd = ZN._pendDist; ZN._pendDist = null; setTimeout(function () { seleccionarDistrito(pd); }, GS ? 350 : 0); }
+      }).catch(function (e) { console.warn('[OTIF] distritos', e); });
+    }
+    function quitarCapa() { if (DR.g) { DR.g.remove(); DR.g = null; } svg.classList.remove('drill', 'dfoco'); }
+    function quitarDistritos(soloCapa) {
+      if (!DR.k) return;
+      var g = DR.g; DR.g = null; DR.k = null; ZN.dist = null;
+      svg.classList.remove('drill', 'dfoco');
+      if (g) { if (GS) gsap.to(g, { opacity: 0, duration: .25, ease: 'power1.in', onComplete: function () { g.remove(); } }); else g.remove(); }
+      pintarCrumb();
+      if (dl) { dl.innerHTML = ''; pintarBotonFiltro(); }
+      if (ZN._alDrill) ZN._alDrill(null, null);
+    }
+    function repintarDistritos(anim) {
+      if (!DR.g) return;
+      qa('.pm-ds.has', DR.g).forEach(function (p) { var c = colorG(DR.grupos[p.dataset.n], DR.maxN, DR.maxF); if (GS && anim) gsap.to(p, { attr: { fill: c }, duration: .5, ease: 'power2.inOut' }); else p.setAttribute('fill', c); });
+      qa('.pm-dt__v', DR.g).forEach(function (t) { t.textContent = textoG(DR.grupos[t.parentNode.dataset.n]); });
+      if (ZN.dist) panelDetalle(ZN.dist, false); else panelDistritos(false);
+    }
+    function fichaHtml(nombre, sub, x) {
+      var col = mapColor(x.pOtif, meta), stT = estadoMeta(x.pOtif, meta);
+      return '<div class="pt-h"><i style="background:' + col + '"></i><div><b>' + esc(nombre) + '</b><small>' + esc(sub) + '</small></div></div>' +
+        '<div class="pt-k"><b style="color:' + col + '">' + pf(x.pOtif) + '</b><small>en tiempo y forma</small></div>' +
+        '<div class="pt-s"><span><b>' + nf(x.evaluados) + '</b><small>pedidos</small></span><span><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'faltan p/ ' + pf(meta, 0) : 'en meta') + '</small></span><span><b>' + tiempo(x.cicloMed, true) + '</b><small>tiempo habitual</small></span></div>' +
+        '<em class="st-meta ' + stT.c + '"><i></i>' + stT.t + '</em>';
+    }
+    var actualD = null;
+    function entrarDist(n) {
+      clearTimeout(tSalir);
+      if (actualD === n) return; actualD = n;
+      if (DR.g) { DR.g.classList.add('hov'); qa('.pm-ds', DR.g).forEach(function (p) { p.classList.toggle('on', p.dataset.n === n); }); qa('.pm-dt', DR.g).forEach(function (t) { t.classList.toggle('on', t.dataset.n === n); }); }
+      qa('.zn-dd', dl).forEach(function (b) { b.classList.toggle('hl', b.dataset.n === n); });
+      tip.innerHTML = fichaHtml(tCase(n), 'Distrito · ' + nombreDe(DR.k), DR.grupos[n]);
+      if (tip.hidden) { tip.hidden = false; if (GS) gsap.fromTo(tip, { opacity: 0, scale: .92 }, { opacity: 1, scale: 1, duration: .18, ease: 'power2.out', clearProps: 'transform' }); }
+    }
+    function salirDist() {
+      clearTimeout(tSalir);
+      tSalir = setTimeout(function () {
+        actualD = null;
+        if (DR.g) { DR.g.classList.remove('hov'); qa('.pm-ds', DR.g).forEach(function (p) { p.classList.toggle('on', p.dataset.n === ZN.dist); }); qa('.pm-dt', DR.g).forEach(function (t) { t.classList.toggle('on', t.dataset.n === ZN.dist); }); }
+        qa('.zn-dd', dl).forEach(function (b) { b.classList.remove('hl'); });
+        if (GS) gsap.to(tip, { opacity: 0, duration: .15, onComplete: function () { tip.hidden = true; } }); else tip.hidden = true;
+      }, 120);
+    }
+    function zoomA(vb, alFin) {
+      var str = vb.map(function (v) { return v.toFixed(1); }).join(' '), mapa = svg.closest('.zn-map__box');
+      ZOOM = vb[2] / VB0[2];
+      var fin = function () { svg.style.setProperty('--z', ZOOM); if (alFin) alFin(); };
+      if (GS) gsap.to(svg, { attr: { viewBox: str }, duration: .7, ease: 'power3.inOut', overwrite: true, onStart: function () { mapa.classList.add('zooming'); }, onComplete: function () { mapa.classList.remove('zooming'); fin(); } });
+      else { svg.setAttribute('viewBox', str); fin(); }
+    }
+    function seleccionarDistrito(n) {
+      if (!DR.g || !DR.grupos[n]) return;
+      ZN.dist = n;
+      var p = q('.pm-ds[data-n="' + CSS.escape(n) + '"]', DR.g), b = p.getBBox(), ar = VB0[2] / VB0[3];
+      var w = Math.max(b.width, b.height * ar) * 1.9, h; w = Math.max(w, 110); h = w / ar;
+      zoomA([b.x + b.width / 2 - w / 2, b.y + b.height / 2 - h / 2, w, h]);
+      svg.classList.add('dfoco');
+      qa('.pm-ds', DR.g).forEach(function (x) { x.classList.toggle('sel', x.dataset.n === n); x.classList.toggle('on', x.dataset.n === n); });
+      qa('.pm-dt', DR.g).forEach(function (t) { t.classList.toggle('on', t.dataset.n === n); });
+      if (GS) gsap.fromTo(p, { opacity: .6 }, { opacity: 1, duration: .5, ease: 'power2.out', clearProps: 'opacity' });
+      panelDetalle(n, true);
+      pintarCrumb();
+      if (ZN._alDrill) ZN._alDrill(DR.k, { nombre: n, g: DR.grupos[n], evs: DR.evs[n] });
+    }
+    function salirDistrito() {
+      ZN.dist = null; svg.classList.remove('dfoco');
+      if (DR.g) { qa('.pm-ds', DR.g).forEach(function (x) { x.classList.remove('sel', 'on'); }); qa('.pm-dt', DR.g).forEach(function (t) { t.classList.remove('on'); }); }
+      aplicarFiltro(true);       // vuelve al encuadre del departamento
+      panelDistritos(true); pintarCrumb();
+      if (ZN._alDrill) ZN._alDrill(DR.k, null);
+    }
+    function panelDistritos(anim) {
+      if (!dl || !DR.k) return;
+      var fa = ZN.lente === 'falt', vol = ZN.lente === 'vol';
+      var gl = Object.keys(DR.grupos).map(function (n) { return DR.grupos[n]; }).sort(function (a, b) { return vol ? b.evaluados - a.evaluados : fa ? (b.faltan || 0) - (a.faltan || 0) : (b.pOtif - a.pOtif); });
+      var peor = gl.slice().sort(function (a, b) { return a.pOtif - b.pOtif; })[0], mejor = gl.slice().sort(function (a, b) { return b.pOtif - a.pOtif; })[0];
+      dl.innerHTML = '<div class="zn-dl-h"><span>Distritos · ' + esc(nombreDe(DR.k)) + '</span><button type="button" class="zn-dl-back">' + SV('<path d="M15 18l-6-6 6-6"/>') + 'País</button></div>' +
+        (gl.length > 1 ? '<div class="zn-dd-best"><span class="ok" title="Mejor cumplimiento">▲ ' + esc(tCase(mejor.clave)) + ' <b>' + pf(mejor.pOtif, 0) + '</b></span><span class="bad" title="Peor cumplimiento">▼ ' + esc(tCase(peor.clave)) + ' <b>' + pf(peor.pOtif, 0) + '</b></span></div>' : '') +
+        '<div class="zn-dl-b">' + gl.map(function (x) { var c = colorG(x, DR.maxN, DR.maxF); return '<button type="button" class="zn-di zn-dd" data-n="' + esc(x.clave) + '"><i style="background:' + c + '"></i><span>' + esc(tCase(x.clave)) + '</span><b style="color:' + (vol ? '#0B4F8A' : fa ? '#B91C1C' : c) + '">' + textoG(x) + '</b></button>'; }).join('') +
+        (DR.pend && DR.pend.n ? '<div class="zn-pend" title="' + esc(DR.pend.loc.slice(0, 12).map(function (l) { return tCase(l[0]) + ' (' + l[1] + ')'; }).join(', ')) + '"><b>' + nf(DR.pend.n) + '</b> pedidos en ' + nf(DR.pend.loc.length) + ' localidad' + (DR.pend.loc.length === 1 ? '' : 'es') + ' sin ubicar en el mapa</div>' : '') + '</div>';
+      q('.zn-dl-back', dl).addEventListener('click', function () { ZN.deps = []; aplicarFiltro(true, true); });
+      qa('.zn-dd', dl).forEach(function (b) {
+        b.addEventListener('mouseenter', function () { entrarDist(b.dataset.n); tip.hidden = true; });
+        b.addEventListener('mouseleave', salirDist);
+        b.addEventListener('click', function () { seleccionarDistrito(b.dataset.n); });
+      });
+      if (GS && anim) gsap.from(qa('.zn-dl-h, .zn-dd-best, .zn-dd, .zn-pend', dl).slice(0, 18), { opacity: 0, x: 10, duration: .3, stagger: .025, ease: 'power2.out', clearProps: 'transform,opacity' });
+    }
+    function panelDetalle(n, anim) {
+      if (!dl) return;
+      var x = DR.grupos[n], lista = DR.evs[n] || [], col = mapColor(x.pOtif, meta);
+      var vend = CALC.agrupar(lista, function (p) { return p.vendedor_nombre || p.vendedor_cod || '—'; }).filter(function (v) { return v.evaluados; }).sort(function (a, b) { return b.evaluados - a.evaluados; });
+      var locs = {}; lista.forEach(function (o) { var l = o.p.region_nombre || o.p.region_cod; if (l) locs[l] = 1; });
+      dl.innerHTML = '<div class="zn-dl-h"><span>Distrito</span><button type="button" class="zn-dl-back">' + SV('<path d="M15 18l-6-6 6-6"/>') + esc(nombreDe(DR.k)) + '</button></div>' +
+        '<div class="zn-det">' +
+          '<b class="zn-det__n">' + esc(tCase(n)) + '</b>' +
+          '<div class="zn-det__k" style="color:' + col + '"><span data-p="' + x.pOtif + '">' + pf(x.pOtif) + '</span><small>en tiempo y forma</small></div>' +
+          '<div class="zn-det__m"><span data-w="' + Math.min(100, x.pOtif || 0).toFixed(1) + '" style="background:' + col + '"></span><em style="left:' + meta + '%"></em></div>' +
+          '<div class="zn-det__s"><span><b>' + nf(x.evaluados) + '</b><small>pedidos</small></span><span><b>' + (x.faltan ? nf(x.faltan) : '✓') + '</b><small>' + (x.faltan ? 'faltan p/ ' + pf(meta, 0) : 'en meta') + '</small></span><span><b>' + tiempo(x.cicloMed, true) + '</b><small>tiempo</small></span></div>' +
+          '<div class="zn-det__t">Vendedores · ' + nf(vend.length) + '</div>' +
+          '<div class="zn-det__v">' + vend.slice(0, 5).map(function (v) { var c2 = semColor(v.pOtif); return '<div><span>' + esc(tCase(v.clave)) + '</span><em>' + nf(v.evaluados) + '</em><b style="color:' + c2 + '">' + pf(v.pOtif, 0) + '</b></div>'; }).join('') + '</div>' +
+          '<button type="button" class="zn-det__go">Ver vendedores</button>' +
+          '<div class="zn-det__l">Localidades SAP: ' + Object.keys(locs).map(function (l) { return esc(tCase(l)); }).join(', ') + '</div>' +
+        '</div>';
+      q('.zn-dl-back', dl).addEventListener('click', salirDistrito);
+      q('.zn-det__go', dl).addEventListener('click', function () { abrirVendedores(tCase(n), 'Distrito · ' + nombreDe(DR.k), lista, { dep: DR.k }); });
+      var m = q('.zn-det__m span', dl);
+      if (GS && anim) {
+        gsap.from(qa('.zn-dl-h, .zn-det > *', dl), { opacity: 0, y: 8, duration: .32, stagger: .04, ease: 'power2.out', clearProps: 'transform,opacity' });
+        animCount(q('.zn-det__k span', dl), x.pOtif, function (v) { return pf(v); }, .8);
+      }
+      crecer([m], { anim: !!(GS && anim), dur: .8, delay: .15 });
+    }
+
     return {
+      distrito: function (n, dep) {
+        var l = ZN.deps || [];
+        if (l.length === 1 && l[0] === dep && DR.k === dep && DR.g) seleccionarDistrito(n);
+        else { ZN._pendDist = n; ZN.deps = [dep]; aplicarFiltro(true, true); }
+      },
       filtro: function (l) { ZN.deps = l; aplicarFiltro(true, true); },
       foco: function (k) {
         clearTimeout(tSalir);

@@ -1838,3 +1838,38 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--alas-bg);color:va
 .pl-tit{margin:0;font-size:34px;letter-spacing:1px;line-height:1}
 .pl-sub{margin-top:12px;font-size:12.5px;color:rgba(255,255,255,.7)}
 .pl-bar{margin-top:12px;height:5px}
+
+/* Precarga v3: sin anillo — marca + barra 0-100 */
+.pl-card--bar{display:flex;flex-direction:column;align-items:stretch;gap:26px;width:min(460px,100%);padding:32px 34px 30px}
+.pl-card--bar .pl-brand{position:relative;z-index:1;display:flex;align-items:center;gap:14px}
+.pl-card--bar .pl-logo{width:50px;height:50px;border-radius:15px}
+.pl-card--bar .pl-logo img{width:28px;height:28px}
+.pl-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pl-card--bar .pl-tit{font-family:Sora,Inter,sans-serif;font-size:30px;font-weight:800;letter-spacing:1.5px;line-height:1}
+.pl-cap{font-size:13px;font-weight:600;color:rgba(255,255,255,.75)}
+.pl-prog{position:relative;z-index:1}
+.pl-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.pl-card--bar .pl-sub{margin:0;font-size:12px;font-weight:600;color:rgba(255,255,255,.7)}
+.pl-num{display:inline-flex;align-items:baseline;font-family:Sora,Inter,sans-serif;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;transform-origin:100% 100%}
+.pl-num b{font-size:26px;letter-spacing:-.5px}
+.pl-num small{font-size:13px;margin-left:2px;opacity:.75}
+.pl-card--bar .pl-bar{margin:0;height:8px;background:rgba(255,255,255,.14)}
+.pl-card--bar .pl-bar i{background:linear-gradient(90deg,#7FC1F5,#fff)}
+.pl-card--bar .pl-bar i b{width:30%}
+
+/* Precarga: fondo de mapa (puntos + ruta con pines) */
+.pl-ov--map{overflow:hidden;background:radial-gradient(ellipse at 50% 45%,rgba(20,114,190,.06),transparent 72%),#F7FAFD}
+.pl-ov--map::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(11,79,138,.16) 1.2px,transparent 1.6px);background-size:22px 22px;-webkit-mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%);mask-image:radial-gradient(ellipse at 50% 50%,#000 30%,transparent 78%);pointer-events:none}
+.pl-map{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.55}
+.pl-map__ruta-bg{fill:none;stroke:rgba(11,79,138,.12);stroke-width:1.5;stroke-dasharray:3 7}
+.pl-map__ruta{fill:none;stroke:#1466B0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.pl-map__dot{fill:#1466B0}
+.pl-map__pulse{fill:none;stroke:#1466B0;stroke-width:1.5;opacity:0}
+.pl-map__pin path{fill:#0B4F8A}
+.pl-map__pin circle{fill:#fff}
+.pl-map__pin{opacity:0}
+.pl-ov--map .pl-card{position:relative;z-index:1}
+
+.pl-map{opacity:.38}
+.pl-map__ruta-bg{stroke:rgba(11,79,138,.10);stroke-width:1.2;stroke-dasharray:2 7}
+.pl-map__ruta{stroke-width:1.6}

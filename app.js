@@ -2808,45 +2808,65 @@
   }
 
   /* ── Init ── */
-  /* Pantalla de inicio (tarjeta ancha): anillo 0→100 % a la izquierda; a la derecha título,
-     pasos que se tildan y barra de progreso ancha con brillo. Todo con GSAP. */
-  var PRE_PASOS = ['Conectando con la base', 'Leyendo la configuración', 'Cargando los pedidos de todos los meses', 'Calculando el cumplimiento'];
+  /* Pantalla de inicio: logo + OTIF + "Pedidos en tiempo y forma" y una barra 0→100 %.
+     Precarga todos los meses; animaciones GSAP (entrada escalonada, barra con brillo, cierre). */
+  // Recorrido de reparto de fondo (lienzo 1000×600): paradas repartidas, tramos curvos
+  var RUTA = [[110, 130], [250, 210], [190, 380], [330, 470], [470, 540], [560, 70], [700, 140], [790, 300], [900, 210], [880, 470], [740, 530]];
+  var PIN = '<path d="M12 22s-7.5-7.1-7.5-12.6a7.5 7.5 0 0115 0C19.5 14.9 12 22 12 22z"/><circle cx="12" cy="9.4" r="2.8"/>';
+  function tramo(p0, p1, k) {   // curva suave entre dos paradas (se arquea alternando de lado)
+    var mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2, dx = p1[0] - p0[0], dy = p1[1] - p0[1], sg = k % 2 ? 1 : -1;
+    return 'M' + p0[0] + ' ' + p0[1] + ' Q' + (mx - dy * .22 * sg).toFixed(1) + ' ' + (my + dx * .22 * sg).toFixed(1) + ' ' + p1[0] + ' ' + p1[1];
+  }
+  function mapaFondo() {
+    var tr = '', bg = '';
+    for (var i = 1; i < RUTA.length; i++) { var d = tramo(RUTA[i - 1], RUTA[i], i); bg += '<path class="pl-map__ruta-bg" d="' + d + '"/>'; tr += '<path class="pl-map__ruta" d="' + d + '"/>'; }
+    return '<svg class="pl-map" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' + bg + tr +
+      RUTA.map(function (p) {
+        return '<g class="pl-map__p" transform="translate(' + p[0] + ' ' + p[1] + ')"><circle class="pl-map__pulse" r="6"/><circle class="pl-map__dot" r="2.6"/>' +
+          '<g class="pl-map__pin" transform="translate(-9.6 -21) scale(.8)">' + PIN + '</g></g>';
+      }).join('') + '</svg>';
+  }
+  // Cada tramo se dibuja hasta la próxima parada; el pin cae y late al llegar. Se repite.
+  function animarRuta(ov) {
+    var trs = qa('.pl-map__ruta', ov), ps = qa('.pl-map__p', ov); if (!ps.length) return { kill: function () {} };
+    var lens = trs.map(function (t) { return t.getTotalLength(); });
+    var pins = ps.map(function (p) { return q('.pl-map__pin', p); }), pul = ps.map(function (p) { return q('.pl-map__pulse', p); }), dots = ps.map(function (p) { return q('.pl-map__dot', p); });
+    var tl = gsap.timeline({ repeat: -1, delay: .4 });
+    tl.set(trs, { opacity: 1 });
+    trs.forEach(function (t, k) { tl.set(t, { strokeDasharray: lens[k], strokeDashoffset: lens[k] }, 0); });
+    tl.set(pins, { opacity: 0, y: -10, transformOrigin: '50% 100%' }, 0)
+      .set(dots, { scale: 0, opacity: 1, transformOrigin: '50% 50%' }, 0)
+      .set(pul, { opacity: 0, transformOrigin: '50% 50%' }, 0);
+    ps.forEach(function (p, k) {
+      if (k > 0) tl.to(trs[k - 1], { strokeDashoffset: 0, duration: lens[k - 1] / 300, ease: 'sine.inOut' });
+      tl.to(dots[k], { scale: 1, duration: .25, ease: 'back.out(3)' }, '>-.05')
+        .to(pins[k], { opacity: 1, y: 0, duration: .5, ease: 'bounce.out' }, '<')
+        .fromTo(pul[k], { scale: .5, opacity: .5 }, { scale: 3.4, opacity: 0, duration: 1.1, ease: 'power2.out' }, '<');
+    });
+    tl.to({}, { duration: 1.2 })
+      .to(trs.concat(pins, dots), { opacity: 0, duration: .7, ease: 'power1.inOut' });
+    return tl;
+  }
   function precargaInicio() {
-    var R = 60, C = 2 * Math.PI * R, t0 = Date.now(), host = q('#stage'), rc = host.getBoundingClientRect();
+    var t0 = Date.now(), host = q('#stage'), rc = host.getBoundingClientRect();
     host.innerHTML = '';
-    var ov = el('<div class="pl-ov" role="status" aria-live="polite"><div class="pl-card">' +
+    var ov = el('<div class="pl-ov pl-ov--map" role="status" aria-live="polite">' + mapaFondo() + '<div class="pl-card pl-card--bar">' +
       '<div class="pl-glow"></div>' +
-      '<div class="pl-left"><div class="pl-ring"><svg viewBox="0 0 144 144"><circle class="halo" cx="72" cy="72" r="70"/><circle class="bg" cx="72" cy="72" r="' + R + '"/><circle class="fg" cx="72" cy="72" r="' + R + '" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + C.toFixed(2) + '"/></svg>' +
-        '<div class="pl-pct"><span>0</span><small>%</small></div>' +
-        '<svg class="pl-ok" viewBox="0 0 144 144"><circle cx="72" cy="72" r="50"/><path d="M50 74 l15 15 l30 -33"/></svg></div></div>' +
-      '<div class="pl-right">' +
-        '<div class="pl-brand"><span class="pl-logo"><img src="logo-icon.png" alt="ALAS" draggable="false"></span><span class="pl-tit">OTIF</span></div>' +
-        '<div class="pl-sub" id="plSub">Conectando…</div>' +
-        '<div class="pl-bar"><i id="plBar"><b></b></i></div>' +
-      '</div></div></div>');
+      '<div class="pl-brand"><span class="pl-logo"><img src="logo-icon.png" alt="ALAS" draggable="false"></span>' +
+        '<span class="pl-txt"><span class="pl-tit">OTIF</span><span class="pl-cap">Pedidos en tiempo y forma</span></span></div>' +
+      '<div class="pl-prog"><div class="pl-row"><span class="pl-sub" id="plSub">Conectando…</span><span class="pl-num"><b id="plPct">0</b><small>%</small></span></div>' +
+        '<div class="pl-bar"><i id="plBar"><b></b></i></div></div>' +
+      '</div></div>');
     if (rc.width > 300) { ov.style.left = rc.left + 'px'; ov.style.top = rc.top + 'px'; ov.style.width = rc.width + 'px'; ov.style.height = rc.height + 'px'; }
     document.body.appendChild(ov);
-    var card = q('.pl-card', ov), fg = q('.fg', ov), num = q('.pl-pct span', ov), sub = q('#plSub', ov), bar = q('#plBar', ov), halo = q('.halo', ov), steps = qa('.pl-step', ov);
-    var st = { v: 0 }, obj = 0, tw = null, twB = null, loops = [], pasoAct = -1;
-    var dibujar = function () { fg.setAttribute('stroke-dashoffset', (C * (1 - st.v / 100)).toFixed(2)); num.textContent = Math.round(st.v); };
+    var card = q('.pl-card', ov), num = q('#plPct', ov), sub = q('#plSub', ov), bar = q('#plBar', ov);
+    var st = { v: 0 }, obj = 0, tw = null, loops = [];
+    var dibujar = function () { num.textContent = Math.round(st.v); bar.style.width = st.v.toFixed(2) + '%'; };
     var ir = function (p, dur) {
       obj = Math.max(obj, Math.min(100, p));
-      if (!GS) { st.v = obj; dibujar(); bar.style.width = obj + '%'; return; }
-      if (tw) tw.kill(); if (twB) twB.kill();
-      tw = gsap.to(st, { v: obj, duration: dur || .55, ease: 'power2.out', onUpdate: dibujar });
-      twB = gsap.to(bar, { width: obj + '%', duration: dur || .55, ease: 'power2.out' });
-    };
-    var paso = function (i) {
-      if (i <= pasoAct) return; pasoAct = i;
-      steps.forEach(function (sx, k) {
-        var was = sx.classList.contains('is-ok');
-        sx.classList.toggle('is-ok', k < i); sx.classList.toggle('is-on', k === i);
-        if (k < i && !was && GS) {
-          gsap.fromTo(q('.pl-step__i', sx), { scale: .5 }, { scale: 1, duration: .45, ease: 'back.out(2.8)', clearProps: 'transform' });
-          var pth = q('path', sx); gsap.fromTo(pth, { strokeDasharray: 24, strokeDashoffset: 24 }, { strokeDashoffset: 0, duration: .35, delay: .06, ease: 'power2.out' });
-        }
-        if (k === i && GS) gsap.fromTo(q('.pl-step__t', sx), { x: -4, opacity: .5 }, { x: 0, opacity: 1, duration: .3, ease: 'power2.out', clearProps: 'transform,opacity' });
-      });
+      if (!GS) { st.v = obj; dibujar(); return; }
+      if (tw) tw.kill();
+      tw = gsap.to(st, { v: obj, duration: dur || .6, ease: 'power2.out', onUpdate: dibujar });
     };
     var texto = function (t) {
       if (sub.textContent === t) return;
@@ -2855,44 +2875,35 @@
     };
     if (GS) {
       gsap.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.out' });
-      gsap.fromTo(card, { opacity: 0, y: 24, scale: .94 }, { opacity: 1, y: 0, scale: 1, duration: .65, ease: 'back.out(1.5)' });
-      gsap.from(q('.pl-ring', ov), { scale: .7, rotation: -40, opacity: 0, duration: .7, delay: .1, ease: 'back.out(1.7)' });
-      gsap.from(q('.pl-logo', ov), { opacity: 0, scale: .5, rotation: -25, duration: .6, delay: .2, ease: 'back.out(2.2)', clearProps: 'transform,opacity' });
-      gsap.from(q('.pl-tit', ov), { opacity: 0, x: 16, letterSpacing: '8px', duration: .6, delay: .3, ease: 'power3.out', clearProps: 'transform,opacity,letterSpacing' });
-      gsap.from(q('.pl-sub', ov), { opacity: 0, y: 6, duration: .4, delay: .45, ease: 'power2.out', clearProps: 'transform,opacity' });
-      gsap.from(q('.pl-bar', ov), { opacity: 0, scaleX: .6, transformOrigin: '0 50%', duration: .5, delay: .55, ease: 'power3.out', clearProps: 'transform,opacity' });
-      gsap.set(halo, { transformOrigin: '50% 50%' });
-      loops.push(gsap.to(halo, { rotation: 360, duration: 7, ease: 'none', repeat: -1 }));
-      loops.push(gsap.fromTo(q('.pl-bar b', ov), { xPercent: -120 }, { xPercent: 260, duration: 1.4, ease: 'power1.inOut', repeat: -1, repeatDelay: .25 }));
-      loops.push(gsap.to(q('.pl-glow', ov), { x: 40, y: 18, scale: 1.15, duration: 3.2, ease: 'sine.inOut', yoyo: true, repeat: -1 }));
-      ir(5, 1);
+      gsap.fromTo(card, { opacity: 0, y: 22, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: .65, ease: 'back.out(1.5)' });
+      gsap.from(q('.pl-logo', ov), { opacity: 0, scale: .5, rotation: -25, duration: .6, delay: .15, ease: 'back.out(2.2)', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-tit', ov), { opacity: 0, x: 14, letterSpacing: '10px', duration: .65, delay: .25, ease: 'power3.out', clearProps: 'transform,opacity,letterSpacing' });
+      gsap.from(q('.pl-cap', ov), { opacity: 0, x: 10, duration: .5, delay: .38, ease: 'power3.out', clearProps: 'transform,opacity' });
+      gsap.from(q('.pl-prog', ov), { opacity: 0, y: 8, duration: .5, delay: .5, ease: 'power2.out', clearProps: 'transform,opacity' });
+      loops.push(gsap.fromTo(q('.pl-bar b', ov), { xPercent: -120 }, { xPercent: 320, duration: 1.5, ease: 'power1.inOut', repeat: -1, repeatDelay: .2 }));
+      loops.push(gsap.to(q('.pl-glow', ov), { x: 50, y: 20, scale: 1.18, duration: 3.4, ease: 'sine.inOut', yoyo: true, repeat: -1 }));
+      ir(4, 1.2);
+      loops.push(animarRuta(ov));
     }
-    paso(0);
     var cerrar = function (cb) {
       if (!GS) { ov.remove(); if (cb) cb(); return; }
-      gsap.to(card, { opacity: 0, y: -10, scale: 1.03, duration: .32, ease: 'power2.in' });
+      gsap.to(card, { opacity: 0, y: -10, scale: 1.02, duration: .32, ease: 'power2.in' });
       gsap.to(ov, { opacity: 0, duration: .36, delay: .08, ease: 'power1.in', onComplete: function () { loops.forEach(function (l) { l.kill(); }); ov.remove(); if (cb) cb(); } });
     };
     return {
-      base: function () { paso(2); ir(12); },
-      ir: function (fr, listos, n) {
-        ir(12 + fr * 86);
-        texto(n ? listos + ' de ' + n + ' meses' : 'Cargando…');
-        if (n && listos >= n) paso(3);
-      },
+      base: function () { ir(10); texto('Cargando pedidos…'); },
+      ir: function (fr, listos, n) { ir(10 + fr * 88); texto(n ? 'Cargando pedidos · ' + listos + ' de ' + n + ' meses' : 'Cargando pedidos…'); },
       fin: function () {
         return new Promise(function (ok) {
           setTimeout(function () {
-            paso(4); texto('Listo');
+            texto('Listo');
             if (!GS) { st.v = 100; dibujar(); cerrar(ok); return; }
-            if (tw) tw.kill(); if (twB) twB.kill(); obj = 100;
-            gsap.to(bar, { width: '100%', duration: .35, ease: 'power2.inOut' });
-            gsap.to(st, { v: 100, duration: .35, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
-              var tl = gsap.timeline({ onComplete: function () { setTimeout(function () { cerrar(); ok(); }, 120); } });
-              tl.to(q('.pl-pct', ov), { opacity: 0, scale: .7, duration: .18, ease: 'power2.in' })
-                .fromTo(q('.pl-ok', ov), { opacity: 0, scale: .4, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: .4, ease: 'back.out(2.2)' }, '-=.04')
-                .fromTo(q('.pl-ok path', ov), { strokeDasharray: 70, strokeDashoffset: 70 }, { strokeDashoffset: 0, duration: .32, ease: 'power2.out' }, '-=.22')
-                .to(q('.pl-ring', ov), { scale: 1.06, duration: .14, yoyo: true, repeat: 1, ease: 'power1.inOut' }, '-=.1');
+            if (tw) tw.kill(); obj = 100;
+            gsap.to(st, { v: 100, duration: .45, ease: 'power2.inOut', onUpdate: dibujar, onComplete: function () {
+              card.classList.add('is-done');
+              gsap.timeline({ onComplete: function () { setTimeout(function () { cerrar(); ok(); }, 160); } })
+                .fromTo(q('.pl-num', ov), { scale: 1 }, { scale: 1.12, duration: .16, yoyo: true, repeat: 1, ease: 'power1.inOut' })
+                .fromTo(q('.pl-bar', ov), { boxShadow: '0 0 0 rgba(159,211,255,0)' }, { boxShadow: '0 0 18px rgba(159,211,255,.9)', duration: .25, yoyo: true, repeat: 1, ease: 'power1.inOut' }, 0);
             } });
           }, Math.max(0, 700 - (Date.now() - t0)));
         });
